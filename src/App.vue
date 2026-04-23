@@ -5,7 +5,16 @@ import * as PIXI from 'pixi.js'
 import { defaultGameConfig } from './game'
 
 const canvasEl = ref<HTMLDivElement | null>(null)
+const isHelloActive = ref(false)
 let app: PIXI.Application | null = null
+let title: PIXI.Text | null = null
+
+const toggleHello = () => {
+  isHelloActive.value = !isHelloActive.value
+  if (!title) return
+
+  title.style.fill = isHelloActive.value ? '#38bdf8' : '#e2e8f0'
+}
 
 onMounted(async () => {
   if (!canvasEl.value) return
@@ -21,33 +30,34 @@ onMounted(async () => {
 
   canvasEl.value.appendChild(app.canvas)
 
-  const title = new PIXI.Text({
-    text: 'Pixi + Vue + TS Template',
+  title = new PIXI.Text({
+    text: 'Hello',
     style: {
       fill: '#e2e8f0',
-      fontSize: 28,
+      fontSize: 40,
       fontWeight: '700',
     },
   })
   title.anchor.set(0.5)
-  title.position.set(app.screen.width / 2, app.screen.height / 2 - 24)
+  title.position.set(app.screen.width / 2, app.screen.height / 2 - 10)
   app.stage.addChild(title)
 
   const hint = new PIXI.Text({
-    text: `Empty starter for ${defaultGameConfig.title}`,
+    text: `点击下方按钮切换 Hello 颜色 · ${defaultGameConfig.title}`,
     style: {
       fill: '#94a3b8',
       fontSize: 16,
     },
   })
   hint.anchor.set(0.5)
-  hint.position.set(app.screen.width / 2, app.screen.height / 2 + 18)
+  hint.position.set(app.screen.width / 2, app.screen.height / 2 + 28)
   app.stage.addChild(hint)
 })
 
 onBeforeUnmount(async () => {
   await app?.destroy(true)
   app = null
+  title = null
 })
 </script>
 
@@ -66,7 +76,12 @@ onBeforeUnmount(async () => {
           <li>Shared assets go in <code>src/assets/</code>.</li>
         </ul>
       </div>
-      <div ref="canvasEl" class="game-canvas" aria-label="Pixi canvas area" />
+      <div class="stage-wrap">
+        <button class="start-button" type="button" @click="toggleHello">
+          {{ isHelloActive ? '点击切回' : '点击开始' }}
+        </button>
+        <div ref="canvasEl" class="game-canvas" aria-label="Pixi canvas area" />
+      </div>
     </section>
   </main>
 </template>
