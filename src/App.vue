@@ -2,6 +2,8 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import * as PIXI from 'pixi.js'
 
+import { defaultGameConfig } from './game'
+
 const canvasEl = ref<HTMLDivElement | null>(null)
 let app: PIXI.Application | null = null
 
@@ -32,7 +34,7 @@ onMounted(async () => {
   app.stage.addChild(title)
 
   const hint = new PIXI.Text({
-    text: 'Empty starter for future mini games',
+    text: `Empty starter for ${defaultGameConfig.title}`,
     style: {
       fill: '#94a3b8',
       fontSize: 16,
@@ -58,6 +60,11 @@ onBeforeUnmount(async () => {
         <p class="description">
           这是一个空白小游戏模板，后续创建的 JS 小游戏都可以直接基于它开发。
         </p>
+        <ul class="notes">
+          <li>Pixi bootstrapping lives in <code>src/App.vue</code>.</li>
+          <li>Game-specific code goes in <code>src/game/</code>.</li>
+          <li>Shared assets go in <code>src/assets/</code>.</li>
+        </ul>
       </div>
       <div ref="canvasEl" class="game-canvas" aria-label="Pixi canvas area" />
     </section>

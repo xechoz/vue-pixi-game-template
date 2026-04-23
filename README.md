@@ -29,3 +29,20 @@ This repository is configured to deploy via GitHub Actions to GitHub Pages on ev
 After the first successful deployment, the site will be available at:
 
 `https://xechoz.github.io/vue-pixi-game-template/`
+
+## How to use as a template
+
+1. Click `Use this template` on GitHub, or clone this repository.
+2. Rename the project for your game.
+3. Keep `src/App.vue` as the Pixi bootstrapping entry.
+4. Put gameplay code in `src/game/`.
+5. Put shared assets in `src/assets/`.
+6. Replace the placeholder copy and canvas shell with your game UI.
+
+## Conventions
+
+- Keep the project empty by default.
+- Put Pixi initialization in the root view component only.
+- Keep reusable game logic in `src/game/`.
+- Keep rendering assets in `src/assets/`.
+- Prefer small, focused commits when evolving the template.
