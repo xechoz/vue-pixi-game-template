@@ -8,12 +8,22 @@ A minimal template for future HTML/JS mini games.
 - TypeScript
 - PixiJS 8
 - Vite
+- ESLint
+- Prettier
 
 ## Development
 
 ```bash
 npm install
 npm run dev
+```
+
+## Quality checks
+
+```bash
+npm run lint
+npm run format:check
+npm run build
 ```
 
 ## Build
