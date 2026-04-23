@@ -1,0 +1,18 @@
+# Logs
+node_modules
+npm-debug.log*
+*.log
+
+# Build output
+dist
+coverage
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Env files
+.env
+.env.*
+!.env.example
