@@ -306,10 +306,6 @@ function startDiceSpin() {
   rollFrameId = window.requestAnimationFrame(spin)
 }
 
-function getPlayerControlLabel(player: GameState['players'][number]) {
-  return player.humanControlled ? '人类' : '电脑'
-}
-
 function getPlayerPieceTexture(playerIndex: number) {
   return playerPieceTextures[playerIndex] ?? pieceTexture
 }
@@ -321,15 +317,6 @@ function getHumanAutoMovePieceId() {
   if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
   if (legalIds.length === 1) return legalIds[0] ?? null
   return null
-}
-
-function getTurnPrompt() {
-  if (game.value.winnerIndex !== null) return `${winner.value?.name ?? '游戏'} 已结束`
-  if (isRolling.value) return `${currentPlayer.value.name} 掷骰中…`
-  if (game.value.dice === null) return `${currentPlayer.value.name} 轮到投骰`
-  if (legalPieces.value.length > 1) return `${currentPlayer.value.name} 请选择棋子`
-  if (legalPieces.value.length === 1 && currentPlayer.value.humanControlled) return `${currentPlayer.value.name} 自动走子中`
-  return `${currentPlayer.value.name} 行动中`
 }
 
 function getDiceTexture(value: number) {
@@ -848,25 +835,17 @@ function renderScene() {
       .stroke({ color: player.color, width: 2, alpha: 0.35 })
     board.addChild(playerBase)
 
-    const cornerTag = drawText(player.corner, zoneX + zoneSize / 2, zoneY + 12, {
-      anchor: 0.5,
-      fontSize: 14,
-      fill: player.color,
-      fontWeight: '700',
-    })
-    board.addChild(cornerTag)
-
     const portraitTexture = getPlayerPieceTexture(player.index)
     if (portraitTexture) {
       const portrait = new PIXI.Sprite(portraitTexture)
       portrait.anchor.set(0.5)
       portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
-      portrait.width = zoneSize * 0.42
-      portrait.height = zoneSize * 0.42
+      portrait.width = zoneSize * 0.46
+      portrait.height = zoneSize * 0.46
       board.addChild(portrait)
 
       const portraitRing = new PIXI.Graphics()
-        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.24)
+        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.26)
         .stroke({ color: 0xffffff, width: 2, alpha: 0.24 })
       board.addChild(portraitRing)
     }
@@ -878,13 +857,6 @@ function renderScene() {
       .fill({ color: player.color, alpha: 0.08 })
       .stroke({ color: player.color, width: 1, alpha: 0.24 })
     board.addChild(finishBox)
-
-    const label = drawText(`${player.name} · ${getPlayerControlLabel(player)}`, zoneX + zoneSize / 2, zoneY + zoneSize - 18, {
-      anchor: 0.5,
-      fontSize: 13,
-      fill: 0xcbd5e1,
-    })
-    board.addChild(label)
 
     function gapSize() {
       return safeBoardSize * 0.028
@@ -944,29 +916,31 @@ function renderScene() {
   }
 
   if (diceValue === null) {
-    const diceLabel = drawText(isDiceRolling ? '掷骰中' : '掷骰', 0, -4, {
-      anchor: 0.5,
-      fontSize: 26,
-      fill: 0xf8fafc,
-      fontWeight: '800',
-    })
-    diceGroup.addChild(diceLabel)
+    const idleMark = new PIXI.Graphics()
+      .circle(0, 0, diceSize * 0.26)
+      .stroke({ color: currentDiceTint, width: 4, alpha: 0.16 + diceIdlePulse.value * 0.18 })
+    diceGroup.addChild(idleMark)
 
-    const diceHint = drawText(isDiceRolling ? '请稍等' : '点击投掷', 0, 20, {
-      anchor: 0.5,
-      fontSize: 12,
-      fill: 0x94a3b8,
-    })
-    diceGroup.addChild(diceHint)
+    const idleDot = new PIXI.Graphics()
+      .circle(0, 0, diceSize * 0.08)
+      .fill({ color: 0xffffff, alpha: 0.9 })
+    diceGroup.addChild(idleDot)
+
+    const idleSquares = 1 + Math.floor(((rollingFace.value || 1) - 1) / 2)
+    const offset = diceSize * 0.18
+    for (let i = 0; i < idleSquares; i += 1) {
+      const dot = new PIXI.Graphics()
+        .circle(-offset + i * offset, 0, diceSize * 0.045)
+        .fill({ color: currentDiceTint, alpha: 0.14 + diceIdlePulse.value * 0.12 })
+      diceGroup.addChild(dot)
+    }
   }
 
-  const turnPromptText = drawText(getTurnPrompt(), 0, -diceSize * 0.82, {
-    anchor: 0.5,
-    fontSize: 12,
-    fill: currentPlayer.value.color,
-    fontWeight: '800',
-  })
-  diceGroup.addChild(turnPromptText)
+  const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.06 : 0)
+  const shakeX = diceIdleShake.value * (isRolling.value ? 4 : 3)
+  const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2
+  diceGroup.position.set(shakeX, shakeY - diceIdleLift.value)
+  diceGroup.scale.set(diceSpinScale.value * diceScaleBoost)
 
   const currentPlayerBadge = new PIXI.Graphics()
     .roundRect(-diceSize * 0.54, diceSize * 0.72, diceSize * 1.08, 28, 14)
@@ -974,22 +948,13 @@ function renderScene() {
     .stroke({ color: currentPlayer.value.color, width: 2, alpha: 0.7 })
   diceGroup.addChild(currentPlayerBadge)
 
-  const currentPlayerLabel = drawText(currentPlayer.value.name, 0, diceSize * 0.72 + 14, {
-    anchor: 0.5,
-    fontSize: 13,
-    fill: 0xf8fafc,
-    fontWeight: '800',
-  })
-  diceGroup.addChild(currentPlayerLabel)
+  const resultHint = diceValue === null
+    ? null
+    : new PIXI.Graphics()
+        .roundRect(-diceSize * 0.24, diceSize * 0.86, diceSize * 0.48, 12, 6)
+        .fill({ color: currentPlayer.value.color, alpha: isDiceRolling ? 0.18 : 0.22 })
+  if (resultHint) diceGroup.addChild(resultHint)
 
-  if (diceValue !== null) {
-    const resultHint = drawText(isDiceRolling ? '旋转中…' : `点数 ${diceValue}`, 0, diceSize * 0.98, {
-      anchor: 0.5,
-      fontSize: 12,
-      fill: 0x94a3b8,
-    })
-    diceGroup.addChild(resultHint)
-  }
 
   if (isRolling.value) {
     const spinRing = new PIXI.Graphics()
@@ -998,58 +963,12 @@ function renderScene() {
     diceGroup.addChildAt(spinRing, 0)
   }
 
-  const centerBadge = drawText('当前回合', 0, diceSize * 0.72, {
-    anchor: 0.5,
-    fontSize: 12,
-    fill: 0x67e8f9,
-    fontWeight: '700',
-  })
-  center.addChild(centerBadge)
-
-  const statusBox = new PIXI.Graphics()
-    .roundRect(originX + 16, originY + safeBoardSize - 72, safeBoardSize - 32, 56, 16)
-    .fill({ color: 0x020617, alpha: 0.72 })
-    .stroke({ color: 0x475569, width: 1, alpha: 0.45 })
-  board.addChild(statusBox)
-
-  const statusText = drawText(game.value.status, originX + 32, originY + safeBoardSize - 54, {
-    fontSize: 15,
-    fill: 0xcbd5e1,
-  })
-  board.addChild(statusText)
-
-  const metaText = drawText(
-    `模式 ${game.value.mode} 人 · 每人 ${game.value.piecesPerPlayer} 枚棋子 · 回合 ${game.value.turnCount}`,
-    originX + 32,
-    originY + 24,
-    {
-      fontSize: 14,
-      fill: 0x94a3b8,
-    },
-  )
-  board.addChild(metaText)
-
   if (winner.value) {
     const banner = new PIXI.Graphics()
       .roundRect(originX + safeBoardSize * 0.18, originY + safeBoardSize * 0.36, safeBoardSize * 0.64, safeBoardSize * 0.16, 24)
       .fill({ color: 0x020617, alpha: 0.9 })
       .stroke({ color: winner.value.color, width: 3, alpha: 0.9 })
     board.addChild(banner)
-
-    const winnerText = drawText(`${winner.value.name} 胜利！`, originX + safeBoardSize / 2, originY + safeBoardSize / 2 - 20, {
-      anchor: 0.5,
-      fontSize: 26,
-      fill: 0xf8fafc,
-      fontWeight: '800',
-    })
-    board.addChild(winnerText)
-
-    const hintText = drawText('可以点“重新开始”再开一局。', originX + safeBoardSize / 2, originY + safeBoardSize / 2 + 12, {
-      anchor: 0.5,
-      fontSize: 14,
-      fill: 0xcbd5e1,
-    })
-    board.addChild(hintText)
   }
 
   if (landingPoint.value) {
