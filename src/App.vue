@@ -74,6 +74,7 @@ const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
 const rollingFace = ref<number>(1)
 const diceSpinAngle = ref(0)
 const diceSpinScale = ref(1)
+const turnPulse = ref(0)
 const isRolling = ref(false)
 
 let rollTimer: number | null = null
@@ -87,6 +88,7 @@ let audioCtx: AudioContext | null = null
 
 function refreshGameView() {
   game.value = { ...game.value }
+  turnPulse.value = 0
   renderScene()
   if (game.value.winnerIndex !== null) {
     page.value = 'result'
@@ -216,6 +218,7 @@ function startDiceSpin() {
     const easing = 1 - Math.pow(1 - progress, 3)
     diceSpinAngle.value = progress * 24 * Math.PI
     diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.12
+    turnPulse.value = progress
     renderScene()
     if (progress < 1) {
       rollFrameId = window.requestAnimationFrame(spin)
@@ -223,6 +226,7 @@ function startDiceSpin() {
       rollFrameId = null
       diceSpinAngle.value = 0
       diceSpinScale.value = 1
+      turnPulse.value = 1
       renderScene()
     }
     void easing
@@ -245,6 +249,15 @@ function getHumanAutoMovePieceId() {
   if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
   if (legalIds.length === 1) return legalIds[0] ?? null
   return null
+}
+
+function getTurnPrompt() {
+  if (game.value.winnerIndex !== null) return `${winner.value?.name ?? '游戏'} 已结束`
+  if (isRolling.value) return `${currentPlayer.value.name} 掷骰中…`
+  if (game.value.dice === null) return `${currentPlayer.value.name} 轮到投骰`
+  if (legalPieces.value.length > 1) return `${currentPlayer.value.name} 请选择棋子`
+  if (legalPieces.value.length === 1 && currentPlayer.value.humanControlled) return `${currentPlayer.value.name} 自动走子中`
+  return `${currentPlayer.value.name} 行动中`
 }
 
 function getDiceTexture(value: number) {
@@ -684,11 +697,25 @@ function renderScene() {
   const board = new PIXI.Container()
   scene.addChild(board)
 
-  const backdrop = new PIXI.Graphics()
-    .roundRect(originX, originY, safeBoardSize, safeBoardSize, 28)
-    .fill({ color: 0x0f172a, alpha: 0.94 })
-    .stroke({ color: 0x334155, width: 2, alpha: 0.65 })
-  board.addChild(backdrop)
+  const boardInset = safeBoardSize * 0.14
+  const innerLeft = originX + boardInset
+  const innerTop = originY + boardInset
+  const innerRight = originX + safeBoardSize - boardInset
+  const innerBottom = originY + safeBoardSize - boardInset
+  const centerX = originX + safeBoardSize / 2
+  const centerY = originY + safeBoardSize / 2
+
+  const currentPlayerGlow = new PIXI.Graphics()
+    .roundRect(originX + 8, originY + 8, safeBoardSize - 16, safeBoardSize - 16, 30)
+    .stroke({ color: hexToNumber(currentPlayer.value.color), width: 5, alpha: isRolling.value ? 0.42 : 0.22 })
+  board.addChild(currentPlayerGlow)
+
+  if (isRolling.value) {
+    const pulse = new PIXI.Graphics()
+      .circle(centerX, centerY, safeBoardSize * 0.26)
+      .stroke({ color: hexToNumber(currentPlayer.value.color), width: 4, alpha: 0.22 })
+    board.addChild(pulse)
+  }
 
   if (boardTexture) {
     const boardSprite = new PIXI.Sprite(boardTexture)
@@ -697,14 +724,6 @@ function renderScene() {
     boardSprite.height = safeBoardSize
     board.addChild(boardSprite)
   }
-
-  const boardInset = safeBoardSize * 0.14
-  const innerLeft = originX + boardInset
-  const innerTop = originY + boardInset
-  const innerRight = originX + safeBoardSize - boardInset
-  const innerBottom = originY + safeBoardSize - boardInset
-  const centerX = originX + safeBoardSize / 2
-  const centerY = originY + safeBoardSize / 2
 
   const homes = new PIXI.Graphics()
   homes
@@ -844,6 +863,44 @@ function renderScene() {
       fill: 0x94a3b8,
     })
     diceGroup.addChild(diceHint)
+  }
+
+  const turnPromptText = drawText(getTurnPrompt(), 0, -diceSize * 0.82, {
+    anchor: 0.5,
+    fontSize: 12,
+    fill: currentPlayer.value.color,
+    fontWeight: '800',
+  })
+  diceGroup.addChild(turnPromptText)
+
+  const currentPlayerBadge = new PIXI.Graphics()
+    .roundRect(-diceSize * 0.54, diceSize * 0.72, diceSize * 1.08, 28, 14)
+    .fill({ color: currentPlayer.value.color, alpha: 0.14 })
+    .stroke({ color: currentPlayer.value.color, width: 2, alpha: 0.7 })
+  diceGroup.addChild(currentPlayerBadge)
+
+  const currentPlayerLabel = drawText(currentPlayer.value.name, 0, diceSize * 0.72 + 14, {
+    anchor: 0.5,
+    fontSize: 13,
+    fill: 0xf8fafc,
+    fontWeight: '800',
+  })
+  diceGroup.addChild(currentPlayerLabel)
+
+  if (diceValue !== null) {
+    const resultHint = drawText(isDiceRolling ? '旋转中…' : `点数 ${diceValue}`, 0, diceSize * 0.98, {
+      anchor: 0.5,
+      fontSize: 12,
+      fill: 0x94a3b8,
+    })
+    diceGroup.addChild(resultHint)
+  }
+
+  if (isRolling.value) {
+    const spinRing = new PIXI.Graphics()
+      .circle(0, 0, diceSize * 0.74)
+      .stroke({ color: currentDiceTint, width: 4, alpha: 0.25 })
+    diceGroup.addChildAt(spinRing, 0)
   }
 
   const centerBadge = drawText('当前回合', 0, diceSize * 0.72, {
