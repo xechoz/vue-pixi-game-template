@@ -68,6 +68,10 @@ const currentPlayerCardStyle = computed(() => ({
   borderColor: currentPlayer.value.color,
   boxShadow: `0 0 0 1px ${currentPlayer.value.color}44 inset, 0 12px 28px ${currentPlayer.value.color}14`,
 }))
+const assetBase = import.meta.env.BASE_URL
+function assetUrl(name: string) {
+  return `${assetBase}${name}`
+}
 const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
@@ -182,7 +186,12 @@ function getPlayerPieceTexture(playerIndex: number) {
 }
 
 function getPlayerAvatarSrc(playerIndex: number) {
-  return [`/player-red.jpg`, `/player-yellow.jpg`, `/player-blue.jpg`, `/player-green.jpg`][playerIndex] ?? '/flight-ludo-plane.svg'
+  return [
+    assetUrl('player-red.jpg'),
+    assetUrl('player-yellow.jpg'),
+    assetUrl('player-blue.jpg'),
+    assetUrl('player-green.jpg'),
+  ][playerIndex] ?? assetUrl('flight-ludo-plane.svg')
 }
 
 function getDiceAccentStyle() {
@@ -957,20 +966,20 @@ onMounted(async () => {
   app.stage.addChild(scene)
 
   const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
-    PIXI.Assets.load('/flight-ludo-board.svg'),
-    PIXI.Assets.load('/flight-ludo-plane.svg'),
-    PIXI.Assets.load('/player-red.jpg'),
-    PIXI.Assets.load('/player-yellow.jpg'),
-    PIXI.Assets.load('/player-blue.jpg'),
-    PIXI.Assets.load('/player-green.jpg'),
+    PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
+    PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
+    PIXI.Assets.load(assetUrl('player-red.jpg')),
+    PIXI.Assets.load(assetUrl('player-yellow.jpg')),
+    PIXI.Assets.load(assetUrl('player-blue.jpg')),
+    PIXI.Assets.load(assetUrl('player-green.jpg')),
   ])
-  boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from('/flight-ludo-board.svg')
-  pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from('/flight-ludo-plane.svg')
+  boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
+  pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
   playerPieceTextures = {
-    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from('/player-red.jpg'),
-    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from('/player-yellow.jpg'),
-    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from('/player-blue.jpg'),
-    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from('/player-green.jpg'),
+    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.jpg')),
+    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.jpg')),
+    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.jpg')),
+    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.jpg')),
   }
 
   renderScene()
