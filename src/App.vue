@@ -14,13 +14,14 @@ import {
   getCurrentPlayer,
   getLegalPieceIds,
   getPieceLocation,
+  getPlayerTrackCount,
   getTrackCellIndex,
   rollDice,
   movePiece,
 } from './game'
 
-const mode = ref<GameMode>(4)
-const piecesPerPlayer = ref(4)
+const mode = ref<GameMode>(1)
+const piecesPerPlayer = ref(2)
 const page = ref<AppPage>('prepare')
 const game = ref<GameState>(
   createGame({
@@ -237,6 +238,15 @@ function getPlayerPieceTexture(playerIndex: number) {
   return playerPieceTextures[playerIndex] ?? pieceTexture
 }
 
+function getHumanAutoMovePieceId() {
+  if (game.value.dice === null || game.value.winnerIndex !== null) return null
+  const legalIds = legalPieces.value
+  if (legalIds.length === 0) return null
+  if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
+  if (legalIds.length === 1) return legalIds[0] ?? null
+  return null
+}
+
 function getDiceTexture(value: number) {
   return diceTextures[value] ?? null
 }
@@ -342,27 +352,31 @@ function getPlayerByPieceId(state: GameState, pieceId: string) {
 
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
-  if (isHumanTurn() || isRolling.value) return
+  if (isRolling.value || movingPoint.value !== null) return
 
   if (game.value.dice === null) {
-    autoMoveTimer = window.setTimeout(() => {
-      autoMoveTimer = null
-      handleRoll()
-    }, 220)
+    if (!isHumanTurn()) {
+      autoMoveTimer = window.setTimeout(() => {
+        autoMoveTimer = null
+        handleRoll()
+      }, 220)
+    }
     return
   }
 
-  const pieceId = chooseAutoMovePieceId(game.value)
+  const pieceId = isHumanTurn() ? getHumanAutoMovePieceId() : chooseAutoMovePieceId(game.value)
   if (!pieceId) {
-    clearTimers()
-    refreshGameView()
+    if (!isHumanTurn()) {
+      clearTimers()
+      refreshGameView()
+    }
     return
   }
 
   autoMoveTimer = window.setTimeout(() => {
     autoMoveTimer = null
     handleMove(pieceId)
-  }, 260)
+  }, isHumanTurn() ? 180 : 260)
 }
 
 function restartGame() {
@@ -664,8 +678,8 @@ function renderScene() {
   const originX = (width - safeBoardSize) / 2
   const originY = (height - safeBoardSize) / 2
   const cellSize = safeBoardSize * 0.06
-  const trackSize = cellSize * 0.76
-  const pieceRadius = cellSize * 0.36
+  const trackSize = cellSize * 0.68
+  const pieceRadius = cellSize * 0.28
 
   const board = new PIXI.Container()
   scene.addChild(board)
@@ -721,9 +735,9 @@ function renderScene() {
 
   for (const player of game.value.players) {
     const playerBase = new PIXI.Graphics()
-    const zoneSize = safeBoardSize * 0.18
-    const zoneX = player.index === 0 || player.index === 3 ? originX + 14 : originX + safeBoardSize - 14 - zoneSize
-    const zoneY = player.index === 0 || player.index === 1 ? originY + 14 : originY + safeBoardSize - 14 - zoneSize
+    const zoneSize = safeBoardSize * 0.16
+    const zoneX = player.index === 0 || player.index === 3 ? originX + 18 : originX + safeBoardSize - 18 - zoneSize
+    const zoneY = player.index === 0 || player.index === 1 ? originY + 18 : originY + safeBoardSize - 18 - zoneSize
 
     playerBase
       .roundRect(zoneX, zoneY, zoneSize, zoneSize, 24)
@@ -744,12 +758,12 @@ function renderScene() {
       const portrait = new PIXI.Sprite(portraitTexture)
       portrait.anchor.set(0.5)
       portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
-      portrait.width = zoneSize * 0.5
-      portrait.height = zoneSize * 0.5
+      portrait.width = zoneSize * 0.42
+      portrait.height = zoneSize * 0.42
       board.addChild(portrait)
 
       const portraitRing = new PIXI.Graphics()
-        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.28)
+        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.24)
         .stroke({ color: 0xffffff, width: 2, alpha: 0.24 })
       board.addChild(portraitRing)
     }
@@ -1137,21 +1151,6 @@ onBeforeUnmount(() => {
 
       <div class="grid play-grid">
         <section ref="canvasEl" class="canvas-shell" aria-label="飞行棋游戏画布" />
-
-        <aside class="panel play-sidebar glass-card">
-          <section class="section">
-            <h2>操作</h2>
-            <button
-              class="primary"
-              type="button"
-              :disabled="game.winnerIndex !== null || game.dice !== null || isRolling"
-              @click="handleRoll"
-            >
-              掷骰子
-            </button>
-            <button class="secondary" type="button" @click="restartGame">重开本局</button>
-          </section>
-        </aside>
       </div>
     </section>
 
@@ -1466,8 +1465,7 @@ h2 {
   }
 
   .play-grid {
-    grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.5fr) minmax(240px, 0.8fr);
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .play-topbar {
