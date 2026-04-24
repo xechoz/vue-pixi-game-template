@@ -8,6 +8,7 @@ import {
   PLAYER_DEFS,
   TRACK_LENGTH,
   buildMoveTrajectory,
+  chooseAutoMovePieceId,
   clampPiecesPerPlayer,
   createGame,
   getCurrentPlayer,
@@ -68,6 +69,7 @@ const showTips = ref(false)
 
 let rollTimer: number | null = null
 let autoTimer: number | null = null
+let autoMoveTimer: number | null = null
 let moveFrameId: number | null = null
 let audioCtx: AudioContext | null = null
 
@@ -90,6 +92,10 @@ function clearTimers() {
   if (autoTimer !== null) {
     window.clearTimeout(autoTimer)
     autoTimer = null
+  }
+  if (autoMoveTimer !== null) {
+    window.clearTimeout(autoMoveTimer)
+    autoMoveTimer = null
   }
   if (moveFrameId !== null) {
     window.cancelAnimationFrame(moveFrameId)
@@ -227,10 +233,27 @@ function getPlayerByPieceId(state: GameState, pieceId: string) {
 
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
-  if (isHumanTurn()) return
-  if (game.value.dice !== null || isRolling.value) return
+  if (isHumanTurn() || isRolling.value) return
 
-  handleRoll()
+  if (game.value.dice === null) {
+    autoMoveTimer = window.setTimeout(() => {
+      autoMoveTimer = null
+      handleRoll()
+    }, 220)
+    return
+  }
+
+  const pieceId = chooseAutoMovePieceId(game.value)
+  if (!pieceId) {
+    clearTimers()
+    refreshGameView()
+    return
+  }
+
+  autoMoveTimer = window.setTimeout(() => {
+    autoMoveTimer = null
+    handleMove(pieceId)
+  }, 260)
 }
 
 function restartGame() {
@@ -357,6 +380,23 @@ function setPiecesPerPlayer(nextCount: number) {
 }
 
 watch([mode, piecesPerPlayer], restartGame)
+
+watch(
+  () => [game.value.currentPlayerIndex, game.value.dice, game.value.winnerIndex, autoPlayMode.value] as const,
+  () => {
+    if (game.value.winnerIndex !== null) {
+      clearTimers()
+      return
+    }
+
+    if (!autoPlayMode.value || isHumanTurn() || isRolling.value) {
+      return
+    }
+
+    scheduleAutoTurn(220)
+  },
+  { immediate: true },
+)
 
 function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t
