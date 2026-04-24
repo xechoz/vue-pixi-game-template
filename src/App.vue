@@ -34,6 +34,8 @@ const canvasEl = ref<HTMLDivElement | null>(null)
 
 let app: PIXI.Application | null = null
 let scene: PIXI.Container | null = null
+let boardTexture: PIXI.Texture | null = null
+let pieceTexture: PIXI.Texture | null = null
 
 const modeOptions: Array<{ value: GameMode; label: string; hint: string }> = [
   { value: 2, label: '2 人模式', hint: '红方 + 蓝方' },
@@ -129,6 +131,10 @@ watch([mode, piecesPerPlayer], restartGame)
 
 function lerp(start: number, end: number, t: number) {
   return start + (end - start) * t
+}
+
+function hexToNumber(color: string) {
+  return Number.parseInt(color.replace('#', ''), 16)
 }
 
 function buildTrackPoints(originX: number, originY: number, size: number) {
@@ -244,6 +250,14 @@ function renderScene() {
     .fill({ color: 0x0f172a, alpha: 0.94 })
     .stroke({ color: 0x334155, width: 2, alpha: 0.65 })
   board.addChild(backdrop)
+
+  if (boardTexture) {
+    const boardSprite = new PIXI.Sprite(boardTexture)
+    boardSprite.position.set(originX, originY)
+    boardSprite.width = safeBoardSize
+    boardSprite.height = safeBoardSize
+    board.addChild(boardSprite)
+  }
 
   const boardInset = safeBoardSize * 0.14
   const innerLeft = originX + boardInset
@@ -498,19 +512,35 @@ function renderScene() {
     }
 
     const shadow = new PIXI.Graphics()
-      .circle(2, 3, pieceRadius + 1)
-      .fill({ color: 0x020617, alpha: 0.25 })
+      .ellipse(2, 6, pieceRadius + 8, pieceRadius + 4)
+      .fill({ color: 0x020617, alpha: 0.28 })
     pieceGroup.addChild(shadow)
 
-    const body = new PIXI.Graphics()
-      .circle(0, 0, pieceRadius)
-      .fill({ color: pieceInfo.player.color, alpha: pieceInfo.location === 'track' ? 1 : 0.92 })
-      .stroke({ color: 0xf8fafc, width: 2, alpha: 0.85 })
-    pieceGroup.addChild(body)
+    const tint = hexToNumber(pieceInfo.player.color)
+    if (pieceTexture) {
+      const body = new PIXI.Sprite(pieceTexture)
+      body.anchor.set(0.5)
+      body.position.set(0, -1)
+      body.width = pieceRadius * 4.4
+      body.height = pieceRadius * 4.4
+      body.tint = tint
+      pieceGroup.addChild(body)
+    } else {
+      const body = new PIXI.Graphics()
+        .circle(0, 0, pieceRadius + 3)
+        .fill({ color: tint, alpha: 1 })
+        .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
+      pieceGroup.addChild(body)
+    }
 
-    const badge = drawText(String(pieceInfo.pieceIndex + 1), 0, -9, {
+    const badgeRing = new PIXI.Graphics()
+      .circle(0, 0, pieceRadius + 6)
+      .stroke({ color: 0xffffff, width: 2, alpha: 0.9 })
+    pieceGroup.addChildAt(badgeRing, 0)
+
+    const badge = drawText(String(pieceInfo.pieceIndex + 1), 0, -2, {
       anchor: 0.5,
-      fontSize: 14,
+      fontSize: 13,
       fill: 0xf8fafc,
       fontWeight: '800',
     })
@@ -556,6 +586,14 @@ onMounted(async () => {
   canvasEl.value.appendChild(app.canvas)
   scene = new PIXI.Container()
   app.stage.addChild(scene)
+
+  const [loadedBoard, loadedPiece] = await Promise.all([
+    PIXI.Assets.load('/flight-ludo-board.svg'),
+    PIXI.Assets.load('/flight-ludo-plane.svg'),
+  ])
+  boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from('/flight-ludo-board.svg')
+  pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from('/flight-ludo-plane.svg')
+
   renderScene()
 
   window.addEventListener('resize', renderScene)
