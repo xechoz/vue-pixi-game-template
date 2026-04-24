@@ -1,8 +1,10 @@
 export const TRACK_LENGTH = 40
+export const HOME_STEPS = 4
+export const FINISH_STEP = TRACK_LENGTH + HOME_STEPS
 
 export type GameMode = 2 | 3 | 4
 
-export type PieceLocation = 'base' | 'track' | 'finished'
+export type PieceLocation = 'base' | 'track' | 'home' | 'finished'
 
 export interface GameSettings {
   mode: GameMode
@@ -48,6 +50,12 @@ export const PLAYER_DEFS: PlayerMeta[] = [
 ]
 
 const SAFE_CELLS = new Set([0, 10, 20, 30])
+const FLIGHT_JUMPS = new Map<number, number>([
+  [5, 9],
+  [12, 16],
+  [22, 26],
+  [31, 35],
+])
 
 export function getTurnOrder(mode: GameMode): number[] {
   if (mode === 2) return [0, 2]
@@ -81,7 +89,7 @@ export function createGame(settings: GameSettings): GameState {
     turnPointer: 0,
     currentPlayerIndex: turnOrder[0],
     dice: null,
-    status: '点击“掷骰子”开始，先把棋子从基地送上赛道。',
+    status: '点击“掷骰子”开始；掷出 6 才能把棋子从基地放到起点。',
     winnerIndex: null,
     turnCount: 1,
   }
@@ -93,8 +101,9 @@ export function getCurrentPlayer(state: GameState): PlayerState {
 
 export function getPieceLocation(_player: PlayerState, piece: PieceState): PieceLocation {
   if (piece.progress < 0) return 'base'
-  if (piece.progress >= TRACK_LENGTH) return 'finished'
-  return 'track'
+  if (piece.progress < TRACK_LENGTH) return 'track'
+  if (piece.progress < FINISH_STEP) return 'home'
+  return 'finished'
 }
 
 export function getTrackCellIndex(player: PlayerState, piece: PieceState): number | null {
@@ -102,31 +111,29 @@ export function getTrackCellIndex(player: PlayerState, piece: PieceState): numbe
   return (player.startIndex + piece.progress) % TRACK_LENGTH
 }
 
+export function getHomeLaneIndex(piece: PieceState): number | null {
+  if (piece.progress < TRACK_LENGTH || piece.progress >= FINISH_STEP) return null
+  return piece.progress - TRACK_LENGTH
+}
+
+function canPieceMove(state: GameState, piece: PieceState): boolean {
+  if (state.dice === null || state.winnerIndex !== null) return false
+  if (piece.progress < 0) return state.dice === 6
+  return piece.progress + state.dice <= FINISH_STEP
+}
+
 export function getLegalPieceIds(state: GameState): string[] {
   if (state.dice === null || state.winnerIndex !== null) return []
 
   const player = getCurrentPlayer(state)
-  const legal: string[] = []
-
-  for (const piece of player.pieces) {
-    const location = getPieceLocation(player, piece)
-    if (location === 'base' && state.dice === 6) {
-      legal.push(piece.id)
-      continue
-    }
-
-    if (location === 'track' && piece.progress + state.dice <= TRACK_LENGTH) {
-      legal.push(piece.id)
-    }
-  }
-
-  return legal
+  return player.pieces.filter((piece) => canPieceMove(state, piece)).map((piece) => piece.id)
 }
 
 export function getPieceLabel(piece: PieceState): string {
   if (piece.progress < 0) return '基地'
-  if (piece.progress >= TRACK_LENGTH) return '已到终点'
-  return `前进 ${piece.progress}/${TRACK_LENGTH}`
+  if (piece.progress < TRACK_LENGTH) return `赛道 ${piece.progress + 1}/${TRACK_LENGTH}`
+  if (piece.progress < FINISH_STEP) return `内圈 ${piece.progress - TRACK_LENGTH + 1}/${HOME_STEPS}`
+  return '已完成'
 }
 
 export function rollDice(state: GameState): { rolled: boolean; skipped: boolean; message: string } {
@@ -144,13 +151,13 @@ export function rollDice(state: GameState): { rolled: boolean; skipped: boolean;
   const legalPieces = getLegalPieceIds(state)
   if (legalPieces.length === 0) {
     const rolled = state.dice
-    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动的棋子，自动跳过。`
+    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，自动跳过。`
     state.dice = null
     advanceTurn(state)
     return { rolled: true, skipped: true, message: state.status }
   }
 
-  state.status = `${player.name} 掷出 ${state.dice} 点，选择一个可以移动的棋子。`
+  state.status = `${player.name} 掷出 ${state.dice} 点，请选择一枚可移动棋子。`
   return { rolled: true, skipped: false, message: state.status }
 }
 
@@ -169,8 +176,7 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     return { moved: false, message: '只能移动当前玩家的棋子。' }
   }
 
-  const legalPieceIds = getLegalPieceIds(state)
-  if (!legalPieceIds.includes(pieceId)) {
+  if (!canPieceMove(state, piece)) {
     return { moved: false, message: '这枚棋子当前不能移动。' }
   }
 
@@ -183,12 +189,21 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     piece.progress += dice
   }
 
-  const landingCell = getTrackCellIndex(player, piece)
-  let captured = 0
+  let jumped = false
+  while (piece.progress >= 0 && piece.progress < TRACK_LENGTH) {
+    const landingCell = getTrackCellIndex(player, piece)
+    const jumpTarget = landingCell === null ? undefined : FLIGHT_JUMPS.get(landingCell)
+    if (jumpTarget === undefined || landingCell === null) break
 
-  if (piece.progress >= TRACK_LENGTH) {
-    piece.progress = TRACK_LENGTH
-  } else if (landingCell !== null && !SAFE_CELLS.has(landingCell)) {
+    const jumpDelta = jumpTarget - landingCell
+    piece.progress += jumpDelta
+    jumped = true
+  }
+
+  let captured = 0
+  const landingCell = getTrackCellIndex(player, piece)
+
+  if (piece.progress < TRACK_LENGTH && landingCell !== null && !SAFE_CELLS.has(landingCell)) {
     for (const enemy of state.players) {
       if (!enemy.active || enemy.index === player.index) continue
 
@@ -206,13 +221,16 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
 
   state.dice = null
 
-  const finishedCount = player.pieces.filter((item) => item.progress >= TRACK_LENGTH).length
+  const finishedCount = player.pieces.filter((item) => item.progress >= FINISH_STEP).length
   if (finishedCount === player.pieces.length) {
     state.winnerIndex = player.index
-    state.status = `${player.name} 已经率先完成全部棋子，赢得胜利！`
+    state.status = `${player.name} 已完成全部棋子，赢得胜利！`
     return {
       moved: true,
-      message: captured > 0 ? `${player.name} 吃子 ${captured} 枚并完成了最后一步！` : `${player.name} 完成了最后一步！`,
+      message:
+        captured > 0
+          ? `${player.name} 吃子 ${captured} 枚，并且拿下胜利！`
+          : `${player.name} 获得胜利！`,
     }
   }
 
@@ -220,14 +238,22 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     state.status = `${player.name} 掷出 6，获得一次额外行动。`
     return {
       moved: true,
-      message: captured > 0 ? `${player.name} 吃子 ${captured} 枚，继续本回合。` : `${player.name} 可以继续行动。`,
+      message:
+        captured > 0
+          ? `${player.name} 吃子 ${captured} 枚，继续本回合。`
+          : `${player.name} 可以继续行动。`,
     }
   }
 
   advanceTurn(state)
   return {
     moved: true,
-    message: captured > 0 ? `${player.name} 吃子 ${captured} 枚，轮到下一位。` : `${player.name} 走了一步，轮到下一位。`,
+    message:
+      captured > 0
+        ? `${player.name} 吃子 ${captured} 枚，轮到下一位。`
+        : jumped
+          ? `${player.name} 飞跃前进，轮到下一位。`
+          : `${player.name} 走了一步，轮到下一位。`,
   }
 }
 
@@ -246,7 +272,7 @@ export function resetGame(settings: GameSettings): GameState {
 }
 
 export function getPlayerFinishedCount(player: PlayerState): number {
-  return player.pieces.filter((piece) => piece.progress >= TRACK_LENGTH).length
+  return player.pieces.filter((piece) => piece.progress >= FINISH_STEP).length
 }
 
 export function getPlayerTrackCount(player: PlayerState): number {
