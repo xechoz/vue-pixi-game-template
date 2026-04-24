@@ -8,7 +8,6 @@ import {
   PLAYER_DEFS,
   TRACK_LENGTH,
   buildMoveTrajectory,
-  chooseAutoMovePieceId,
   clampPiecesPerPlayer,
   createGame,
   getCurrentPlayer,
@@ -37,6 +36,14 @@ let scene: PIXI.Container | null = null
 let boardTexture: PIXI.Texture | null = null
 let pieceTexture: PIXI.Texture | null = null
 
+type BoardLayout = {
+  trackPoints: Array<{ x: number; y: number }>
+  baseSlots: Array<Array<{ x: number; y: number }>>
+  finishSlots: Array<Array<{ x: number; y: number }>>
+}
+
+let currentLayout: BoardLayout | null = null
+
 const modeOptions: Array<{ value: GameMode; label: string; hint: string }> = [
   { value: 2, label: '2 人模式', hint: '红方 + 蓝方' },
   { value: 3, label: '3 人模式', hint: '红方 + 黄方 + 绿方' },
@@ -53,7 +60,14 @@ const winner = computed(() =>
 const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
+const movingPoint = ref<{ x: number; y: number } | null>(null)
+const rollingFace = ref<number>(1)
+const isRolling = ref(false)
 const showTips = ref(false)
+
+let rollTimer: number | null = null
+let autoTimer: number | null = null
+let moveFrameId: number | null = null
 
 function refreshGameView() {
   game.value = { ...game.value }
@@ -63,31 +77,94 @@ function refreshGameView() {
 function clearMovePreview() {
   replayingPieceId.value = null
   movePath.value = []
+  movingPoint.value = null
+}
+
+function clearTimers() {
+  if (rollTimer !== null) {
+    window.clearTimeout(rollTimer)
+    rollTimer = null
+  }
+  if (autoTimer !== null) {
+    window.clearTimeout(autoTimer)
+    autoTimer = null
+  }
+  if (moveFrameId !== null) {
+    window.cancelAnimationFrame(moveFrameId)
+    moveFrameId = null
+  }
+}
+
+function scheduleAutoTurn(delay = 180) {
+  if (!autoPlayMode.value || game.value.winnerIndex !== null) return
+  if (autoTimer !== null) {
+    window.clearTimeout(autoTimer)
+  }
+  autoTimer = window.setTimeout(() => {
+    autoTimer = null
+    playAutoTurn()
+  }, delay)
+}
+
+function getDiceDisplayValue() {
+  if (isRolling.value) return rollingFace.value
+  return game.value.dice
+}
+
+function resolvePiecePoint(
+  layout: BoardLayout,
+  player: { index: number; startIndex: number },
+  piece: { progress: number },
+) {
+  const centerX = layout.trackPoints[0]?.x ?? 0
+  const centerY = layout.trackPoints[0]?.y ?? 0
+
+  if (piece.progress < 0) {
+    return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
+  }
+
+  if (piece.progress < TRACK_LENGTH) {
+    const trackIndex = (player.startIndex + piece.progress) % TRACK_LENGTH
+    return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
+  }
+
+  if (piece.progress < TRACK_LENGTH + 4) {
+    const laneIndex = piece.progress - TRACK_LENGTH
+    return layout.finishSlots[player.index]?.[laneIndex] ?? { x: centerX, y: centerY }
+  }
+
+  return layout.finishSlots[player.index]?.[3] ?? { x: centerX, y: centerY }
+}
+
+function buildPiecePath(
+  layout: BoardLayout,
+  player: { index: number; startIndex: number },
+  piece: { progress: number },
+  dice: number,
+) {
+  const path: Array<{ x: number; y: number }> = []
+  let progress = piece.progress
+
+  if (progress < 0) {
+    if (dice !== 6) return path
+    path.push(resolvePiecePoint(layout, player, { progress: 0 }))
+    return path
+  }
+
+  const target = Math.min(progress + dice, TRACK_LENGTH + 4)
+  while (progress < target) {
+    progress += 1
+    path.push(resolvePiecePoint(layout, player, { progress }))
+  }
+
+  return path
 }
 
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
-  if (game.value.dice !== null) return
+  if (game.value.dice !== null || isRolling.value) return
 
-  const rolled = rollDice(game.value)
-  if (!rolled.rolled) return
-  refreshGameView()
-
-  const autoPieceId = chooseAutoMovePieceId(game.value)
-  if (!autoPieceId) return
-
-  const player = getCurrentPlayer(game.value)
-  const piece = player.pieces.find((item) => item.id === autoPieceId)
-  if (!piece || game.value.dice === null) return
-
-  replayingPieceId.value = autoPieceId
-  movePath.value = buildMoveTrajectory(player, piece, game.value.dice)
-  renderScene()
-
-  window.setTimeout(() => {
-    handleMove(autoPieceId)
-    clearMovePreview()
-  }, 420)
+  handleRoll()
 }
 
 function restartGame() {
@@ -100,23 +177,101 @@ function restartGame() {
 }
 
 function handleRoll() {
-  const result = rollDice(game.value)
-  if (result.rolled) {
-    refreshGameView()
-    if (autoPlayMode.value) {
-      window.setTimeout(playAutoTurn, 180)
+  if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value) return
+
+  clearTimers()
+  isRolling.value = true
+  rollingFace.value = Math.floor(Math.random() * 6) + 1
+
+  let ticks = 0
+  const spin = () => {
+    if (!isRolling.value) return
+    rollingFace.value = Math.floor(Math.random() * 6) + 1
+    ticks += 1
+    if (ticks < 6) {
+      rollTimer = window.setTimeout(spin, 55)
+      return
+    }
+
+    isRolling.value = false
+    rollTimer = null
+    const result = rollDice(game.value)
+    if (result.rolled) {
+      refreshGameView()
+      if (autoPlayMode.value) {
+        scheduleAutoTurn(220)
+      }
     }
   }
+
+  spin()
 }
 
 function handleMove(pieceId: string) {
-  const result = movePiece(game.value, pieceId)
-  if (result.moved) {
-    refreshGameView()
-    if (autoPlayMode.value) {
-      window.setTimeout(playAutoTurn, 180)
+  if (!currentLayout || game.value.dice === null || game.value.winnerIndex !== null || movingPoint.value !== null) return
+
+  const player = getCurrentPlayer(game.value)
+  const piece = player.pieces.find((item) => item.id === pieceId)
+  if (!piece) return
+
+  const trajectory = buildMoveTrajectory(player, piece, game.value.dice)
+  if (trajectory.length === 0) return
+
+  clearTimers()
+  replayingPieceId.value = pieceId
+  movePath.value = trajectory
+
+  const pathPoints = [
+    resolvePiecePoint(currentLayout, player, piece),
+    ...buildPiecePath(currentLayout, player, piece, game.value.dice),
+  ]
+
+  if (pathPoints.length <= 1) {
+    const result = movePiece(game.value, pieceId)
+    if (result.moved) {
+      refreshGameView()
+      clearMovePreview()
+      if (autoPlayMode.value) scheduleAutoTurn(220)
+    }
+    return
+  }
+
+  const totalDuration = Math.max(420, (pathPoints.length - 1) * 130)
+  const startTime = performance.now()
+
+  const frame = (now: number) => {
+    const elapsed = now - startTime
+    const progress = Math.min(1, elapsed / totalDuration)
+    const segment = Math.min(pathPoints.length - 2, Math.floor(progress * (pathPoints.length - 1)))
+    const localT = progress * (pathPoints.length - 1) - segment
+    const start = pathPoints[segment]
+    const end = pathPoints[segment + 1] ?? start
+
+    movingPoint.value = {
+      x: lerp(start.x, end.x, localT),
+      y: lerp(start.y, end.y, localT),
+    }
+    renderScene()
+
+    if (progress < 1) {
+      moveFrameId = window.requestAnimationFrame(frame)
+      return
+    }
+
+    moveFrameId = null
+    movingPoint.value = null
+    const result = movePiece(game.value, pieceId)
+    if (result.moved) {
+      refreshGameView()
+      clearMovePreview()
+      if (autoPlayMode.value) scheduleAutoTurn(220)
     }
   }
+
+  if (moveFrameId !== null) {
+    window.cancelAnimationFrame(moveFrameId)
+  }
+  moveFrameId = window.requestAnimationFrame(frame)
 }
 
 function setMode(nextMode: GameMode) {
@@ -280,6 +435,7 @@ function renderScene() {
   const trackPoints = buildTrackPoints(originX, originY, safeBoardSize)
   const baseSlots = buildBaseSlots(originX, originY, safeBoardSize)
   const finishSlots = buildFinishSlots(originX, originY, safeBoardSize)
+  currentLayout = { trackPoints, baseSlots, finishSlots }
 
   for (let index = 0; index < trackPoints.length; index += 1) {
     const point = trackPoints[index]
@@ -355,7 +511,8 @@ function renderScene() {
     .stroke({ color: 0x38bdf8, width: 2, alpha: 0.16 })
   center.addChildAt(diceGlow, 0)
 
-  if (game.value.dice === null) {
+  const diceValue = getDiceDisplayValue()
+  if (diceValue === null) {
     const diceLabel = drawText('掷骰', 0, -6, {
       anchor: 0.5,
       fontSize: 26,
@@ -394,7 +551,7 @@ function renderScene() {
       6: [0, 2, 3, 5, 6, 8],
     }
 
-    for (const index of layouts[game.value.dice] ?? layouts[1]) {
+    for (const index of layouts[diceValue] ?? layouts[1]) {
       const [px, py] = pipPoints[index]
       const pip = new PIXI.Graphics()
         .circle(px, py, pipRadius)
@@ -402,7 +559,7 @@ function renderScene() {
       center.addChild(pip)
     }
 
-    const diceLabel = drawText(String(game.value.dice), 0, diceSize * 0.34, {
+    const diceLabel = drawText(String(diceValue), 0, diceSize * 0.34, {
       anchor: 0.5,
       fontSize: 18,
       fill: 0xcbd5e1,
@@ -502,12 +659,14 @@ function renderScene() {
 
   for (const pieceInfo of pieces) {
     const isLegal = game.value.winnerIndex === null && legalPieces.value.includes(pieceInfo.piece.id)
+    const isMoving = replayingPieceId.value === pieceInfo.piece.id && movingPoint.value !== null
+    const movingPosition = movingPoint.value
     const pieceGroup = new PIXI.Container()
-    pieceGroup.position.set(pieceInfo.x, pieceInfo.y)
-    pieceGroup.eventMode = isLegal ? 'static' : 'passive'
-    pieceGroup.cursor = isLegal ? 'pointer' : 'default'
+    pieceGroup.position.set(isMoving && movingPosition ? movingPosition.x : pieceInfo.x, isMoving && movingPosition ? movingPosition.y : pieceInfo.y)
+    pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
+    pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
 
-    if (isLegal) {
+    if (isLegal && !isMoving) {
       pieceGroup.on('pointerdown', () => handleMove(pieceInfo.piece.id))
     }
 
@@ -601,10 +760,12 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', renderScene)
+  clearTimers()
   if (!app) return
   app.destroy(true)
   app = null
   scene = null
+  currentLayout = null
 })
 </script>
 
