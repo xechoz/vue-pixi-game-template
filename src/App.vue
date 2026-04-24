@@ -37,6 +37,7 @@ let scene: PIXI.Container | null = null
 let boardTexture: PIXI.Texture | null = null
 let pieceTexture: PIXI.Texture | null = null
 let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
+const diceTextures: Partial<Record<number, PIXI.Texture>> = {}
 
 type BoardLayout = {
   trackPoints: Array<{ x: number; y: number }>
@@ -158,6 +159,10 @@ function getPlayerAvatarSrc(playerIndex: number) {
 
 function getDiceAccentStyle() {
   return game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
+}
+
+function getDiceTexture(value: number) {
+  return diceTextures[value] ?? null
 }
 
 function ensureAudioContext() {
@@ -668,9 +673,12 @@ function renderScene() {
   const diceSize = safeBoardSize * 0.18
   const currentDiceColor = getDiceAccentStyle()
   const currentDiceTint = hexToNumber(currentDiceColor)
+  const diceValue = getDiceDisplayValue()
+  const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
+
   const diceBody = new PIXI.Graphics()
     .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
-    .fill({ color: currentDiceTint, alpha: 0.96 })
+    .fill({ color: currentDiceTint, alpha: 0.22 })
     .stroke({ color: 0xffffff, width: 3, alpha: 0.58 })
   center.addChild(diceBody)
 
@@ -679,9 +687,16 @@ function renderScene() {
     .stroke({ color: currentDiceTint, width: 3, alpha: 0.18 })
   center.addChildAt(diceGlow, 0)
 
-  const diceValue = getDiceDisplayValue()
+  if (diceFaceTexture) {
+    const face = new PIXI.Sprite(diceFaceTexture)
+    face.anchor.set(0.5)
+    face.width = diceSize * 0.94
+    face.height = diceSize * 0.94
+    center.addChild(face)
+  }
+
   if (diceValue === null) {
-    const diceLabel = drawText('掷骰', 0, -6, {
+    const diceLabel = drawText('掷骰', 0, -4, {
       anchor: 0.5,
       fontSize: 26,
       fill: 0xf8fafc,
@@ -695,58 +710,11 @@ function renderScene() {
       fill: 0x94a3b8,
     })
     center.addChild(diceHint)
-  } else {
-    const pipRadius = diceSize * 0.05
-    const pipOffset = diceSize * 0.22
-    const pipPoints = [
-      [-pipOffset, -pipOffset],
-      [0, -pipOffset],
-      [pipOffset, -pipOffset],
-      [-pipOffset, 0],
-      [0, 0],
-      [pipOffset, 0],
-      [-pipOffset, pipOffset],
-      [0, pipOffset],
-      [pipOffset, pipOffset],
-    ] as const
-
-    const layouts: Record<number, number[]> = {
-      1: [4],
-      2: [0, 8],
-      3: [0, 4, 8],
-      4: [0, 2, 6, 8],
-      5: [0, 2, 4, 6, 8],
-      6: [0, 2, 3, 5, 6, 8],
-    }
-
-    for (const index of layouts[diceValue] ?? layouts[1]) {
-      const [px, py] = pipPoints[index]
-      const pip = new PIXI.Graphics()
-        .circle(px, py, pipRadius)
-        .fill({ color: 0xf8fafc, alpha: 0.96 })
-      center.addChild(pip)
-    }
-
-    const diceLabel = drawText(String(diceValue), 0, diceSize * 0.34, {
-      anchor: 0.5,
-      fontSize: 18,
-      fill: 0xcbd5e1,
-      fontWeight: '800',
-    })
-    center.addChild(diceLabel)
   }
 
-  const centerText = drawText('终点区', 0, diceSize * 0.72, {
+  const centerBadge = drawText('当前回合', 0, diceSize * 0.72, {
     anchor: 0.5,
-    fontSize: 14,
-    fill: 0xcbd5e1,
-    fontWeight: '700',
-  })
-  center.addChild(centerText)
-
-  const centerBadge = drawText('点这里投骰', 0, -diceSize * 0.72, {
-    anchor: 0.5,
-    fontSize: 11,
+    fontSize: 12,
     fill: 0x67e8f9,
     fontWeight: '700',
   })
@@ -1260,7 +1228,8 @@ h2 {
 
 .meta-row {
   display: grid;
-  gap: 6px;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px;
   color: #cbd5e1;
   font-size: 0.92rem;
 }
