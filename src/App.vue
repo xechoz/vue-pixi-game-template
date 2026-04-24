@@ -36,6 +36,7 @@ let app: PIXI.Application | null = null
 let scene: PIXI.Container | null = null
 let boardTexture: PIXI.Texture | null = null
 let pieceTexture: PIXI.Texture | null = null
+let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
 
 type BoardLayout = {
   trackPoints: Array<{ x: number; y: number }>
@@ -59,6 +60,10 @@ const legalPieces = computed(() => getLegalPieceIds(game.value))
 const winner = computed(() =>
   game.value.winnerIndex === null ? null : game.value.players[game.value.winnerIndex],
 )
+const currentPlayerHighlight = computed(() => ({
+  borderColor: currentPlayer.value.color,
+  boxShadow: `0 0 0 1px ${currentPlayer.value.color}33 inset, 0 0 24px ${currentPlayer.value.color}22`,
+}))
 const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
@@ -130,6 +135,14 @@ function getPlayerControlLabel(player: GameState['players'][number]) {
 
 function getActiveHumanPlayers() {
   return game.value.players.filter((player) => player.humanControlled)
+}
+
+function getPlayerPieceTexture(playerIndex: number) {
+  return playerPieceTextures[playerIndex] ?? pieceTexture
+}
+
+function getDiceAccentStyle() {
+  return game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
 }
 
 function ensureAudioContext() {
@@ -332,22 +345,24 @@ function handleMove(pieceId: string) {
 
   const totalDuration = Math.max(420, (pathPoints.length - 1) * 130)
   const startTime = performance.now()
+  const stepDelay = 110
 
   const frame = (now: number) => {
     const elapsed = now - startTime
-    const progress = Math.min(1, elapsed / totalDuration)
-    const segment = Math.min(pathPoints.length - 2, Math.floor(progress * (pathPoints.length - 1)))
-    const localT = progress * (pathPoints.length - 1) - segment
-    const start = pathPoints[segment]
-    const end = pathPoints[segment + 1] ?? start
+    const totalSteps = pathPoints.length - 1
+    const rawStep = Math.min(totalSteps, Math.floor(elapsed / stepDelay))
+    const segmentProgress = Math.min(1, (elapsed % stepDelay) / stepDelay)
+    const currentStep = Math.min(totalSteps - 1, rawStep)
+    const start = pathPoints[currentStep]
+    const end = pathPoints[currentStep + 1] ?? start
 
     movingPoint.value = {
-      x: lerp(start.x, end.x, localT),
-      y: lerp(start.y, end.y, localT),
+      x: lerp(start.x, end.x, segmentProgress),
+      y: lerp(start.y, end.y, segmentProgress),
     }
     renderScene()
 
-    if (progress < 1) {
+    if (elapsed < totalDuration && rawStep < totalSteps) {
       moveFrameId = window.requestAnimationFrame(frame)
       return
     }
@@ -614,15 +629,17 @@ function renderScene() {
   board.addChild(center)
 
   const diceSize = safeBoardSize * 0.18
+  const currentDiceColor = getDiceAccentStyle()
+  const currentDiceTint = hexToNumber(currentDiceColor)
   const diceBody = new PIXI.Graphics()
     .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
-    .fill({ color: 0x0f172a, alpha: 0.98 })
-    .stroke({ color: 0x7dd3fc, width: 3, alpha: 0.72 })
+    .fill({ color: currentDiceTint, alpha: 0.96 })
+    .stroke({ color: 0xffffff, width: 3, alpha: 0.58 })
   center.addChild(diceBody)
 
   const diceGlow = new PIXI.Graphics()
     .roundRect(-diceSize * 0.62 / 2, -diceSize * 0.62 / 2, diceSize * 0.62, diceSize * 0.62, 18)
-    .stroke({ color: 0x38bdf8, width: 2, alpha: 0.16 })
+    .stroke({ color: currentDiceTint, width: 3, alpha: 0.18 })
   center.addChildAt(diceGlow, 0)
 
   const diceValue = getDiceDisplayValue()
@@ -818,8 +835,9 @@ function renderScene() {
     pieceGroup.addChild(shadow)
 
     const tint = hexToNumber(pieceInfo.player.color)
-    if (pieceTexture) {
-      const body = new PIXI.Sprite(pieceTexture)
+    const texture = getPlayerPieceTexture(pieceInfo.player.index)
+    if (texture) {
+      const body = new PIXI.Sprite(texture)
       body.anchor.set(0.5)
       body.position.set(0, -1)
       body.width = pieceRadius * 4.4
@@ -888,12 +906,22 @@ onMounted(async () => {
   scene = new PIXI.Container()
   app.stage.addChild(scene)
 
-  const [loadedBoard, loadedPiece] = await Promise.all([
+  const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
     PIXI.Assets.load('/flight-ludo-board.svg'),
     PIXI.Assets.load('/flight-ludo-plane.svg'),
+    PIXI.Assets.load('/player-red.png'),
+    PIXI.Assets.load('/player-yellow.png'),
+    PIXI.Assets.load('/player-blue.png'),
+    PIXI.Assets.load('/player-green.png'),
   ])
   boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from('/flight-ludo-board.svg')
   pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from('/flight-ludo-plane.svg')
+  playerPieceTextures = {
+    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from('/player-red.png'),
+    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from('/player-yellow.png'),
+    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from('/player-blue.png'),
+    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from('/player-green.png'),
+  }
 
   renderScene()
 
@@ -955,8 +983,14 @@ onBeforeUnmount(() => {
           <h2>状态</h2>
           <p class="status-text">{{ game.status }}</p>
           <div class="meta-row">
-            <span><strong>{{ currentPlayer.name }}</strong> 回合（{{ currentPlayer.humanControlled ? '手动' : '电脑' }}）</span>
-            <span>骰子 <strong>{{ game.dice ?? '—' }}</strong></span>
+            <span class="turn-pill" :style="currentPlayerHighlight">
+              <strong>{{ currentPlayer.name }}</strong>
+              <small>{{ currentPlayer.humanControlled ? '手动' : '电脑' }}回合</small>
+            </span>
+            <span class="dice-pill" :style="{ borderColor: getDiceAccentStyle() }">
+              <em>骰子</em>
+              <strong>{{ game.dice ?? '—' }}</strong>
+            </span>
             <span>可走 <strong>{{ legalPieces.length }}</strong></span>
             <span>手动席位 <strong>{{ getActiveHumanPlayers().length }}</strong></span>
           </div>
@@ -1175,6 +1209,43 @@ h2 {
   gap: 6px;
   color: #cbd5e1;
   font-size: 0.92rem;
+}
+
+.turn-pill {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.dice-pill {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(2, 6, 23, 0.45);
+}
+
+.turn-pill.active {
+  border-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.1) inset;
+}
+
+.turn-pill strong,
+.dice-pill strong {
+  color: #f8fafc;
+}
+
+.turn-pill small,
+.dice-pill em {
+  color: #67e8f9;
+  font-size: 0.8rem;
+  font-style: normal;
 }
 
 .meta-row strong {
