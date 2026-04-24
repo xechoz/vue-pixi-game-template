@@ -87,6 +87,7 @@ let autoTimer: number | null = null
 let autoMoveTimer: number | null = null
 let landingTimer: number | null = null
 let moveFrameId: number | null = null
+let appInitPromise: Promise<void> | null = null
 let audioCtx: AudioContext | null = null
 
 function refreshGameView() {
@@ -95,6 +96,66 @@ function refreshGameView() {
   if (game.value.winnerIndex !== null) {
     page.value = 'result'
   }
+}
+
+async function ensurePixiReady() {
+  if (!canvasEl.value) return
+
+  if (app && scene) {
+    if (app.canvas.parentElement !== canvasEl.value) {
+      canvasEl.value.appendChild(app.canvas)
+      renderScene()
+    }
+    return
+  }
+
+  if (appInitPromise) {
+    await appInitPromise
+    return
+  }
+
+  const host = canvasEl.value
+  if (!host) return
+
+  appInitPromise = (async () => {
+    app = new PIXI.Application()
+    await app.init({
+      resizeTo: host,
+      background: '#050b16',
+      antialias: true,
+      autoDensity: true,
+      resolution: window.devicePixelRatio || 1,
+    })
+
+    host.appendChild(app.canvas)
+    scene = new PIXI.Container()
+    app.stage.addChild(scene)
+
+    const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
+      PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
+      PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
+      PIXI.Assets.load(assetUrl('player-red.jpg')),
+      PIXI.Assets.load(assetUrl('player-yellow.jpg')),
+      PIXI.Assets.load(assetUrl('player-blue.jpg')),
+      PIXI.Assets.load(assetUrl('player-green.jpg')),
+    ])
+    boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
+    pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
+    playerPieceTextures = {
+      0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.jpg')),
+      1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.jpg')),
+      2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.jpg')),
+      3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.jpg')),
+    }
+  })()
+
+  try {
+    await appInitPromise
+  } finally {
+    appInitPromise = null
+  }
+
+  renderScene()
 }
 
 function clearMovePreview() {
@@ -986,42 +1047,20 @@ function renderScene() {
   }
 }
 
-onMounted(async () => {
-  if (!canvasEl.value) return
-
-  app = new PIXI.Application()
-  await app.init({
-    resizeTo: canvasEl.value,
-    background: '#050b16',
-    antialias: true,
-    autoDensity: true,
-    resolution: window.devicePixelRatio || 1,
-  })
-
-  canvasEl.value.appendChild(app.canvas)
-  scene = new PIXI.Container()
-  app.stage.addChild(scene)
-
-  const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
-    PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
-    PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
-    PIXI.Assets.load(assetUrl('player-red.jpg')),
-    PIXI.Assets.load(assetUrl('player-yellow.jpg')),
-    PIXI.Assets.load(assetUrl('player-blue.jpg')),
-    PIXI.Assets.load(assetUrl('player-green.jpg')),
-  ])
-  boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
-  pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
-  playerPieceTextures = {
-    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.jpg')),
-    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.jpg')),
-    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.jpg')),
-    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.jpg')),
+onMounted(() => {
+  if (page.value === 'play') {
+    void nextTick().then(() => ensurePixiReady())
   }
+})
 
-  renderScene()
-
-  window.addEventListener('resize', renderScene)
+watch(page, async (nextPage) => {
+  if (nextPage === 'play') {
+    await nextTick()
+    await ensurePixiReady()
+    renderScene()
+  } else {
+    clearTimers()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -1035,6 +1074,7 @@ onBeforeUnmount(() => {
   audioCtx?.close().catch(() => {})
   audioCtx = null
 })
+
 </script>
 
 <template>
