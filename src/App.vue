@@ -14,11 +14,9 @@ import {
   getCurrentPlayer,
   getLegalPieceIds,
   getPieceLocation,
-  getPlayerFinishedCount,
-  getPlayerTrackCount,
   getTrackCellIndex,
-  movePiece,
   rollDice,
+  movePiece,
 } from './game'
 
 const mode = ref<GameMode>(4)
@@ -246,16 +244,6 @@ function getActiveHumanPlayers() {
 function getPlayerPieceTexture(playerIndex: number) {
   return playerPieceTextures[playerIndex] ?? pieceTexture
 }
-
-function getPlayerAvatarSrc(playerIndex: number) {
-  return [
-    assetUrl('player-red.png'),
-    assetUrl('player-yellow.png'),
-    assetUrl('player-blue.png'),
-    assetUrl('player-green.png'),
-  ][playerIndex] ?? assetUrl('flight-ludo-plane.svg')
-}
-
 function getDiceAccentStyle() {
   return game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
 }
@@ -1181,21 +1169,6 @@ onBeforeUnmount(() => {
 
         <aside class="panel play-sidebar glass-card">
           <section class="section">
-            <h2>玩家</h2>
-            <ul class="player-list">
-              <li v-for="player in game.players" :key="player.index" :class="['player-item', { active: player.index === currentPlayer.index }]">
-                <img class="player-avatar" :src="getPlayerAvatarSrc(player.index)" :alt="player.name" />
-                <span class="swatch" :style="{ backgroundColor: player.color }" />
-                <div>
-                  <strong>{{ player.name }}</strong>
-                  <small>{{ player.humanControlled ? '手动' : '电脑' }}</small>
-                </div>
-                <em>{{ getPlayerTrackCount(player) }}/{{ player.pieces.length }} · {{ getPlayerFinishedCount(player) }}</em>
-              </li>
-            </ul>
-          </section>
-
-          <section class="section">
             <h2>操作</h2>
             <button
               class="primary"
@@ -1206,15 +1179,6 @@ onBeforeUnmount(() => {
               掷骰子
             </button>
             <button class="secondary" type="button" @click="restartGame">重开本局</button>
-          </section>
-
-          <section class="section">
-            <h2>说明</h2>
-            <ul class="tips-list compact">
-              <li>掷出 6 才能从基地出发。</li>
-              <li>落在对方棋子上可把它送回基地。</li>
-              <li>四个角是安全点。</li>
-            </ul>
           </section>
         </aside>
       </div>
