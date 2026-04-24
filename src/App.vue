@@ -45,9 +45,9 @@ type BoardLayout = {
 let currentLayout: BoardLayout | null = null
 
 const modeOptions: Array<{ value: GameMode; label: string; hint: string }> = [
-  { value: 2, label: '2 人模式', hint: '红方 + 蓝方' },
-  { value: 3, label: '3 人模式', hint: '红方 + 黄方 + 绿方' },
-  { value: 4, label: '4 人模式', hint: '四角完整对战' },
+  { value: 2, label: '2 人模式', hint: '2 位玩家手动，2 位电脑' },
+  { value: 3, label: '3 人模式', hint: '3 位玩家手动，1 位电脑' },
+  { value: 4, label: '4 人模式', hint: '4 位玩家手动，对战电脑关闭' },
 ]
 
 const pieceOptions = [1, 2, 3, 4]
@@ -97,7 +97,8 @@ function clearTimers() {
 }
 
 function scheduleAutoTurn(delay = 180) {
-  if (!autoPlayMode.value || game.value.winnerIndex !== null) return
+  if (game.value.winnerIndex !== null) return
+  if (!autoPlayMode.value || isHumanTurn()) return
   if (autoTimer !== null) {
     window.clearTimeout(autoTimer)
   }
@@ -110,6 +111,14 @@ function scheduleAutoTurn(delay = 180) {
 function getDiceDisplayValue() {
   if (isRolling.value) return rollingFace.value
   return game.value.dice
+}
+
+function isHumanTurn() {
+  return currentPlayer.value.humanControlled
+}
+
+function getPlayerControlLabel(player: GameState['players'][number]) {
+  return player.humanControlled ? '人类' : '电脑'
 }
 
 function ensureAudioContext() {
@@ -213,6 +222,7 @@ function getPlayerByPieceId(state: GameState, pieceId: string) {
 
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
+  if (isHumanTurn()) return
   if (game.value.dice !== null || isRolling.value) return
 
   handleRoll()
@@ -229,6 +239,7 @@ function restartGame() {
 
 function handleRoll() {
   if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value) return
+  if (!isHumanTurn() && !autoPlayMode.value) return
 
   clearTimers()
   isRolling.value = true
@@ -250,7 +261,7 @@ function handleRoll() {
     if (result.rolled) {
       playRollSound()
       refreshGameView()
-      if (autoPlayMode.value) {
+      if (!isHumanTurn() && autoPlayMode.value) {
         scheduleAutoTurn(220)
       }
     }
@@ -286,7 +297,7 @@ function handleMove(pieceId: string) {
       if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
-      if (autoPlayMode.value) scheduleAutoTurn(220)
+      if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
     }
     return
   }
@@ -322,7 +333,7 @@ function handleMove(pieceId: string) {
       if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
-      if (autoPlayMode.value) scheduleAutoTurn(220)
+      if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
     }
   }
 
@@ -535,7 +546,7 @@ function renderScene() {
       .stroke({ color: player.color, width: 1, alpha: 0.24 })
     board.addChild(finishBox)
 
-    const label = drawText(`${player.name} · ${player.active ? '参与' : '未上场'}`, zoneX + zoneSize / 2, zoneY + zoneSize - 18, {
+    const label = drawText(`${player.name} · ${getPlayerControlLabel(player)}`, zoneX + zoneSize / 2, zoneY + zoneSize - 18, {
       anchor: 0.5,
       fontSize: 13,
       fill: 0xcbd5e1,
@@ -899,7 +910,7 @@ onBeforeUnmount(() => {
           <h2>状态</h2>
           <p class="status-text">{{ game.status }}</p>
           <div class="meta-row">
-            <span><strong>{{ currentPlayer.name }}</strong> 回合</span>
+            <span><strong>{{ currentPlayer.name }}</strong> 回合（{{ currentPlayer.humanControlled ? '手动' : '电脑' }}）</span>
             <span>骰子 <strong>{{ game.dice ?? '—' }}</strong></span>
             <span>可走 <strong>{{ legalPieces.length }}</strong></span>
           </div>
@@ -913,7 +924,7 @@ onBeforeUnmount(() => {
               <span class="swatch" :style="{ backgroundColor: player.color }" />
               <div>
                 <strong>{{ player.name }}</strong>
-                <small>{{ player.active ? '参与' : '未参与' }}</small>
+                <small>{{ player.humanControlled ? '手动' : '电脑' }}</small>
               </div>
               <em>{{ getPlayerTrackCount(player) }}/{{ player.pieces.length }} · {{ getPlayerFinishedCount(player) }}</em>
             </li>

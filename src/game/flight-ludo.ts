@@ -26,6 +26,7 @@ export interface PlayerMeta {
 
 export interface PlayerState extends PlayerMeta {
   active: boolean
+  humanControlled: boolean
   pieces: PieceState[]
 }
 
@@ -58,8 +59,7 @@ export const FLIGHT_JUMPS = new Map<number, number>([
 ])
 
 export function getTurnOrder(mode: GameMode): number[] {
-  if (mode === 2) return [0, 2]
-  if (mode === 3) return [0, 1, 3]
+  void mode
   return [0, 1, 2, 3]
 }
 
@@ -74,7 +74,8 @@ export function createGame(settings: GameSettings): GameState {
 
   const players = PLAYER_DEFS.map((player) => ({
     ...player,
-    active: turnOrder.includes(player.index),
+    active: true,
+    humanControlled: player.index < mode,
     pieces: Array.from({ length: piecesPerPlayer }, (_, pieceIndex) => ({
       id: `${player.index}-${pieceIndex}`,
       progress: -1,
