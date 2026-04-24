@@ -319,19 +319,99 @@ function renderScene() {
     }
   }
 
-  const center = new PIXI.Graphics()
-    .circle(centerX, centerY, safeBoardSize * 0.08)
-    .fill({ color: 0x111827, alpha: 0.95 })
-    .stroke({ color: 0x64748b, width: 2, alpha: 0.45 })
+  const canRoll = game.value.winnerIndex === null && game.value.dice === null
+  const center = new PIXI.Container()
+  center.position.set(centerX, centerY)
+  center.eventMode = canRoll ? 'static' : 'passive'
+  center.cursor = canRoll ? 'pointer' : 'default'
+  if (canRoll) {
+    center.on('pointerdown', handleRoll)
+  }
   board.addChild(center)
 
-  const centerText = drawText('终点区', centerX, centerY - 10, {
+  const diceSize = safeBoardSize * 0.18
+  const diceBody = new PIXI.Graphics()
+    .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
+    .fill({ color: 0x0f172a, alpha: 0.98 })
+    .stroke({ color: 0x7dd3fc, width: 3, alpha: 0.72 })
+  center.addChild(diceBody)
+
+  const diceGlow = new PIXI.Graphics()
+    .roundRect(-diceSize * 0.62 / 2, -diceSize * 0.62 / 2, diceSize * 0.62, diceSize * 0.62, 18)
+    .stroke({ color: 0x38bdf8, width: 2, alpha: 0.16 })
+  center.addChildAt(diceGlow, 0)
+
+  if (game.value.dice === null) {
+    const diceLabel = drawText('掷骰', 0, -6, {
+      anchor: 0.5,
+      fontSize: 26,
+      fill: 0xf8fafc,
+      fontWeight: '800',
+    })
+    center.addChild(diceLabel)
+
+    const diceHint = drawText('点击投掷', 0, 20, {
+      anchor: 0.5,
+      fontSize: 12,
+      fill: 0x94a3b8,
+    })
+    center.addChild(diceHint)
+  } else {
+    const pipRadius = diceSize * 0.05
+    const pipOffset = diceSize * 0.22
+    const pipPoints = [
+      [-pipOffset, -pipOffset],
+      [0, -pipOffset],
+      [pipOffset, -pipOffset],
+      [-pipOffset, 0],
+      [0, 0],
+      [pipOffset, 0],
+      [-pipOffset, pipOffset],
+      [0, pipOffset],
+      [pipOffset, pipOffset],
+    ] as const
+
+    const layouts: Record<number, number[]> = {
+      1: [4],
+      2: [0, 8],
+      3: [0, 4, 8],
+      4: [0, 2, 6, 8],
+      5: [0, 2, 4, 6, 8],
+      6: [0, 2, 3, 5, 6, 8],
+    }
+
+    for (const index of layouts[game.value.dice] ?? layouts[1]) {
+      const [px, py] = pipPoints[index]
+      const pip = new PIXI.Graphics()
+        .circle(px, py, pipRadius)
+        .fill({ color: 0xf8fafc, alpha: 0.96 })
+      center.addChild(pip)
+    }
+
+    const diceLabel = drawText(String(game.value.dice), 0, diceSize * 0.34, {
+      anchor: 0.5,
+      fontSize: 18,
+      fill: 0xcbd5e1,
+      fontWeight: '800',
+    })
+    center.addChild(diceLabel)
+  }
+
+  const centerText = drawText('终点区', 0, diceSize * 0.72, {
     anchor: 0.5,
-    fontSize: 18,
-    fill: 0xf8fafc,
+    fontSize: 14,
+    fill: 0xcbd5e1,
     fontWeight: '700',
   })
-  board.addChild(centerText)
+  center.addChild(centerText)
+
+  const centerBadge = drawText('点这里投骰', 0, -diceSize * 0.72, {
+    anchor: 0.5,
+    fontSize: 11,
+    fill: 0x67e8f9,
+    fontWeight: '700',
+  })
+  center.addChild(centerBadge)
 
   const statusBox = new PIXI.Graphics()
     .roundRect(originX + 16, originY + safeBoardSize - 72, safeBoardSize - 32, 56, 16)
@@ -553,14 +633,9 @@ onBeforeUnmount(() => {
           </ul>
         </div>
 
-        <div class="section actions">
-          <button class="primary" type="button" :disabled="winner !== null" @click="handleRoll">
-            掷骰
-          </button>
-          <button class="secondary" type="button" @click="restartGame">
-            重开
-          </button>
-        </div>
+        <button class="secondary compact-action" type="button" @click="restartGame">
+          重开
+        </button>
 
         <button class="tips-toggle" type="button" @click="showTips = !showTips">
           {{ showTips ? '收起说明' : '说明' }}
@@ -645,6 +720,12 @@ h2 {
   margin: 0;
   font-size: 0.95rem;
   color: #e2e8f0;
+}
+
+.roll-dice-button,
+.compact-action,
+.tips-toggle {
+  width: 100%;
 }
 
 .tips-toggle {
