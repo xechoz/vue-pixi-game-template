@@ -68,6 +68,7 @@ const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
 const movingPoint = ref<{ x: number; y: number } | null>(null)
+const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
 const rollingFace = ref<number>(1)
 const isRolling = ref(false)
 const showTips = ref(false)
@@ -75,6 +76,7 @@ const showTips = ref(false)
 let rollTimer: number | null = null
 let autoTimer: number | null = null
 let autoMoveTimer: number | null = null
+let landingTimer: number | null = null
 let moveFrameId: number | null = null
 let audioCtx: AudioContext | null = null
 
@@ -87,6 +89,7 @@ function clearMovePreview() {
   replayingPieceId.value = null
   movePath.value = []
   movingPoint.value = null
+  landingPoint.value = null
 }
 
 function clearTimers() {
@@ -101,6 +104,10 @@ function clearTimers() {
   if (autoMoveTimer !== null) {
     window.clearTimeout(autoMoveTimer)
     autoMoveTimer = null
+  }
+  if (landingTimer !== null) {
+    window.clearTimeout(landingTimer)
+    landingTimer = null
   }
   if (moveFrameId !== null) {
     window.cancelAnimationFrame(moveFrameId)
@@ -139,6 +146,10 @@ function getActiveHumanPlayers() {
 
 function getPlayerPieceTexture(playerIndex: number) {
   return playerPieceTextures[playerIndex] ?? pieceTexture
+}
+
+function getPlayerAvatarSrc(playerIndex: number) {
+  return [`/player-red.png`, `/player-yellow.png`, `/player-blue.png`, `/player-green.png`][playerIndex] ?? '/flight-ludo-plane.svg'
 }
 
 function getDiceAccentStyle() {
@@ -376,6 +387,12 @@ function handleMove(pieceId: string) {
       if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
+      landingPoint.value = { x: end.x, y: end.y, color: player.color }
+      if (landingTimer !== null) window.clearTimeout(landingTimer)
+      landingTimer = window.setTimeout(() => {
+        landingTimer = null
+        landingPoint.value = null
+      }, 260)
       if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
     }
   }
@@ -404,7 +421,7 @@ watch(
       return
     }
 
-    if (!autoPlayMode.value || isHumanTurn() || isRolling.value) {
+    if (!autoPlayMode.value || isHumanTurn() || isRolling.value || movingPoint.value !== null) {
       return
     }
 
@@ -598,6 +615,22 @@ function renderScene() {
     })
     board.addChild(cornerTag)
 
+    const portraitTexture = getPlayerPieceTexture(player.index)
+    if (portraitTexture) {
+      const portrait = new PIXI.Sprite(portraitTexture)
+      portrait.anchor.set(0.5)
+      portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
+      portrait.width = zoneSize * 0.5
+      portrait.height = zoneSize * 0.5
+      portrait.tint = hexToNumber(player.color)
+      board.addChild(portrait)
+
+      const portraitRing = new PIXI.Graphics()
+        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.28)
+        .stroke({ color: 0xffffff, width: 2, alpha: 0.24 })
+      board.addChild(portraitRing)
+    }
+
     const finish = finishSlots[player.index]
     const finishBox = new PIXI.Graphics()
     finishBox
@@ -761,6 +794,13 @@ function renderScene() {
     board.addChild(hintText)
   }
 
+  if (landingPoint.value) {
+    const pulse = new PIXI.Graphics()
+      .circle(landingPoint.value.x, landingPoint.value.y, pieceRadius * 1.25)
+      .stroke({ color: hexToNumber(landingPoint.value.color), width: 3, alpha: 0.35 })
+    board.addChild(pulse)
+  }
+
   if (currentLayout && replayingPieceId.value && movePath.value.length > 0) {
     const player = getPlayerByPieceId(game.value, replayingPieceId.value)
     const piece = player?.pieces.find((item) => item.id === replayingPieceId.value)
@@ -810,6 +850,15 @@ function renderScene() {
         const slot = finishSlots[player.index][pieceIndex] ?? finishSlots[player.index][0]
         x = slot.x
         y = slot.y
+      }
+
+      if (landingPoint.value && landingPoint.value.color === player.color && piece.progress >= 0) {
+        const dx = x - landingPoint.value.x
+        const dy = y - landingPoint.value.y
+        if (Math.hypot(dx, dy) < pieceRadius * 4) {
+          x += dx * 0.08
+          y += dy * 0.08
+        }
       }
 
       return { player, piece, pieceIndex, x, y, location }
@@ -1001,6 +1050,7 @@ onBeforeUnmount(() => {
           <h2>玩家</h2>
           <ul class="player-list">
             <li v-for="player in game.players" :key="player.index" :class="['player-item', { active: player.index === currentPlayer.index }]">
+              <img class="player-avatar" :src="getPlayerAvatarSrc(player.index)" :alt="player.name" />
               <span class="swatch" :style="{ backgroundColor: player.color }" />
               <div>
                 <strong>{{ player.name }}</strong>
@@ -1270,7 +1320,7 @@ h2 {
 
 .player-item {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr auto;
   gap: 8px 12px;
   align-items: center;
   padding: 12px;
@@ -1279,8 +1329,19 @@ h2 {
   border: 1px solid rgba(148, 163, 184, 0.1);
 }
 
+.player-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.8);
+}
+
 .player-item.active {
   border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18) inset, 0 0 20px rgba(56, 189, 248, 0.14);
+  transform: translateY(-1px);
 }
 
 .player-item .swatch {
