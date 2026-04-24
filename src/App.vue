@@ -64,6 +64,10 @@ const currentPlayerHighlight = computed(() => ({
   borderColor: currentPlayer.value.color,
   boxShadow: `0 0 0 1px ${currentPlayer.value.color}33 inset, 0 0 24px ${currentPlayer.value.color}22`,
 }))
+const currentPlayerCardStyle = computed(() => ({
+  borderColor: currentPlayer.value.color,
+  boxShadow: `0 0 0 1px ${currentPlayer.value.color}44 inset, 0 12px 28px ${currentPlayer.value.color}14`,
+}))
 const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
@@ -1046,7 +1050,7 @@ onBeforeUnmount(() => {
           <p v-if="winner" class="winner-text">胜利者：{{ winner.name }}</p>
         </div>
 
-        <div class="section stats-card glass-card compact-card">
+        <div class="section stats-card glass-card compact-card player-card" :style="currentPlayerCardStyle">
           <h2>玩家</h2>
           <ul class="player-list">
             <li v-for="player in game.players" :key="player.index" :class="['player-item', { active: player.index === currentPlayer.index }]">
@@ -1309,6 +1313,26 @@ h2 {
   font-weight: 700;
 }
 
+.player-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.player-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, color-mix(in srgb, currentColor 18%, transparent), transparent 60%);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.player-card h2,
+.player-card .player-list {
+  position: relative;
+  z-index: 1;
+}
+
 .player-list,
 .tips ul {
   margin: 0;
@@ -1327,6 +1351,11 @@ h2 {
   border-radius: 16px;
   background: rgba(2, 6, 23, 0.5);
   border: 1px solid rgba(148, 163, 184, 0.1);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
 .player-avatar {
@@ -1365,7 +1394,7 @@ h2 {
 }
 
 .player-item em {
-  grid-column: 2;
+  grid-column: 4;
 }
 
 .actions {
