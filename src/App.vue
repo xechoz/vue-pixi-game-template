@@ -13,7 +13,6 @@ import {
   createGame,
   getCurrentPlayer,
   getLegalPieceIds,
-  getPieceLabel,
   getPieceLocation,
   getPlayerFinishedCount,
   getPlayerTrackCount,
@@ -923,14 +922,6 @@ function renderScene() {
       stroke: 0x0f172a,
     })
     pieceGroup.addChild(badge)
-
-    const label = drawText(getPieceLabel(pieceInfo.piece), 0, pieceRadius + 10, {
-      anchor: 0.5,
-      fontSize: 10,
-      fill: 0xe2e8f0,
-      stroke: 0x020617,
-    })
-    pieceGroup.addChild(label)
 
     if (game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
       const halo = new PIXI.Graphics()
