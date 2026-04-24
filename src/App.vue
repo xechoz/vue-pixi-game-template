@@ -74,7 +74,6 @@ const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
 const rollingFace = ref<number>(1)
 const diceSpinAngle = ref(0)
 const diceSpinScale = ref(1)
-const turnPulse = ref(0)
 const diceIdlePulse = ref(0)
 const diceIdleShake = ref(0)
 const diceIdleLift = ref(0)
@@ -93,7 +92,6 @@ let audioCtx: AudioContext | null = null
 
 function refreshGameView() {
   game.value = { ...game.value }
-  turnPulse.value = 0
   renderScene()
   syncDiceIdleAnimation()
   if (game.value.winnerIndex !== null) {
@@ -290,7 +288,6 @@ function startDiceSpin() {
     const easing = 1 - Math.pow(1 - progress, 3)
     diceSpinAngle.value = progress * 24 * Math.PI
     diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.12
-    turnPulse.value = progress
     renderScene()
     if (progress < 1) {
       rollFrameId = window.requestAnimationFrame(spin)
@@ -298,7 +295,6 @@ function startDiceSpin() {
       rollFrameId = null
       diceSpinAngle.value = 0
       diceSpinScale.value = 1
-      turnPulse.value = 1
       renderScene()
     }
     void easing
@@ -807,24 +803,32 @@ function renderScene() {
     const zoneX = player.index === 0 || player.index === 3 ? originX + 18 : originX + safeBoardSize - 18 - zoneSize
     const zoneY = player.index === 0 || player.index === 1 ? originY + 18 : originY + safeBoardSize - 18 - zoneSize
 
+    const isActivePlayer = game.value.currentPlayerIndex === player.index
     playerBase
       .roundRect(zoneX, zoneY, zoneSize, zoneSize, 24)
-      .fill({ color: player.color, alpha: 0.12 })
-      .stroke({ color: player.color, width: 2, alpha: 0.35 })
+      .fill({ color: player.color, alpha: isActivePlayer ? 0.2 : 0.12 })
+      .stroke({ color: player.color, width: isActivePlayer ? 4 : 2, alpha: isActivePlayer ? 0.58 : 0.35 })
     board.addChild(playerBase)
+
+    const activePulse = isActivePlayer
+      ? new PIXI.Graphics()
+          .roundRect(zoneX - 5, zoneY - 5, zoneSize + 10, zoneSize + 10, 28)
+          .stroke({ color: player.color, width: 3, alpha: 0.18 + diceIdlePulse.value * 0.18 })
+      : null
+    if (activePulse) board.addChild(activePulse)
 
     const portraitTexture = getPlayerPieceTexture(player.index)
     if (portraitTexture) {
       const portrait = new PIXI.Sprite(portraitTexture)
       portrait.anchor.set(0.5)
       portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
-      portrait.width = zoneSize * 0.46
-      portrait.height = zoneSize * 0.46
+      portrait.width = zoneSize * (isActivePlayer ? 0.5 : 0.46)
+      portrait.height = zoneSize * (isActivePlayer ? 0.5 : 0.46)
       board.addChild(portrait)
 
       const portraitRing = new PIXI.Graphics()
-        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * 0.26)
-        .stroke({ color: 0xffffff, width: 2, alpha: 0.24 })
+        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * (isActivePlayer ? 0.3 : 0.26))
+        .stroke({ color: 0xffffff, width: 2, alpha: isActivePlayer ? 0.42 : 0.24 })
       board.addChild(portraitRing)
     }
 
@@ -1119,7 +1123,7 @@ onBeforeUnmount(() => {
       <div class="hero-card glass-card">
         <p class="eyebrow">简化版飞行棋</p>
         <h1>准备</h1>
-        <p class="intro">先选模式和棋子数量，再开始游戏。</p>
+        <p class="intro">选好模式，直接开局。</p>
       </div>
 
       <div class="grid two-col">
@@ -1155,47 +1159,21 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div class="section status-card glass-card compact-card">
-            <h2>当前设置</h2>
-            <p class="status-text">{{ mode }} 人模式，{{ piecesPerPlayer }} 个棋子 / 玩家</p>
-            <div class="meta-row">
-              <span>手动席位 <strong>{{ mode }}</strong></span>
-              <span>电脑席位 <strong>{{ 4 - mode }}</strong></span>
-              <span>总棋子 <strong>{{ piecesPerPlayer * 4 }}</strong></span>
-            </div>
-          </div>
-
           <div class="actions">
             <button class="primary" type="button" @click="startGame">开始游戏</button>
             <button class="secondary" type="button" @click="restartGame">重置选项</button>
           </div>
         </aside>
-
-        <section class="panel info-panel glass-card">
-          <h2>说明</h2>
-          <ul class="tips-list">
-            <li>1 / 2 / 3 / 4 人模式表示手动控制的席位数，剩余席位由电脑控制。</li>
-            <li>点击“开始游戏”进入对局页。</li>
-            <li>手机上会自动改成单列布局，方便单手操作。</li>
-          </ul>
-        </section>
       </div>
     </section>
 
     <section v-else-if="page === 'play'" class="page page-play">
-      <header class="play-topbar glass-card">
-        <div>
-          <p class="eyebrow">飞行棋对局</p>
-          <h1>Play</h1>
-        </div>
-        <div class="topbar-actions">
-          <button class="secondary" type="button" @click="goToPrepare">返回准备</button>
-          <button class="secondary" type="button" @click="restartGame">重开本局</button>
-        </div>
-      </header>
-
       <div class="grid play-grid">
-        <section ref="canvasEl" class="canvas-shell" aria-label="飞行棋游戏画布" />
+        <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
+        <div class="play-floating-actions">
+          <button class="circle-action secondary" type="button" aria-label="返回准备" @click="goToPrepare">↩</button>
+          <button class="circle-action primary" type="button" aria-label="重开本局" @click="restartGame">↻</button>
+        </div>
       </div>
     </section>
 
@@ -1241,14 +1219,12 @@ onBeforeUnmount(() => {
 }
 
 .hero-card,
-.result-card,
-.play-topbar {
+.result-card {
   padding: 16px;
 }
 
 .hero-card h1,
-.result-card h1,
-.play-topbar h1 {
+.result-card h1 {
   margin: 0;
   font-size: clamp(1.9rem, 6vw, 3rem);
   line-height: 1.05;
@@ -1277,6 +1253,31 @@ onBeforeUnmount(() => {
 
 .play-grid {
   grid-template-columns: 1fr;
+  position: relative;
+}
+
+.play-canvas-shell {
+  min-height: min(92vh, 980px);
+}
+
+.play-floating-actions {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  display: grid;
+  gap: 10px;
+  z-index: 2;
+}
+
+.circle-action {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  font-size: 1.15rem;
+  line-height: 1;
 }
 
 .panel {
@@ -1374,55 +1375,6 @@ h2 {
   background: rgba(15, 23, 42, 0.92);
 }
 
-.meta-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  color: #cbd5e1;
-  font-size: 0.92rem;
-}
-
-.meta-row strong,
-.turn-pill strong,
-.dice-pill strong {
-  color: #67e8f9;
-}
-
-.turn-pill,
-.dice-pill {
-  display: inline-flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: rgba(2, 6, 23, 0.45);
-}
-
-.turn-pill small,
-.dice-pill em {
-  color: #67e8f9;
-  font-size: 0.8rem;
-  font-style: normal;
-}
-
-.winner-text {
-  margin: 0;
-  color: #67e8f9;
-  font-weight: 700;
-}
-
-.tips-list {
-  margin: 0;
-  padding-left: 1.1rem;
-  color: #cbd5e1;
-  line-height: 1.7;
-}
-
-.tips-list.compact {
-  font-size: 0.92rem;
-}
-
 .canvas-shell {
   min-height: 64vh;
   width: 100%;
@@ -1435,74 +1387,6 @@ h2 {
   display: block;
 }
 
-.player-list,
-.tips-list {
-  list-style: none;
-}
-
-.player-list {
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 10px;
-}
-
-.player-item {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  gap: 8px 10px;
-  align-items: center;
-  padding: 12px;
-  border-radius: 16px;
-  background: rgba(2, 6, 23, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.player-item.active {
-  border-color: rgba(56, 189, 248, 0.4);
-  box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.18) inset, 0 0 20px rgba(56, 189, 248, 0.14);
-}
-
-.player-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  object-fit: cover;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 23, 42, 0.8);
-}
-
-.player-item .swatch {
-  width: 14px;
-  height: 14px;
-  border-radius: 999px;
-}
-
-.player-item strong,
-.player-item small,
-.player-item em {
-  display: block;
-  font-style: normal;
-}
-
-.player-item small,
-.player-item em {
-  color: #94a3b8;
-  font-size: 0.82rem;
-}
-
-.play-topbar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.topbar-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
 @media (min-width: 860px) {
   .two-col {
     grid-template-columns: minmax(320px, 0.95fr) minmax(260px, 0.65fr);
@@ -1511,12 +1395,6 @@ h2 {
 
   .play-grid {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .play-topbar {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
   }
 }
 
