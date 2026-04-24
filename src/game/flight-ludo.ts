@@ -49,8 +49,8 @@ export const PLAYER_DEFS: PlayerMeta[] = [
   { index: 3, name: '绿方', color: '#22c55e', startIndex: 30, corner: '左下' },
 ]
 
-const SAFE_CELLS = new Set([0, 10, 20, 30])
-const FLIGHT_JUMPS = new Map<number, number>([
+export const SAFE_CELLS = new Set([0, 10, 20, 30])
+export const FLIGHT_JUMPS = new Map<number, number>([
   [5, 9],
   [12, 16],
   [22, 26],
@@ -120,6 +120,59 @@ function canPieceMove(state: GameState, piece: PieceState): boolean {
   if (state.dice === null || state.winnerIndex !== null) return false
   if (piece.progress < 0) return state.dice === 6
   return piece.progress + state.dice <= FINISH_STEP
+}
+
+export function buildMoveTrajectory(player: PlayerState, piece: PieceState, dice: number): number[] {
+  const steps: number[] = []
+  let progress = piece.progress
+
+  if (progress < 0) {
+    if (dice !== 6) return steps
+    progress = 0
+    steps.push(progress)
+    return steps
+  }
+
+  const target = Math.min(progress + dice, FINISH_STEP)
+  while (progress < target) {
+    progress += 1
+    steps.push(progress)
+
+    while (progress >= 0 && progress < TRACK_LENGTH) {
+      const tempPiece = { id: piece.id, progress }
+      const landingCell = getTrackCellIndex(player, tempPiece)
+      const jumpTarget = landingCell === null ? undefined : FLIGHT_JUMPS.get(landingCell)
+      if (jumpTarget === undefined || landingCell === null) break
+
+      progress += jumpTarget - landingCell
+      steps.push(progress)
+    }
+  }
+
+  return steps
+}
+
+export function chooseAutoMovePieceId(state: GameState): string | null {
+  if (state.dice === null || state.winnerIndex !== null) return null
+
+  const player = getCurrentPlayer(state)
+  const candidates = player.pieces
+    .filter((piece) => canPieceMove(state, piece))
+    .map((piece) => ({
+      piece,
+      trajectory: buildMoveTrajectory(player, piece, state.dice as number),
+    }))
+
+  if (candidates.length === 0) return null
+
+  candidates.sort((left, right) => {
+    const leftEnd = left.trajectory.at(-1) ?? left.piece.progress
+    const rightEnd = right.trajectory.at(-1) ?? right.piece.progress
+    if (rightEnd !== leftEnd) return rightEnd - leftEnd
+    return left.piece.progress - right.piece.progress
+  })
+
+  return candidates[0]?.piece.id ?? null
 }
 
 export function getLegalPieceIds(state: GameState): string[] {

@@ -7,6 +7,8 @@ import {
   type GameState,
   PLAYER_DEFS,
   TRACK_LENGTH,
+  buildMoveTrajectory,
+  chooseAutoMovePieceId,
   clampPiecesPerPlayer,
   createGame,
   getCurrentPlayer,
@@ -46,10 +48,43 @@ const legalPieces = computed(() => getLegalPieceIds(game.value))
 const winner = computed(() =>
   game.value.winnerIndex === null ? null : game.value.players[game.value.winnerIndex],
 )
+const autoPlayMode = ref(true)
+const replayingPieceId = ref<string | null>(null)
+const movePath = ref<number[]>([])
 
 function refreshGameView() {
   game.value = { ...game.value }
   renderScene()
+}
+
+function clearMovePreview() {
+  replayingPieceId.value = null
+  movePath.value = []
+}
+
+function playAutoTurn() {
+  if (!autoPlayMode.value || game.value.winnerIndex !== null) return
+  if (game.value.dice !== null) return
+
+  const rolled = rollDice(game.value)
+  if (!rolled.rolled) return
+  refreshGameView()
+
+  const autoPieceId = chooseAutoMovePieceId(game.value)
+  if (!autoPieceId) return
+
+  const player = getCurrentPlayer(game.value)
+  const piece = player.pieces.find((item) => item.id === autoPieceId)
+  if (!piece || game.value.dice === null) return
+
+  replayingPieceId.value = autoPieceId
+  movePath.value = buildMoveTrajectory(player, piece, game.value.dice)
+  renderScene()
+
+  window.setTimeout(() => {
+    handleMove(autoPieceId)
+    clearMovePreview()
+  }, 420)
 }
 
 function restartGame() {
@@ -57,6 +92,7 @@ function restartGame() {
     mode: mode.value,
     piecesPerPlayer: clampPiecesPerPlayer(piecesPerPlayer.value),
   })
+  clearMovePreview()
   renderScene()
 }
 
@@ -64,6 +100,9 @@ function handleRoll() {
   const result = rollDice(game.value)
   if (result.rolled) {
     refreshGameView()
+    if (autoPlayMode.value) {
+      window.setTimeout(playAutoTurn, 180)
+    }
   }
 }
 
@@ -71,6 +110,9 @@ function handleMove(pieceId: string) {
   const result = movePiece(game.value, pieceId)
   if (result.moved) {
     refreshGameView()
+    if (autoPlayMode.value) {
+      window.setTimeout(playAutoTurn, 180)
+    }
   }
 }
 
