@@ -134,18 +134,18 @@ async function ensurePixiReady() {
     const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
       PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
       PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
-      PIXI.Assets.load(assetUrl('player-red.jpg')),
-      PIXI.Assets.load(assetUrl('player-yellow.jpg')),
-      PIXI.Assets.load(assetUrl('player-blue.jpg')),
-      PIXI.Assets.load(assetUrl('player-green.jpg')),
+      PIXI.Assets.load(assetUrl('player-red.png')),
+      PIXI.Assets.load(assetUrl('player-yellow.png')),
+      PIXI.Assets.load(assetUrl('player-blue.png')),
+      PIXI.Assets.load(assetUrl('player-green.png')),
     ])
     boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
     pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
     playerPieceTextures = {
-      0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.jpg')),
-      1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.jpg')),
-      2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.jpg')),
-      3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.jpg')),
+      0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.png')),
+      1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.png')),
+      2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.png')),
+      3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
     }
   })()
 
@@ -249,10 +249,10 @@ function getPlayerPieceTexture(playerIndex: number) {
 
 function getPlayerAvatarSrc(playerIndex: number) {
   return [
-    assetUrl('player-red.jpg'),
-    assetUrl('player-yellow.jpg'),
-    assetUrl('player-blue.jpg'),
-    assetUrl('player-green.jpg'),
+    assetUrl('player-red.png'),
+    assetUrl('player-yellow.png'),
+    assetUrl('player-blue.png'),
+    assetUrl('player-green.png'),
   ][playerIndex] ?? assetUrl('flight-ludo-plane.svg')
 }
 
