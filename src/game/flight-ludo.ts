@@ -2,7 +2,7 @@ export const TRACK_LENGTH = 40
 export const HOME_STEPS = 4
 export const FINISH_STEP = TRACK_LENGTH + HOME_STEPS
 
-export type GameMode = 2 | 3 | 4
+export type GameMode = 1 | 2 | 3 | 4
 
 export type PieceLocation = 'base' | 'track' | 'home' | 'finished'
 

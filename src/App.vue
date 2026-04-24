@@ -45,6 +45,7 @@ type BoardLayout = {
 let currentLayout: BoardLayout | null = null
 
 const modeOptions: Array<{ value: GameMode; label: string; hint: string }> = [
+  { value: 1, label: '1 人模式', hint: '1 位玩家手动，3 位电脑' },
   { value: 2, label: '2 人模式', hint: '2 位玩家手动，2 位电脑' },
   { value: 3, label: '3 人模式', hint: '3 位玩家手动，1 位电脑' },
   { value: 4, label: '4 人模式', hint: '4 位玩家手动，对战电脑关闭' },
@@ -119,6 +120,10 @@ function isHumanTurn() {
 
 function getPlayerControlLabel(player: GameState['players'][number]) {
   return player.humanControlled ? '人类' : '电脑'
+}
+
+function getActiveHumanPlayers() {
+  return game.value.players.filter((player) => player.humanControlled)
 }
 
 function ensureAudioContext() {
@@ -913,6 +918,7 @@ onBeforeUnmount(() => {
             <span><strong>{{ currentPlayer.name }}</strong> 回合（{{ currentPlayer.humanControlled ? '手动' : '电脑' }}）</span>
             <span>骰子 <strong>{{ game.dice ?? '—' }}</strong></span>
             <span>可走 <strong>{{ legalPieces.length }}</strong></span>
+            <span>手动席位 <strong>{{ getActiveHumanPlayers().length }}</strong></span>
           </div>
           <p v-if="winner" class="winner-text">胜利者：{{ winner.name }}</p>
         </div>
