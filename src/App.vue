@@ -726,28 +726,6 @@ function buildFinishSlots(originX: number, originY: number, size: number) {
   })
 }
 
-function drawText(
-  text: string,
-  x: number,
-  y: number,
-  options: Partial<PIXI.TextStyle> & { anchor?: number } = {},
-) {
-  const { anchor, ...style } = options
-  const label = new PIXI.Text({
-    text,
-    style: {
-      fill: 0xe2e8f0,
-      fontFamily: 'Inter, system-ui, sans-serif',
-      ...style,
-    },
-  })
-  label.position.set(x, y)
-  if (anchor !== undefined) {
-    label.anchor.set(anchor)
-  }
-  return label
-}
-
 function renderScene() {
   if (!app || !scene) return
 
@@ -1082,14 +1060,10 @@ function renderScene() {
       .stroke({ color: tint, width: 3, alpha: 0.95 })
     pieceGroup.addChildAt(badgeRing, 0)
 
-    const badge = drawText(String(pieceInfo.pieceIndex + 1), 0, -2, {
-      anchor: 0.5,
-      fontSize: 13,
-      fill: 0xf8fafc,
-      fontWeight: '800',
-      stroke: 0x0f172a,
-    })
-    pieceGroup.addChild(badge)
+    const badgeGlow = new PIXI.Graphics()
+      .circle(0, 0, pieceRadius + 2)
+      .stroke({ color: 0xffffff, width: 2, alpha: isLegal ? 0.45 : 0.18 })
+    pieceGroup.addChild(badgeGlow)
 
     if (game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
       const halo = new PIXI.Graphics()
