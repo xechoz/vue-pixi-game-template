@@ -899,21 +899,20 @@ function renderScene() {
       const body = new PIXI.Sprite(texture)
       body.anchor.set(0.5)
       body.position.set(0, -1)
-      body.width = pieceRadius * 4.4
-      body.height = pieceRadius * 4.4
-      body.tint = tint
+      body.width = pieceRadius * 4.8
+      body.height = pieceRadius * 4.8
       pieceGroup.addChild(body)
     } else {
       const body = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 3)
+        .circle(0, 0, pieceRadius + 4)
         .fill({ color: tint, alpha: 1 })
         .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
       pieceGroup.addChild(body)
     }
 
     const badgeRing = new PIXI.Graphics()
-      .circle(0, 0, pieceRadius + 6)
-      .stroke({ color: 0xffffff, width: 2, alpha: 0.9 })
+      .circle(0, 0, pieceRadius + 7)
+      .stroke({ color: tint, width: 3, alpha: 0.9 })
     pieceGroup.addChildAt(badgeRing, 0)
 
     const badge = drawText(String(pieceInfo.pieceIndex + 1), 0, -2, {
@@ -921,13 +920,15 @@ function renderScene() {
       fontSize: 13,
       fill: 0xf8fafc,
       fontWeight: '800',
+      stroke: 0x0f172a,
     })
     pieceGroup.addChild(badge)
 
-    const label = drawText(getPieceLabel(pieceInfo.piece), 0, pieceRadius + 6, {
+    const label = drawText(getPieceLabel(pieceInfo.piece), 0, pieceRadius + 8, {
       anchor: 0.5,
       fontSize: 10,
-      fill: 0xcbd5e1,
+      fill: 0xe2e8f0,
+      stroke: 0x020617,
     })
     pieceGroup.addChild(label)
 
