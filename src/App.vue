@@ -75,10 +75,13 @@ const movePath = ref<number[]>([])
 const movingPoint = ref<{ x: number; y: number } | null>(null)
 const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
 const rollingFace = ref<number>(1)
+const diceSpinAngle = ref(0)
+const diceSpinScale = ref(1)
 const isRolling = ref(false)
 const showTips = ref(false)
 
 let rollTimer: number | null = null
+let rollFrameId: number | null = null
 let autoTimer: number | null = null
 let autoMoveTimer: number | null = null
 let landingTimer: number | null = null
@@ -101,6 +104,10 @@ function clearTimers() {
   if (rollTimer !== null) {
     window.clearTimeout(rollTimer)
     rollTimer = null
+  }
+  if (rollFrameId !== null) {
+    window.cancelAnimationFrame(rollFrameId)
+    rollFrameId = null
   }
   if (autoTimer !== null) {
     window.clearTimeout(autoTimer)
@@ -139,6 +146,28 @@ function getDiceDisplayValue() {
 
 function isHumanTurn() {
   return currentPlayer.value.humanControlled
+}
+
+function startDiceSpin() {
+  const startTime = performance.now()
+  const spin = (now: number) => {
+    const elapsed = now - startTime
+    const progress = Math.min(1, elapsed / 520)
+    const easing = 1 - Math.pow(1 - progress, 3)
+    diceSpinAngle.value = progress * 24 * Math.PI
+    diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.12
+    renderScene()
+    if (progress < 1) {
+      rollFrameId = window.requestAnimationFrame(spin)
+    } else {
+      rollFrameId = null
+      diceSpinAngle.value = 0
+      diceSpinScale.value = 1
+      renderScene()
+    }
+    void easing
+  }
+  rollFrameId = window.requestAnimationFrame(spin)
 }
 
 function getPlayerControlLabel(player: GameState['players'][number]) {
@@ -305,6 +334,9 @@ function handleRoll() {
   clearTimers()
   isRolling.value = true
   rollingFace.value = Math.floor(Math.random() * 6) + 1
+  diceSpinAngle.value = 0
+  diceSpinScale.value = 1
+  startDiceSpin()
 
   let ticks = 0
   const spin = () => {
@@ -675,41 +707,47 @@ function renderScene() {
   const currentDiceTint = hexToNumber(currentDiceColor)
   const diceValue = getDiceDisplayValue()
   const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
+  const isDiceRolling = isRolling.value
+
+  const diceGroup = new PIXI.Container()
+  diceGroup.scale.set(diceSpinScale.value)
+  diceGroup.rotation = diceSpinAngle.value
+  center.addChild(diceGroup)
 
   const diceBody = new PIXI.Graphics()
     .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
     .fill({ color: currentDiceTint, alpha: 0.22 })
     .stroke({ color: 0xffffff, width: 3, alpha: 0.58 })
-  center.addChild(diceBody)
+  diceGroup.addChild(diceBody)
 
   const diceGlow = new PIXI.Graphics()
     .roundRect(-diceSize * 0.62 / 2, -diceSize * 0.62 / 2, diceSize * 0.62, diceSize * 0.62, 18)
     .stroke({ color: currentDiceTint, width: 3, alpha: 0.18 })
-  center.addChildAt(diceGlow, 0)
+  diceGroup.addChildAt(diceGlow, 0)
 
   if (diceFaceTexture) {
     const face = new PIXI.Sprite(diceFaceTexture)
     face.anchor.set(0.5)
     face.width = diceSize * 0.94
     face.height = diceSize * 0.94
-    center.addChild(face)
+    diceGroup.addChild(face)
   }
 
   if (diceValue === null) {
-    const diceLabel = drawText('掷骰', 0, -4, {
+    const diceLabel = drawText(isDiceRolling ? '掷骰中' : '掷骰', 0, -4, {
       anchor: 0.5,
       fontSize: 26,
       fill: 0xf8fafc,
       fontWeight: '800',
     })
-    center.addChild(diceLabel)
+    diceGroup.addChild(diceLabel)
 
-    const diceHint = drawText('点击投掷', 0, 20, {
+    const diceHint = drawText(isDiceRolling ? '请稍等' : '点击投掷', 0, 20, {
       anchor: 0.5,
       fontSize: 12,
       fill: 0x94a3b8,
     })
-    center.addChild(diceHint)
+    diceGroup.addChild(diceHint)
   }
 
   const centerBadge = drawText('当前回合', 0, diceSize * 0.72, {
