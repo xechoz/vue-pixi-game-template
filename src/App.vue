@@ -472,8 +472,7 @@ function playAutoTurn() {
   const pieceId = isHumanTurn() ? getHumanAutoMovePieceId() : chooseAutoMovePieceId(game.value)
   if (!pieceId) {
     if (!isHumanTurn()) {
-      clearTimers()
-      refreshGameView()
+      scheduleTurnAdvance(2000)
     }
     return
   }
