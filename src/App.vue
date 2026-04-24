@@ -581,8 +581,8 @@ function renderScene() {
   const originX = (width - safeBoardSize) / 2
   const originY = (height - safeBoardSize) / 2
   const cellSize = safeBoardSize * 0.06
-  const trackSize = cellSize * 0.74
-  const pieceRadius = cellSize * 0.33
+  const trackSize = cellSize * 0.76
+  const pieceRadius = cellSize * 0.36
 
   const board = new PIXI.Container()
   scene.addChild(board)
@@ -889,8 +889,8 @@ function renderScene() {
     }
 
     const shadow = new PIXI.Graphics()
-      .ellipse(2, 6, pieceRadius + 8, pieceRadius + 4)
-      .fill({ color: 0x020617, alpha: 0.28 })
+      .ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)
+      .fill({ color: 0x020617, alpha: 0.26 })
     pieceGroup.addChild(shadow)
 
     const tint = hexToNumber(pieceInfo.player.color)
@@ -898,21 +898,21 @@ function renderScene() {
     if (texture) {
       const body = new PIXI.Sprite(texture)
       body.anchor.set(0.5)
-      body.position.set(0, -1)
-      body.width = pieceRadius * 4.8
-      body.height = pieceRadius * 4.8
+      body.position.set(0, -2)
+      body.width = pieceRadius * 5.2
+      body.height = pieceRadius * 5.2
       pieceGroup.addChild(body)
     } else {
       const body = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 4)
+        .circle(0, 0, pieceRadius + 5)
         .fill({ color: tint, alpha: 1 })
         .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
       pieceGroup.addChild(body)
     }
 
     const badgeRing = new PIXI.Graphics()
-      .circle(0, 0, pieceRadius + 7)
-      .stroke({ color: tint, width: 3, alpha: 0.9 })
+      .circle(0, 0, pieceRadius + 8)
+      .stroke({ color: tint, width: 3, alpha: 0.95 })
     pieceGroup.addChildAt(badgeRing, 0)
 
     const badge = drawText(String(pieceInfo.pieceIndex + 1), 0, -2, {
@@ -924,7 +924,7 @@ function renderScene() {
     })
     pieceGroup.addChild(badge)
 
-    const label = drawText(getPieceLabel(pieceInfo.piece), 0, pieceRadius + 8, {
+    const label = drawText(getPieceLabel(pieceInfo.piece), 0, pieceRadius + 10, {
       anchor: 0.5,
       fontSize: 10,
       fill: 0xe2e8f0,
