@@ -762,6 +762,13 @@ function renderScene() {
     board.addChild(pulse)
   }
 
+  if (isRolling.value) {
+    const pulse = new PIXI.Graphics()
+      .circle(centerX, centerY, safeBoardSize * 0.26)
+      .stroke({ color: hexToNumber(currentPlayer.value.color), width: 4, alpha: 0.22 })
+    board.addChild(pulse)
+  }
+
   if (boardTexture) {
     const boardSprite = new PIXI.Sprite(boardTexture)
     boardSprite.position.set(originX, originY)
