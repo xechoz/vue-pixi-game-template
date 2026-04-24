@@ -182,7 +182,7 @@ function getPlayerPieceTexture(playerIndex: number) {
 }
 
 function getPlayerAvatarSrc(playerIndex: number) {
-  return [`/player-red.png`, `/player-yellow.png`, `/player-blue.png`, `/player-green.png`][playerIndex] ?? '/flight-ludo-plane.svg'
+  return [`/player-red.jpg`, `/player-yellow.jpg`, `/player-blue.jpg`, `/player-green.jpg`][playerIndex] ?? '/flight-ludo-plane.svg'
 }
 
 function getDiceAccentStyle() {
@@ -662,7 +662,6 @@ function renderScene() {
       portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
       portrait.width = zoneSize * 0.5
       portrait.height = zoneSize * 0.5
-      portrait.tint = hexToNumber(player.color)
       board.addChild(portrait)
 
       const portraitRing = new PIXI.Graphics()
@@ -960,18 +959,18 @@ onMounted(async () => {
   const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
     PIXI.Assets.load('/flight-ludo-board.svg'),
     PIXI.Assets.load('/flight-ludo-plane.svg'),
-    PIXI.Assets.load('/player-red.png'),
-    PIXI.Assets.load('/player-yellow.png'),
-    PIXI.Assets.load('/player-blue.png'),
-    PIXI.Assets.load('/player-green.png'),
+    PIXI.Assets.load('/player-red.jpg'),
+    PIXI.Assets.load('/player-yellow.jpg'),
+    PIXI.Assets.load('/player-blue.jpg'),
+    PIXI.Assets.load('/player-green.jpg'),
   ])
   boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from('/flight-ludo-board.svg')
   pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from('/flight-ludo-plane.svg')
   playerPieceTextures = {
-    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from('/player-red.png'),
-    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from('/player-yellow.png'),
-    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from('/player-blue.png'),
-    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from('/player-green.png'),
+    0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from('/player-red.jpg'),
+    1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from('/player-yellow.jpg'),
+    2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from('/player-blue.jpg'),
+    3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from('/player-green.jpg'),
   }
 
   renderScene()
