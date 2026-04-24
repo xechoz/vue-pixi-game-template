@@ -68,6 +68,7 @@ const showTips = ref(false)
 let rollTimer: number | null = null
 let autoTimer: number | null = null
 let moveFrameId: number | null = null
+let audioCtx: AudioContext | null = null
 
 function refreshGameView() {
   game.value = { ...game.value }
@@ -109,6 +110,52 @@ function scheduleAutoTurn(delay = 180) {
 function getDiceDisplayValue() {
   if (isRolling.value) return rollingFace.value
   return game.value.dice
+}
+
+function ensureAudioContext() {
+  if (audioCtx) return audioCtx
+  const AudioCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+  if (!AudioCtor) return null
+  audioCtx = new AudioCtor()
+  return audioCtx
+}
+
+function playTone(frequency: number, duration = 0.09, type: OscillatorType = 'sine', gainValue = 0.04) {
+  const ctx = ensureAudioContext()
+  if (!ctx) return
+  const oscillator = ctx.createOscillator()
+  const gainNode = ctx.createGain()
+  oscillator.type = type
+  oscillator.frequency.value = frequency
+  gainNode.gain.value = gainValue
+  oscillator.connect(gainNode)
+  gainNode.connect(ctx.destination)
+  const now = ctx.currentTime
+  gainNode.gain.setValueAtTime(gainValue, now)
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration)
+  oscillator.start(now)
+  oscillator.stop(now + duration)
+}
+
+function playRollSound() {
+  playTone(660, 0.06, 'square', 0.03)
+  window.setTimeout(() => playTone(880, 0.09, 'square', 0.035), 60)
+}
+
+function playMoveSound() {
+  playTone(392, 0.08, 'triangle', 0.03)
+  window.setTimeout(() => playTone(523.25, 0.08, 'triangle', 0.028), 70)
+}
+
+function playCaptureSound() {
+  playTone(220, 0.12, 'sawtooth', 0.03)
+  window.setTimeout(() => playTone(165, 0.14, 'sawtooth', 0.028), 90)
+}
+
+function playWinSound() {
+  playTone(523.25, 0.12, 'triangle', 0.03)
+  window.setTimeout(() => playTone(659.25, 0.12, 'triangle', 0.028), 110)
+  window.setTimeout(() => playTone(783.99, 0.16, 'triangle', 0.03), 220)
 }
 
 function resolvePiecePoint(
@@ -160,6 +207,10 @@ function buildPiecePath(
   return path
 }
 
+function getPlayerByPieceId(state: GameState, pieceId: string) {
+  return state.players.find((player) => player.pieces.some((piece) => piece.id === pieceId)) ?? null
+}
+
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
   if (game.value.dice !== null || isRolling.value) return
@@ -197,6 +248,7 @@ function handleRoll() {
     rollTimer = null
     const result = rollDice(game.value)
     if (result.rolled) {
+      playRollSound()
       refreshGameView()
       if (autoPlayMode.value) {
         scheduleAutoTurn(220)
@@ -229,6 +281,9 @@ function handleMove(pieceId: string) {
   if (pathPoints.length <= 1) {
     const result = movePiece(game.value, pieceId)
     if (result.moved) {
+      playMoveSound()
+      if (result.message.includes('吃子')) playCaptureSound()
+      if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
       if (autoPlayMode.value) scheduleAutoTurn(220)
@@ -262,6 +317,9 @@ function handleMove(pieceId: string) {
     movingPoint.value = null
     const result = movePiece(game.value, pieceId)
     if (result.moved) {
+      playMoveSound()
+      if (result.message.includes('吃子')) playCaptureSound()
+      if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
       if (autoPlayMode.value) scheduleAutoTurn(220)
@@ -630,6 +688,34 @@ function renderScene() {
     board.addChild(hintText)
   }
 
+  if (currentLayout && replayingPieceId.value && movePath.value.length > 0) {
+    const player = getPlayerByPieceId(game.value, replayingPieceId.value)
+    const piece = player?.pieces.find((item) => item.id === replayingPieceId.value)
+    if (player && piece && currentLayout) {
+      const layout = currentLayout
+      const pathPoints = [
+        resolvePiecePoint(layout, player, piece),
+        ...movePath.value.map((progress) => resolvePiecePoint(layout, player, { progress })),
+      ]
+
+      const trail = new PIXI.Graphics()
+      trail.moveTo(pathPoints[0].x, pathPoints[0].y)
+      for (const point of pathPoints.slice(1)) {
+        trail.lineTo(point.x, point.y)
+      }
+      trail.stroke({ color: player.color, width: 5, alpha: 0.45 })
+      board.addChild(trail)
+
+      for (const point of pathPoints.slice(1)) {
+        const marker = new PIXI.Graphics()
+          .circle(point.x, point.y, 8)
+          .fill({ color: 0xffffff, alpha: 0.14 })
+          .stroke({ color: player.color, width: 2, alpha: 0.6 })
+        board.addChild(marker)
+      }
+    }
+  }
+
   const pieces = game.value.players.flatMap((player) =>
     player.pieces.map((piece, pieceIndex) => {
       const location = getPieceLocation(player, piece)
@@ -766,6 +852,8 @@ onBeforeUnmount(() => {
   app = null
   scene = null
   currentLayout = null
+  audioCtx?.close().catch(() => {})
+  audioCtx = null
 })
 </script>
 
