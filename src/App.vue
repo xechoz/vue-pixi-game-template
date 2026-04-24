@@ -75,10 +75,15 @@ const rollingFace = ref<number>(1)
 const diceSpinAngle = ref(0)
 const diceSpinScale = ref(1)
 const turnPulse = ref(0)
+const diceIdlePulse = ref(0)
+const diceIdleShake = ref(0)
+const diceIdleLift = ref(0)
 const isRolling = ref(false)
 
 let rollTimer: number | null = null
 let rollFrameId: number | null = null
+let diceIdleFrameId: number | null = null
+let diceIdleStart = 0
 let autoTimer: number | null = null
 let autoMoveTimer: number | null = null
 let landingTimer: number | null = null
@@ -90,6 +95,7 @@ function refreshGameView() {
   game.value = { ...game.value }
   turnPulse.value = 0
   renderScene()
+  syncDiceIdleAnimation()
   if (game.value.winnerIndex !== null) {
     page.value = 'result'
   }
@@ -128,13 +134,19 @@ async function ensurePixiReady() {
     scene = new PIXI.Container()
     app.stage.addChild(scene)
 
-    const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
+    const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece, ...diceFaces] = await Promise.all([
       PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
       PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
       PIXI.Assets.load(assetUrl('player-red.png')),
       PIXI.Assets.load(assetUrl('player-yellow.png')),
       PIXI.Assets.load(assetUrl('player-blue.png')),
       PIXI.Assets.load(assetUrl('player-green.png')),
+      PIXI.Assets.load(assetUrl('dice-1.svg')),
+      PIXI.Assets.load(assetUrl('dice-2.svg')),
+      PIXI.Assets.load(assetUrl('dice-3.svg')),
+      PIXI.Assets.load(assetUrl('dice-4.svg')),
+      PIXI.Assets.load(assetUrl('dice-5.svg')),
+      PIXI.Assets.load(assetUrl('dice-6.svg')),
     ])
     boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
     pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
@@ -144,6 +156,13 @@ async function ensurePixiReady() {
       2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.png')),
       3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
     }
+    diceTextures[1] = diceFaces[0] instanceof PIXI.Texture ? diceFaces[0] : PIXI.Texture.from(assetUrl('dice-1.svg'))
+    diceTextures[2] = diceFaces[1] instanceof PIXI.Texture ? diceFaces[1] : PIXI.Texture.from(assetUrl('dice-2.svg'))
+    diceTextures[3] = diceFaces[2] instanceof PIXI.Texture ? diceFaces[2] : PIXI.Texture.from(assetUrl('dice-3.svg'))
+    diceTextures[4] = diceFaces[3] instanceof PIXI.Texture ? diceFaces[3] : PIXI.Texture.from(assetUrl('dice-4.svg'))
+    diceTextures[5] = diceFaces[4] instanceof PIXI.Texture ? diceFaces[4] : PIXI.Texture.from(assetUrl('dice-5.svg'))
+    diceTextures[6] = diceFaces[5] instanceof PIXI.Texture ? diceFaces[5] : PIXI.Texture.from(assetUrl('dice-6.svg'))
+
   })()
 
   try {
@@ -171,6 +190,10 @@ function clearTimers() {
     window.cancelAnimationFrame(rollFrameId)
     rollFrameId = null
   }
+  if (diceIdleFrameId !== null) {
+    window.cancelAnimationFrame(diceIdleFrameId)
+    diceIdleFrameId = null
+  }
   if (autoTimer !== null) {
     window.clearTimeout(autoTimer)
     autoTimer = null
@@ -187,6 +210,55 @@ function clearTimers() {
     window.cancelAnimationFrame(moveFrameId)
     moveFrameId = null
   }
+  stopDiceIdleAnimation()
+}
+
+function stopDiceIdleAnimation() {
+  if (diceIdleFrameId !== null) {
+    window.cancelAnimationFrame(diceIdleFrameId)
+    diceIdleFrameId = null
+  }
+  diceIdlePulse.value = 0
+  diceIdleShake.value = 0
+  diceIdleLift.value = 0
+}
+
+function syncDiceIdleAnimation() {
+  stopDiceIdleAnimation()
+
+  const shouldAnimate =
+    page.value === 'play' &&
+    game.value.winnerIndex === null &&
+    game.value.dice === null &&
+    !isRolling.value &&
+    movingPoint.value === null
+
+  if (!shouldAnimate) return
+
+  diceIdleStart = performance.now()
+  const loop = (now: number) => {
+    if (
+      page.value !== 'play' ||
+      game.value.winnerIndex !== null ||
+      game.value.dice !== null ||
+      isRolling.value ||
+      movingPoint.value !== null
+    ) {
+      stopDiceIdleAnimation()
+      return
+    }
+
+    const elapsed = now - diceIdleStart
+    const wobble = Math.sin(elapsed / 120)
+    const pulse = 0.5 + 0.5 * Math.sin(elapsed / 260)
+    diceIdleShake.value = wobble
+    diceIdleLift.value = Math.sin(elapsed / 420) * 4
+    diceIdlePulse.value = pulse
+    renderScene()
+    diceIdleFrameId = window.requestAnimationFrame(loop)
+  }
+
+  diceIdleFrameId = window.requestAnimationFrame(loop)
 }
 
 function scheduleAutoTurn(delay = 180) {
@@ -262,6 +334,18 @@ function getTurnPrompt() {
 
 function getDiceTexture(value: number) {
   return diceTextures[value] ?? null
+}
+
+function createDiceBackdropTint(value: number) {
+  const palette: Record<number, number> = {
+    1: 0xf8fafc,
+    2: 0xfde68a,
+    3: 0xfca5a5,
+    4: 0x93c5fd,
+    5: 0xa7f3d0,
+    6: 0xd8b4fe,
+  }
+  return palette[value] ?? 0xf8fafc
 }
 
 function ensureAudioContext() {
@@ -829,9 +913,15 @@ function renderScene() {
   diceGroup.rotation = diceSpinAngle.value
   center.addChild(diceGroup)
 
+  const diceBackPlate = new PIXI.Graphics()
+    .roundRect(-diceSize / 2 + 6, -diceSize / 2 + 8, diceSize, diceSize, 24)
+    .fill({ color: 0x020617, alpha: 0.28 })
+    .stroke({ color: 0x000000, width: 1, alpha: 0.16 })
+  diceGroup.addChildAt(diceBackPlate, 0)
+
   const diceBody = new PIXI.Graphics()
     .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
-    .fill({ color: currentDiceTint, alpha: 0.22 })
+    .fill({ color: createDiceBackdropTint(diceValue ?? rollingFace.value), alpha: 0.88 })
     .stroke({ color: 0xffffff, width: 3, alpha: 0.58 })
   diceGroup.addChild(diceBody)
 
@@ -839,6 +929,11 @@ function renderScene() {
     .roundRect(-diceSize * 0.62 / 2, -diceSize * 0.62 / 2, diceSize * 0.62, diceSize * 0.62, 18)
     .stroke({ color: currentDiceTint, width: 3, alpha: 0.18 })
   diceGroup.addChildAt(diceGlow, 0)
+
+  const edgeShadow = new PIXI.Graphics()
+    .roundRect(-diceSize / 2 + 2, -diceSize / 2 + 3, diceSize - 4, diceSize - 4, 20)
+    .stroke({ color: 0x0f172a, width: 6, alpha: 0.16 })
+  diceGroup.addChild(edgeShadow)
 
   if (diceFaceTexture) {
     const face = new PIXI.Sprite(diceFaceTexture)
