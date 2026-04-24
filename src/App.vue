@@ -61,10 +61,6 @@ const legalPieces = computed(() => getLegalPieceIds(game.value))
 const winner = computed(() =>
   game.value.winnerIndex === null ? null : game.value.players[game.value.winnerIndex],
 )
-const currentPlayerHighlight = computed(() => ({
-  borderColor: currentPlayer.value.color,
-  boxShadow: `0 0 0 1px ${currentPlayer.value.color}33 inset, 0 0 24px ${currentPlayer.value.color}22`,
-}))
 const assetBase = import.meta.env.BASE_URL
 function assetUrl(name: string) {
   return `${assetBase}${name}`
@@ -237,15 +233,8 @@ function getPlayerControlLabel(player: GameState['players'][number]) {
   return player.humanControlled ? '人类' : '电脑'
 }
 
-function getActiveHumanPlayers() {
-  return game.value.players.filter((player) => player.humanControlled)
-}
-
 function getPlayerPieceTexture(playerIndex: number) {
   return playerPieceTextures[playerIndex] ?? pieceTexture
-}
-function getDiceAccentStyle() {
-  return game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
 }
 
 function getDiceTexture(value: number) {
@@ -796,7 +785,7 @@ function renderScene() {
   board.addChild(center)
 
   const diceSize = safeBoardSize * 0.18
-  const currentDiceColor = getDiceAccentStyle()
+  const currentDiceColor = game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
   const currentDiceTint = hexToNumber(currentDiceColor)
   const diceValue = getDiceDisplayValue()
   const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
@@ -1147,24 +1136,6 @@ onBeforeUnmount(() => {
       </header>
 
       <div class="grid play-grid">
-        <section class="panel status-panel glass-card">
-          <h2>状态</h2>
-          <p class="status-text">{{ game.status }}</p>
-          <div class="meta-row">
-            <span class="turn-pill" :style="currentPlayerHighlight">
-              <strong>{{ currentPlayer.name }}</strong>
-              <small>{{ currentPlayer.humanControlled ? '手动' : '电脑' }}回合</small>
-            </span>
-            <span class="dice-pill" :style="{ borderColor: getDiceAccentStyle() }">
-              <em>骰子</em>
-              <strong>{{ game.dice ?? '—' }}</strong>
-            </span>
-            <span>可走 <strong>{{ legalPieces.length }}</strong></span>
-            <span>手动席位 <strong>{{ getActiveHumanPlayers().length }}</strong></span>
-          </div>
-          <p v-if="winner" class="winner-text">胜利者：{{ winner.name }}</p>
-        </section>
-
         <section ref="canvasEl" class="canvas-shell" aria-label="飞行棋游戏画布" />
 
         <aside class="panel play-sidebar glass-card">
@@ -1260,7 +1231,6 @@ onBeforeUnmount(() => {
   gap: 14px;
 }
 
-.two-col,
 .play-grid {
   grid-template-columns: 1fr;
 }
