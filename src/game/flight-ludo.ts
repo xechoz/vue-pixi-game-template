@@ -190,13 +190,13 @@ export function getPieceLabel(piece: PieceState): string {
   return '已完成'
 }
 
-export function rollDice(state: GameState): { rolled: boolean; skipped: boolean; message: string } {
+export function rollDice(state: GameState): { rolled: boolean; skipped: boolean; advancePending: boolean; message: string } {
   if (state.winnerIndex !== null) {
-    return { rolled: false, skipped: false, message: '游戏已经结束了。' }
+    return { rolled: false, skipped: false, advancePending: false, message: '游戏已经结束了。' }
   }
 
   if (state.dice !== null) {
-    return { rolled: false, skipped: false, message: '当前回合已经有骰子结果，先移动棋子。' }
+    return { rolled: false, skipped: false, advancePending: false, message: '当前回合已经有骰子结果，先移动棋子。' }
   }
 
   const player = getCurrentPlayer(state)
@@ -205,33 +205,37 @@ export function rollDice(state: GameState): { rolled: boolean; skipped: boolean;
   const legalPieces = getLegalPieceIds(state)
   if (legalPieces.length === 0) {
     const rolled = state.dice
-    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，自动跳过。`
-    state.dice = null
-    advanceTurn(state)
-    return { rolled: true, skipped: true, message: state.status }
+    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，稍后自动跳过。`
+    return { rolled: true, skipped: true, advancePending: true, message: state.status }
   }
 
   state.status = `${player.name} 掷出 ${state.dice} 点，请选择一枚可移动棋子。`
-  return { rolled: true, skipped: false, message: state.status }
+  return { rolled: true, skipped: false, advancePending: false, message: state.status }
 }
 
-export function movePiece(state: GameState, pieceId: string): { moved: boolean; message: string } {
+export function movePiece(
+  state: GameState,
+  pieceId: string,
+  options: { deferAdvanceTurn?: boolean } = {},
+): { moved: boolean; advancePending: boolean; message: string } {
+  void options
+
   if (state.dice === null) {
-    return { moved: false, message: '请先掷骰子。' }
+    return { moved: false, advancePending: false, message: '请先掷骰子。' }
   }
 
   if (state.winnerIndex !== null) {
-    return { moved: false, message: '游戏已经结束了。' }
+    return { moved: false, advancePending: false, message: '游戏已经结束了。' }
   }
 
   const player = getCurrentPlayer(state)
   const piece = player.pieces.find((item) => item.id === pieceId)
   if (!piece) {
-    return { moved: false, message: '只能移动当前玩家的棋子。' }
+    return { moved: false, advancePending: false, message: '只能移动当前玩家的棋子。' }
   }
 
   if (!canPieceMove(state, piece)) {
-    return { moved: false, message: '这枚棋子当前不能移动。' }
+    return { moved: false, advancePending: false, message: '这枚棋子当前不能移动。' }
   }
 
   const dice = state.dice
@@ -281,6 +285,7 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     state.status = `${player.name} 已完成全部棋子，赢得胜利！`
     return {
       moved: true,
+      advancePending: false,
       message:
         captured > 0
           ? `${player.name} 吃子 ${captured} 枚，并且拿下胜利！`
@@ -292,6 +297,7 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     state.status = `${player.name} 掷出 6，获得一次额外行动。`
     return {
       moved: true,
+      advancePending: false,
       message:
         captured > 0
           ? `${player.name} 吃子 ${captured} 枚，继续本回合。`
@@ -299,15 +305,15 @@ export function movePiece(state: GameState, pieceId: string): { moved: boolean; 
     }
   }
 
-  advanceTurn(state)
+  state.status = captured > 0
+    ? `${player.name} 吃子 ${captured} 枚，2 秒后轮到下一位。`
+    : jumped
+      ? `${player.name} 飞跃前进，2 秒后轮到下一位。`
+      : `${player.name} 走了一步，2 秒后轮到下一位。`
   return {
     moved: true,
-    message:
-      captured > 0
-        ? `${player.name} 吃子 ${captured} 枚，轮到下一位。`
-        : jumped
-          ? `${player.name} 飞跃前进，轮到下一位。`
-          : `${player.name} 走了一步，轮到下一位。`,
+    advancePending: true,
+    message: state.status,
   }
 }
 

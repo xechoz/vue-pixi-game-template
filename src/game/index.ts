@@ -23,4 +23,5 @@ export {
   movePiece,
   resetGame,
   rollDice,
+  advanceTurn,
 } from './flight-ludo'

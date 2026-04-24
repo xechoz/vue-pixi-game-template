@@ -16,6 +16,7 @@ import {
   getPieceLocation,
   getPlayerTrackCount,
   getTrackCellIndex,
+  advanceTurn,
   rollDice,
   movePiece,
 } from './game'
@@ -78,6 +79,7 @@ const diceIdlePulse = ref(0)
 const diceIdleShake = ref(0)
 const diceIdleLift = ref(0)
 const isRolling = ref(false)
+const isTurnTransitioning = ref(false)
 
 let rollTimer: number | null = null
 let rollFrameId: number | null = null
@@ -85,6 +87,7 @@ let diceIdleFrameId: number | null = null
 let diceIdleStart = 0
 let autoTimer: number | null = null
 let autoMoveTimer: number | null = null
+let turnAdvanceTimer: number | null = null
 let landingTimer: number | null = null
 let moveFrameId: number | null = null
 let appInitPromise: Promise<void> | null = null
@@ -97,6 +100,23 @@ function refreshGameView() {
   if (game.value.winnerIndex !== null) {
     page.value = 'result'
   }
+}
+
+function scheduleTurnAdvance(delay = 2000) {
+  if (game.value.winnerIndex !== null) return
+  if (turnAdvanceTimer !== null) {
+    window.clearTimeout(turnAdvanceTimer)
+  }
+  isTurnTransitioning.value = true
+  turnAdvanceTimer = window.setTimeout(() => {
+    turnAdvanceTimer = null
+    advanceTurn(game.value)
+    isTurnTransitioning.value = false
+    refreshGameView()
+    if (!isHumanTurn() && autoPlayMode.value) {
+      scheduleAutoTurn(220)
+    }
+  }, delay)
 }
 
 async function ensurePixiReady() {
@@ -200,6 +220,10 @@ function clearTimers() {
     window.clearTimeout(autoMoveTimer)
     autoMoveTimer = null
   }
+  if (turnAdvanceTimer !== null) {
+    window.clearTimeout(turnAdvanceTimer)
+    turnAdvanceTimer = null
+  }
   if (landingTimer !== null) {
     window.clearTimeout(landingTimer)
     landingTimer = null
@@ -208,6 +232,7 @@ function clearTimers() {
     window.cancelAnimationFrame(moveFrameId)
     moveFrameId = null
   }
+  isTurnTransitioning.value = false
   stopDiceIdleAnimation()
 }
 
@@ -525,7 +550,9 @@ function handleRoll(fromAuto = false) {
     if (result.rolled) {
       playRollSound()
       refreshGameView()
-      if (!isHumanTurn() && autoPlayMode.value) {
+      if (result.advancePending) {
+        scheduleTurnAdvance(2000)
+      } else if (!isHumanTurn() && autoPlayMode.value) {
         scheduleAutoTurn(220)
       }
     }
@@ -561,7 +588,9 @@ function handleMove(pieceId: string) {
       if (result.message.includes('胜利')) playWinSound()
       refreshGameView()
       clearMovePreview()
-      if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
+      if (result.advancePending) {
+        scheduleTurnAdvance(2000)
+      } else if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
     }
     return
   }
@@ -605,7 +634,9 @@ function handleMove(pieceId: string) {
         landingTimer = null
         landingPoint.value = null
       }, 260)
-      if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
+      if (result.advancePending) {
+        scheduleTurnAdvance(2000)
+      } else if (!isHumanTurn() && autoPlayMode.value) scheduleAutoTurn(220)
     }
   }
 
@@ -792,6 +823,8 @@ function renderScene() {
   const finishSlots = buildFinishSlots(originX, originY, safeBoardSize)
   currentLayout = { trackPoints, baseSlots, finishSlots }
 
+  let activeDiceAnchor = { x: centerX, y: centerY }
+
   for (let index = 0; index < trackPoints.length; index += 1) {
     const point = trackPoints[index]
     const cell = new PIXI.Graphics()
@@ -816,6 +849,14 @@ function renderScene() {
       .fill({ color: player.color, alpha: isActivePlayer ? 0.2 : 0.12 })
       .stroke({ color: player.color, width: isActivePlayer ? 4 : 2, alpha: isActivePlayer ? 0.58 : 0.35 })
     board.addChild(playerBase)
+
+    if (isActivePlayer) {
+      const diceOffset = zoneSize * 0.78
+      activeDiceAnchor = {
+        x: player.index === 0 || player.index === 3 ? zoneX + diceOffset : zoneX - diceOffset,
+        y: zoneY + zoneSize / 2 - 4,
+      }
+    }
 
     const activePulse = isActivePlayer
       ? new PIXI.Graphics()
@@ -852,10 +893,10 @@ function renderScene() {
     }
   }
 
-  const canRoll = game.value.winnerIndex === null && game.value.dice === null
+  const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value
   const canManualRoll = canRoll && (isHumanTurn() || !autoPlayMode.value)
   const center = new PIXI.Container()
-  center.position.set(centerX, centerY)
+  center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
   center.eventMode = canManualRoll ? 'static' : 'passive'
   center.cursor = canManualRoll ? 'pointer' : 'default'
   if (canManualRoll) {
