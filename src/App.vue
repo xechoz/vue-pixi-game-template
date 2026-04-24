@@ -438,7 +438,7 @@ function playAutoTurn() {
     if (!isHumanTurn()) {
       autoMoveTimer = window.setTimeout(() => {
         autoMoveTimer = null
-        handleRoll()
+        handleRoll(true)
       }, 220)
     }
     return
@@ -498,9 +498,9 @@ function goToPrepare() {
   restartGame()
 }
 
-function handleRoll() {
+function handleRoll(fromAuto = false) {
   if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value) return
-  if (!isHumanTurn() && !autoPlayMode.value) return
+  if (!isHumanTurn() && !fromAuto) return
 
   clearTimers()
   isRolling.value = true
@@ -853,12 +853,13 @@ function renderScene() {
   }
 
   const canRoll = game.value.winnerIndex === null && game.value.dice === null
+  const canManualRoll = canRoll && (isHumanTurn() || !autoPlayMode.value)
   const center = new PIXI.Container()
   center.position.set(centerX, centerY)
-  center.eventMode = canRoll ? 'static' : 'passive'
-  center.cursor = canRoll ? 'pointer' : 'default'
-  if (canRoll) {
-    center.on('pointerdown', handleRoll)
+  center.eventMode = canManualRoll ? 'static' : 'passive'
+  center.cursor = canManualRoll ? 'pointer' : 'default'
+  if (canManualRoll) {
+    center.on('pointerdown', () => handleRoll(false))
   }
   board.addChild(center)
 
