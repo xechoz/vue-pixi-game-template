@@ -51,6 +51,7 @@ const winner = computed(() =>
 const autoPlayMode = ref(true)
 const replayingPieceId = ref<string | null>(null)
 const movePath = ref<number[]>([])
+const showTips = ref(false)
 
 function refreshGameView() {
   game.value = { ...game.value }
@@ -494,84 +495,83 @@ onBeforeUnmount(() => {
     <section class="layout">
       <aside class="panel">
         <p class="eyebrow">简化版飞行棋</p>
-        <h1>四角玩家 · 可调模式 · 1-4 枚棋子</h1>
-        <p class="intro">
-          这是一个可以直接玩的 PixiJS 小游戏：选择 2/3/4 人模式，再给每个玩家设置 1-4 枚棋子，点击掷骰子后移动合法棋子。
-        </p>
+        <h1>飞行棋</h1>
+        <p class="intro">选模式，掷骰子，走棋。</p>
 
         <div class="section">
-          <h2>游戏模式</h2>
-          <div class="button-row">
+          <h2>模式</h2>
+          <div class="button-row chips">
             <button
               v-for="option in modeOptions"
               :key="option.value"
-              :class="['choice-button', { active: mode === option.value }]"
+              :class="['choice-button', 'chip-button', { active: mode === option.value }]"
               type="button"
               @click="setMode(option.value)"
             >
-              <span>{{ option.label }}</span>
-              <small>{{ option.hint }}</small>
+              {{ option.label }}
             </button>
           </div>
         </div>
 
         <div class="section">
-          <h2>每位玩家棋子数</h2>
-          <div class="button-row compact">
+          <h2>棋子</h2>
+          <div class="button-row compact chips">
             <button
               v-for="count in pieceOptions"
               :key="count"
-              :class="['choice-button', 'count-button', { active: piecesPerPlayer === count }]"
+              :class="['choice-button', 'count-button', 'chip-button', { active: piecesPerPlayer === count }]"
               type="button"
               @click="setPiecesPerPlayer(count)"
             >
-              {{ count }} 枚
+              {{ count }}
             </button>
           </div>
         </div>
 
-        <div class="section status-card">
-          <h2>当前状态</h2>
+        <div class="section status-card glass-card compact-card">
+          <h2>状态</h2>
           <p class="status-text">{{ game.status }}</p>
-          <p class="meta-text">
-            当前回合：<strong>{{ currentPlayer.name }}</strong>
-            <span>·</span>
-            骰子：<strong>{{ game.dice ?? '未掷' }}</strong>
-            <span>·</span>
-            合法棋子：<strong>{{ legalPieces.length }}</strong>
-          </p>
+          <div class="meta-row">
+            <span><strong>{{ currentPlayer.name }}</strong> 回合</span>
+            <span>骰子 <strong>{{ game.dice ?? '—' }}</strong></span>
+            <span>可走 <strong>{{ legalPieces.length }}</strong></span>
+          </div>
           <p v-if="winner" class="winner-text">胜利者：{{ winner.name }}</p>
         </div>
 
-        <div class="section stats-card">
-          <h2>玩家情况</h2>
+        <div class="section stats-card glass-card compact-card">
+          <h2>玩家</h2>
           <ul class="player-list">
             <li v-for="player in game.players" :key="player.index" :class="['player-item', { active: player.index === currentPlayer.index }]">
               <span class="swatch" :style="{ backgroundColor: player.color }" />
               <div>
                 <strong>{{ player.name }}</strong>
-                <small>{{ player.corner }} · {{ player.active ? '参与本局' : '未参与' }}</small>
+                <small>{{ player.active ? '参与' : '未参与' }}</small>
               </div>
-              <em>{{ getPlayerTrackCount(player) }}/{{ player.pieces.length }} 在路上 · {{ getPlayerFinishedCount(player) }} 完成</em>
+              <em>{{ getPlayerTrackCount(player) }}/{{ player.pieces.length }} · {{ getPlayerFinishedCount(player) }}</em>
             </li>
           </ul>
         </div>
 
         <div class="section actions">
           <button class="primary" type="button" :disabled="winner !== null" @click="handleRoll">
-            掷骰子
+            掷骰
           </button>
           <button class="secondary" type="button" @click="restartGame">
-            重新开始
+            重开
           </button>
         </div>
 
-        <div class="section tips">
-          <h2>玩法说明</h2>
+        <button class="tips-toggle" type="button" @click="showTips = !showTips">
+          {{ showTips ? '收起说明' : '说明' }}
+        </button>
+
+        <div v-if="showTips" class="section tips glass-card">
+          <h2>说明</h2>
           <ul>
-            <li>掷出 6 时可以把棋子从基地送上赛道。</li>
-            <li>落在别人棋子上可将其送回基地，四个角落是安全点。</li>
-            <li>掷出 6 会获得一次额外行动。</li>
+            <li>掷出 6 才能从基地出发。</li>
+            <li>落在对方棋子上可把它送回基地。</li>
+            <li>四个角是安全点，掷出 6 可连走一次。</li>
           </ul>
         </div>
       </aside>
@@ -586,11 +586,13 @@ onBeforeUnmount(() => {
 <style scoped>
 .shell {
   min-height: 100vh;
-  padding: 24px;
+  padding: 18px;
+  display: grid;
+  gap: 20px;
 }
 
 .layout {
-  width: min(1440px, 100%);
+  width: min(1500px, 100%);
   margin: 0 auto;
   display: grid;
   gap: 20px;
@@ -600,15 +602,17 @@ onBeforeUnmount(() => {
 .stage-panel {
   border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 24px;
-  background: rgba(2, 6, 23, 0.78);
-  box-shadow: 0 20px 60px rgba(2, 6, 23, 0.38);
-  backdrop-filter: blur(10px);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.9)),
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 45%);
+  box-shadow: 0 24px 70px rgba(2, 6, 23, 0.5);
+  backdrop-filter: blur(14px);
 }
 
 .panel {
-  padding: 22px;
+  padding: 18px;
   display: grid;
-  gap: 18px;
+  gap: 14px;
 }
 
 .eyebrow {
@@ -639,8 +643,32 @@ h1 {
 
 h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #e2e8f0;
+}
+
+.tips-toggle {
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  background: rgba(8, 47, 73, 0.72);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 10px 16px;
+  cursor: pointer;
+  justify-self: start;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease;
+}
+
+.tips-toggle:hover {
+  transform: translateY(-1px);
+  border-color: rgba(56, 189, 248, 0.6);
+  background: rgba(8, 47, 73, 0.9);
+}
+
+.tips-toggle:active {
+  transform: translateY(0);
 }
 
 .button-row {
@@ -703,7 +731,8 @@ h2 {
 
 .status-card,
 .stats-card,
-.tips {
+.tips,
+.compact-card {
   padding: 16px;
   border-radius: 20px;
   background: rgba(15, 23, 42, 0.45);
@@ -716,18 +745,20 @@ h2 {
   line-height: 1.6;
 }
 
-.meta-text,
+.meta-row {
+  display: grid;
+  gap: 6px;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+}
+
+.meta-row strong {
+  color: #67e8f9;
+  font-weight: 700;
+}
+
 .winner-text {
   margin: 0;
-  color: #cbd5e1;
-}
-
-.meta-text span {
-  margin: 0 6px;
-  color: #64748b;
-}
-
-.winner-text {
   color: #67e8f9;
   font-weight: 700;
 }
@@ -813,12 +844,16 @@ h2 {
 }
 
 .stage-panel {
-  padding: 14px;
+  padding: 8px;
+  min-height: 82vh;
+  display: grid;
+  place-items: center;
 }
 
 .canvas-shell {
-  min-height: 72vh;
-  border-radius: 18px;
+  min-height: 82vh;
+  width: 100%;
+  border-radius: 20px;
   overflow: hidden;
 }
 
@@ -828,7 +863,7 @@ h2 {
 
 @media (min-width: 1100px) {
   .layout {
-    grid-template-columns: 360px minmax(0, 1fr);
+    grid-template-columns: 280px minmax(0, 1fr);
     align-items: start;
   }
 
