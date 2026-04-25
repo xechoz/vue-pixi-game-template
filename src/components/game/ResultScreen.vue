@@ -109,4 +109,19 @@ const emit = defineEmits<{
 .secondary:active {
   transform: translateY(0);
 }
+
+@media (max-width: 859px) {
+  .page {
+    width: 100%;
+  }
+
+  .result-card {
+    padding: 14px;
+  }
+
+  .primary,
+  .secondary {
+    min-height: 48px;
+  }
+}
 </style>

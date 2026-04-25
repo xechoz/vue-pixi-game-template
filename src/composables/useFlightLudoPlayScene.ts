@@ -601,7 +601,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
     diceGroup.cursor = canRoll ? 'pointer' : 'default'
-    diceGroup.hitArea = new PIXI.Rectangle(-diceSize / 2, -diceSize / 2, diceSize, diceSize)
+    diceGroup.hitArea = new PIXI.Rectangle(-diceSize * 0.68, -diceSize * 0.68, diceSize * 1.36, diceSize * 1.36)
     if (canRoll) {
       diceGroup.on('pointerdown', () => handleRoll(false))
     }

@@ -224,4 +224,27 @@ h2 {
     align-items: start;
   }
 }
+
+@media (max-width: 859px) {
+  .page {
+    width: 100%;
+    gap: 12px;
+  }
+
+  .hero-card,
+  .result-card,
+  .panel {
+    padding: 14px;
+  }
+
+  .button-row.compact {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .choice-button,
+  .primary,
+  .secondary {
+    min-height: 48px;
+  }
+}
 </style>
