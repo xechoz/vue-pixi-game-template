@@ -196,7 +196,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const audio = new Audio(assetUrl('bgm.mp3'))
     audio.loop = true
     audio.preload = 'auto'
-    audio.volume = 0.55
+    audio.volume = 0.09
     bgmAudio = audio
     audio.play().catch(() => {
       // Autoplay may be blocked until the first user gesture; keep the element ready.
