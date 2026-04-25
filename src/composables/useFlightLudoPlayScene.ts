@@ -541,10 +541,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(playerBase)
 
       if (isActivePlayer) {
-        const diceOffset = zoneSize * 0.64
+        const diceHalf = safeBoardSize * 0.09
+        const diceGap = safeBoardSize * 0.012
+        const diceYOffset = safeBoardSize * 0.09
         activeDiceAnchor = {
-          x: player.index === 0 || player.index === 3 ? zoneX + diceOffset : zoneX - diceOffset,
-          y: zoneY + zoneSize / 2,
+          x:
+            player.index === 0 || player.index === 3
+              ? zoneX + zoneSize + diceHalf + diceGap
+              : zoneX - diceHalf - diceGap,
+          y:
+            player.index === 0 || player.index === 1
+              ? zoneY + zoneSize / 2 - diceYOffset
+              : zoneY + zoneSize / 2 + diceYOffset,
         }
       }
 

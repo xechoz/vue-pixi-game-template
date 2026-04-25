@@ -54,11 +54,11 @@ const emit = defineEmits<{
   gap: 10px;
   width: min(100%, 92vw, 88vh);
   padding: 0 4px;
-  margin-top: -50px;
+  margin-top: -18px;
 }
 
 .play-canvas-shell {
-  min-height: min(92vh, 980px);
+  min-height: min(96vh, 1080px);
 }
 
 .circle-action {
@@ -73,17 +73,16 @@ const emit = defineEmits<{
 }
 
 .canvas-shell {
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 2px dashed rgba(56, 189, 248, 0.85);
   border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92)),
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 45%);
+    linear-gradient(180deg, rgba(24, 30, 64, 0.96), rgba(10, 14, 40, 0.94)),
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.28), transparent 45%);
   box-shadow: 0 20px 60px rgba(2, 6, 23, 0.45);
   backdrop-filter: blur(14px);
-  min-height: 78vh;
-  width: min(100%, 92vw, 88vh);
-  aspect-ratio: 1 / 1;
-  max-height: 88vh;
+  width: 100%;
+  height: 150vw;
+  max-height: none;
   overflow: visible;
 }
 
