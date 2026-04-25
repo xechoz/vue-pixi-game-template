@@ -783,7 +783,7 @@ function renderScene() {
   const board = new PIXI.Container()
   scene.addChild(board)
 
-  const boardInset = safeBoardSize * 0.14
+  const boardInset = safeBoardSize * 0.12
   const innerLeft = originX + boardInset
   const innerTop = originY + boardInset
   const innerRight = originX + safeBoardSize - boardInset
@@ -795,13 +795,6 @@ function renderScene() {
     .roundRect(originX + 8, originY + 8, safeBoardSize - 16, safeBoardSize - 16, 30)
     .stroke({ color: hexToNumber(currentPlayer.value.color), width: 5, alpha: isRolling.value ? 0.42 : 0.22 })
   board.addChild(currentPlayerGlow)
-
-  if (isRolling.value) {
-    const pulse = new PIXI.Graphics()
-      .circle(centerX, centerY, safeBoardSize * 0.26)
-      .stroke({ color: hexToNumber(currentPlayer.value.color), width: 4, alpha: 0.22 })
-    board.addChild(pulse)
-  }
 
   if (isRolling.value) {
     const pulse = new PIXI.Graphics()
@@ -849,32 +842,25 @@ function renderScene() {
 
   for (const player of game.value.players) {
     const playerBase = new PIXI.Graphics()
-    const zoneSize = safeBoardSize * 0.16
-    const zoneX = player.index === 0 || player.index === 3 ? originX + 18 : originX + safeBoardSize - 18 - zoneSize
-    const zoneY = player.index === 0 || player.index === 1 ? originY + 18 : originY + safeBoardSize - 18 - zoneSize
+    const zoneSize = safeBoardSize * 0.105
+    const zonePadding = safeBoardSize * 0.008
+    const zoneX = player.index === 0 || player.index === 3 ? originX + zonePadding : originX + safeBoardSize - zonePadding - zoneSize
+    const zoneY = player.index === 0 || player.index === 1 ? originY + zonePadding : originY + safeBoardSize - zonePadding - zoneSize
 
     const isActivePlayer = game.value.currentPlayerIndex === player.index
     playerBase
-      .roundRect(zoneX, zoneY, zoneSize, zoneSize, 24)
-      .fill({ color: player.color, alpha: isActivePlayer ? 0.2 : 0.12 })
-      .stroke({ color: player.color, width: isActivePlayer ? 4 : 2, alpha: isActivePlayer ? 0.58 : 0.35 })
+      .roundRect(zoneX, zoneY, zoneSize, zoneSize, 14)
+      .fill({ color: player.color, alpha: isActivePlayer ? 0.1 : 0.07 })
+      .stroke({ color: player.color, width: isActivePlayer ? 3 : 2, alpha: isActivePlayer ? 0.3 : 0.2 })
     board.addChild(playerBase)
 
     if (isActivePlayer) {
-      const diceOffset = zoneSize * 0.78
+      const diceOffset = zoneSize * 0.64
       activeDiceAnchor = {
         x: player.index === 0 || player.index === 3 ? zoneX + diceOffset : zoneX - diceOffset,
-        y: zoneY + zoneSize / 2 - 4,
+        y: zoneY + zoneSize / 2,
       }
     }
-
-    const activePulse = isActivePlayer
-      ? new PIXI.Graphics()
-          .roundRect(zoneX - 5, zoneY - 5, zoneSize + 10, zoneSize + 10, 28)
-          .stroke({ color: player.color, width: 3, alpha: 0.18 + diceIdlePulse.value * 0.18 })
-      : null
-    if (activePulse) board.addChild(activePulse)
-
 
     const finish = finishSlots[player.index]
     const finishBox = new PIXI.Graphics()
@@ -1409,11 +1395,11 @@ h2 {
 }
 
 .canvas-shell {
-  min-height: 64vh;
+  min-height: 78vh;
   width: 100%;
   aspect-ratio: 1 / 1;
-  max-height: 72vh;
-  overflow: hidden;
+  max-height: 88vh;
+  overflow: visible;
 }
 
 .canvas-shell :deep(canvas) {
