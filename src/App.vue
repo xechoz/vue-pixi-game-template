@@ -901,15 +901,11 @@ function renderScene() {
     }
   }
 
-  const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value
-  const canManualRoll = canRoll && (isHumanTurn() || !autoPlayMode.value)
   const center = new PIXI.Container()
   center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
-  center.eventMode = canManualRoll ? 'static' : 'passive'
-  center.cursor = canManualRoll ? 'pointer' : 'default'
-  if (canManualRoll) {
-    center.on('pointerdown', () => handleRoll(false))
-  }
+  center.eventMode = 'static'
+  center.cursor = 'pointer'
+  center.on('pointerdown', () => handleRoll(false))
   board.addChild(center)
 
   const diceSize = safeBoardSize * 0.18
