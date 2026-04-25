@@ -90,6 +90,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let moveFrameId: number | null = null
   let appInitPromise: Promise<void> | null = null
   let audioCtx: AudioContext | null = null
+  let bgmTimer: number | null = null
+  let bgmOscillator: OscillatorNode | null = null
+  let bgmGain: GainNode | null = null
 
   function lerp(start: number, end: number, t: number) {
     return start + (end - start) * t
@@ -180,6 +183,67 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (!AudioCtor) return null
     audioCtx = new AudioCtor()
     return audioCtx
+  }
+
+  function stopBackgroundMusic() {
+    if (bgmTimer !== null) {
+      window.clearTimeout(bgmTimer)
+      bgmTimer = null
+    }
+    if (bgmOscillator) {
+      try {
+        bgmOscillator.stop()
+      } catch {
+        // ignore
+      }
+      bgmOscillator.disconnect()
+      bgmOscillator = null
+    }
+    if (bgmGain) {
+      bgmGain.disconnect()
+      bgmGain = null
+    }
+  }
+
+  function startBackgroundMusic() {
+    const ctx = ensureAudioContext()
+    if (!ctx || bgmOscillator) return
+
+    const master = ctx.createGain()
+    master.gain.value = 0.018
+    master.connect(ctx.destination)
+
+    const osc = ctx.createOscillator()
+    const lfo = ctx.createOscillator()
+    const lfoGain = ctx.createGain()
+    lfo.frequency.value = 0.18
+    lfoGain.gain.value = 18
+    lfo.connect(lfoGain)
+    lfoGain.connect(osc.frequency)
+
+    osc.type = 'triangle'
+    osc.frequency.value = 196
+    osc.connect(master)
+    osc.start()
+    lfo.start()
+
+    bgmGain = master
+    bgmOscillator = osc
+
+    const chordPattern = [
+      196, 220, 247, 196,
+      174.61, 196, 220, 174.61,
+    ]
+    let index = 0
+    const step = () => {
+      if (!bgmGain) return
+      const now = ctx.currentTime
+      const next = chordPattern[index % chordPattern.length]
+      osc.frequency.setTargetAtTime(next, now, 0.08)
+      index += 1
+      bgmTimer = window.setTimeout(step, 1400)
+    }
+    step()
   }
 
   function playTone(frequency: number, duration = 0.09, type: OscillatorType = 'sine', gainValue = 0.04) {
@@ -1030,6 +1094,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     restartGame()
     await nextTick()
     await ensurePixiReady()
+    startBackgroundMusic()
     renderScene()
     if (!isHumanTurn() && options.autoPlayMode.value) {
       scheduleAutoTurn(260)
@@ -1062,6 +1127,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   function cleanupPixi() {
     clearTimers()
+    stopBackgroundMusic()
     if (!app) return
     app.destroy(true)
     app = null

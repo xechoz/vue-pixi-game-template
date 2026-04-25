@@ -1,9 +1,11 @@
 <script setup lang="ts">
-const modeOptions: Array<{ value: 1 | 2 | 3 | 4; label: string; hint: string }> = [
-  { value: 1, label: '1 人模式', hint: '1 位玩家手动，3 位电脑' },
-  { value: 2, label: '2 人模式', hint: '2 位玩家手动，2 位电脑' },
-  { value: 3, label: '3 人模式', hint: '3 位玩家手动，1 位电脑' },
-  { value: 4, label: '4 人模式', hint: '4 位玩家手动，对战电脑关闭' },
+import heroImage from '../../assets/hero.png'
+
+const modeOptions: Array<{ value: 1 | 2 | 3 | 4; label: string }> = [
+  { value: 1, label: '1P' },
+  { value: 2, label: '2P' },
+  { value: 3, label: '3P' },
+  { value: 4, label: '4P' },
 ]
 
 const pieceOptions = [1, 2, 3, 4]
@@ -23,50 +25,61 @@ const emit = defineEmits<{
 
 <template>
   <section class="page page-prepare">
-    <div class="hero-card glass-card">
-      <p class="eyebrow">简化版飞行棋</p>
-      <h1>准备</h1>
-      <p class="intro">选好模式，直接开局。</p>
+    <div class="hero-shell glass-card">
+      <div class="hero-copy">
+        <p class="eyebrow">Flight Ludo</p>
+        <h1>飞行棋</h1>
+        <p class="intro">选好模式，马上开局。</p>
+        <div class="hero-badges">
+          <span>快速对战</span>
+          <span>棋盘对局</span>
+          <span>轻量简洁</span>
+        </div>
+      </div>
+      <img class="hero-art" :src="heroImage" alt="飞行棋插画" />
     </div>
 
-    <div class="grid two-col">
-      <aside class="panel prep-panel">
-        <div class="section">
+    <div class="grid prep-grid">
+      <section class="panel">
+        <div class="section-head">
           <h2>玩家模式</h2>
-          <div class="button-row chips">
-            <button
-              v-for="option in modeOptions"
-              :key="option.value"
-              :class="['choice-button', 'chip-button', { active: mode === option.value }]"
-              type="button"
-              @click="emit('update:mode', option.value)"
-            >
-              <strong>{{ option.label }}</strong>
-              <small>{{ option.hint }}</small>
-            </button>
-          </div>
+          <p>选择手动玩家人数，其余由电脑控制。</p>
         </div>
-
-        <div class="section">
-          <h2>每位玩家棋子数</h2>
-          <div class="button-row compact chips">
-            <button
-              v-for="count in pieceOptions"
-              :key="count"
-              :class="['choice-button', 'count-button', 'chip-button', { active: piecesPerPlayer === count }]"
-              type="button"
-              @click="emit('update:piecesPerPlayer', count)"
-            >
-              {{ count }}
-            </button>
-          </div>
+        <div class="mode-grid">
+          <button
+            v-for="option in modeOptions"
+            :key="option.value"
+            :class="['mode-card', { active: mode === option.value }]"
+            type="button"
+            @click="emit('update:mode', option.value)"
+          >
+            <span>{{ option.label }}</span>
+          </button>
         </div>
+      </section>
 
+      <section class="panel">
+        <div class="section-head">
+          <h2>棋子数量</h2>
+          <p>每位玩家携带几枚棋子。</p>
+        </div>
+        <div class="count-grid">
+          <button
+            v-for="count in pieceOptions"
+            :key="count"
+            :class="['mode-card', 'count-card', { active: piecesPerPlayer === count }]"
+            type="button"
+            @click="emit('update:piecesPerPlayer', count)"
+          >
+            <span>{{ count }}</span>
+            <small>枚</small>
+          </button>
+        </div>
         <div class="actions">
-          <button class="primary" type="button" @click="emit('start')">开始游戏</button>
+          <button class="primary start-button" type="button" @click="emit('start')">开始游戏</button>
           <button class="secondary" type="button" @click="emit('reset')">重置选项</button>
         </div>
-      </aside>
+      </section>
     </div>
   </section>
 </template>
@@ -90,20 +103,27 @@ const emit = defineEmits<{
   backdrop-filter: blur(14px);
 }
 
-.hero-card,
-.result-card {
+.hero-shell {
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 16px;
   padding: 16px;
+  align-items: center;
 }
 
-.hero-card h1,
-.result-card h1 {
+.hero-copy {
+  display: grid;
+  gap: 10px;
+}
+
+.hero-shell h1 {
   margin: 0;
-  font-size: clamp(1.9rem, 6vw, 3rem);
-  line-height: 1.05;
+  font-size: clamp(2.2rem, 7vw, 3.4rem);
+  line-height: 1;
 }
 
 .eyebrow {
-  margin: 0 0 6px;
+  margin: 0;
   color: #38bdf8;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -111,16 +131,41 @@ const emit = defineEmits<{
 }
 
 .intro,
-.result-name,
-.status-text {
+.section-head p {
   margin: 0;
   color: #cbd5e1;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
-.grid {
+.hero-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-badges span {
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(8, 47, 73, 0.72);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  color: #dbeafe;
+  font-size: 0.82rem;
+}
+
+.hero-art {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  background: rgba(2, 6, 23, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
+}
+
+.prep-grid {
   display: grid;
   gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel {
@@ -129,27 +174,32 @@ const emit = defineEmits<{
   gap: 14px;
 }
 
-.section {
+.section-head {
   display: grid;
-  gap: 10px;
+  gap: 4px;
 }
 
 h2 {
   margin: 0;
   color: #e2e8f0;
-  font-size: 0.96rem;
+  font-size: 1rem;
 }
 
-.button-row {
+.mode-grid,
+.count-grid {
   display: grid;
   gap: 10px;
 }
 
-.button-row.compact {
+.mode-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.choice-button,
+.count-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.mode-card,
 .primary,
 .secondary {
   border: 1px solid rgba(148, 163, 184, 0.2);
@@ -164,44 +214,47 @@ h2 {
   touch-action: manipulation;
 }
 
-.choice-button {
-  padding: 14px 16px;
+.mode-card {
+  padding: 16px 12px;
   display: grid;
-  gap: 3px;
-  text-align: left;
+  place-items: center;
+  min-height: 62px;
+  font-size: 1.1rem;
+  font-weight: 800;
 }
 
-.choice-button small {
+.mode-card small {
   color: #94a3b8;
+  font-size: 0.72rem;
 }
 
-.choice-button.active {
+.mode-card.active {
   border-color: rgba(56, 189, 248, 0.62);
   background: rgba(8, 47, 73, 0.92);
 }
 
-.choice-button:hover,
+.mode-card:hover,
 .primary:hover,
 .secondary:hover {
   transform: translateY(-1px);
   border-color: rgba(56, 189, 248, 0.45);
 }
 
-.choice-button:active,
+.mode-card:active,
 .primary:active,
 .secondary:active {
   transform: translateY(0);
 }
 
-.count-button {
-  justify-items: center;
-  text-align: center;
+.count-card {
+  min-height: 72px;
+  gap: 3px;
 }
 
 .actions {
   display: grid;
-  grid-template-columns: 1fr;
   gap: 10px;
+  margin-top: 2px;
 }
 
 .primary,
@@ -218,33 +271,18 @@ h2 {
   background: rgba(15, 23, 42, 0.92);
 }
 
-@media (min-width: 860px) {
-  .two-col {
-    grid-template-columns: minmax(320px, 0.95fr) minmax(260px, 0.65fr);
-    align-items: start;
-  }
+.start-button {
+  font-size: 1.02rem;
 }
 
 @media (max-width: 859px) {
-  .page {
-    width: 100%;
-    gap: 12px;
+  .hero-shell,
+  .prep-grid {
+    grid-template-columns: 1fr;
   }
 
-  .hero-card,
-  .result-card,
-  .panel {
-    padding: 14px;
-  }
-
-  .button-row.compact {
+  .count-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .choice-button,
-  .primary,
-  .secondary {
-    min-height: 48px;
   }
 }
 </style>
