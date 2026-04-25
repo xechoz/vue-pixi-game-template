@@ -550,17 +550,17 @@ function handleRoll(fromAuto = false) {
       playRollSound()
       refreshGameView()
       if (result.advancePending) {
-        scheduleTurnAdvance(result.skipped ? 260 : 2000)
-      } else if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) {
-        const autoPieceId = getHumanAutoMovePieceId()
-        if (autoPieceId) {
-          const launchResult = movePiece(game.value, autoPieceId)
-          if (launchResult.moved) {
-            playMoveSound()
-            refreshGameView()
-          }
+        scheduleTurnAdvance(2000)
+      }
+
+      if (result.skipped) {
+        if (!isHumanTurn() && autoPlayMode.value) {
+          scheduleAutoTurn(220)
         }
-      } else if (!isHumanTurn() && autoPlayMode.value) {
+        return
+      }
+
+      if (!isHumanTurn() && autoPlayMode.value) {
         scheduleAutoTurn(220)
       }
     }
@@ -901,11 +901,12 @@ function renderScene() {
     }
   }
 
+  const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value && (isHumanTurn() || !autoPlayMode.value)
+
   const center = new PIXI.Container()
   center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
-  center.eventMode = 'static'
-  center.cursor = 'pointer'
-  center.on('pointerdown', () => handleRoll(false))
+  center.eventMode = 'passive'
+  center.cursor = 'default'
   board.addChild(center)
 
   const diceSize = safeBoardSize * 0.18
@@ -916,6 +917,12 @@ function renderScene() {
   const isDiceRolling = isRolling.value
 
   const diceGroup = new PIXI.Container()
+  diceGroup.eventMode = canRoll ? 'static' : 'passive'
+  diceGroup.cursor = canRoll ? 'pointer' : 'default'
+  diceGroup.hitArea = new PIXI.Rectangle(-diceSize / 2, -diceSize / 2, diceSize, diceSize)
+  if (canRoll) {
+    diceGroup.on('pointerdown', () => handleRoll(false))
+  }
   diceGroup.scale.set(diceSpinScale.value)
   diceGroup.rotation = diceSpinAngle.value
   center.addChild(diceGroup)

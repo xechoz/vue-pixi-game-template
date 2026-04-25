@@ -18,9 +18,11 @@ Math.random = () => 0.9
 try {
   const result = rollDice(state)
   assert.equal(result.rolled, true)
-  assert.equal(result.advancePending, false, 'a failed launch roll should not auto-advance away from the player')
-  assert.equal(state.currentPlayerIndex, 0, 'player should keep the turn when no pieces can move')
-  assert.equal(state.dice, null, 'failed launch roll should clear the dice so the same player can try again')
+  assert.equal(result.skipped, true, 'a non-6 launch roll with no movable pieces should be skipped')
+  assert.equal(result.advancePending, false, 'the turn should advance immediately after a failed launch roll')
+  assert.equal(state.currentPlayerIndex, 1, 'turn should advance to the next player')
+  assert.equal(state.dice, null, 'the failed roll should clear when the next turn starts')
+  assert.notEqual(result.message.includes('已轮到'), false, 'message should mention the next player')
 } finally {
   Math.random = originalRandom
 }

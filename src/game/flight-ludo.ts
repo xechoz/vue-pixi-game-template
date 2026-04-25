@@ -215,14 +215,9 @@ export function rollDice(state: GameState): { rolled: boolean; skipped: boolean;
   const legalPieces = getLegalPieceIds(state)
   if (legalPieces.length === 0) {
     const rolled = state.dice
-    if (trackPieceCount === 0 && rolled !== 6) {
-      state.dice = null
-      state.status = `${player.name} 没摇到 6，可以继续再试一次。`
-      return { rolled: true, skipped: false, advancePending: false, message: state.status }
-    }
-
-    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，稍后自动跳过。`
-    return { rolled: true, skipped: true, advancePending: true, message: state.status }
+    advanceTurn(state)
+    state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，已轮到 ${getCurrentPlayer(state).name}。`
+    return { rolled: true, skipped: true, advancePending: false, message: state.status }
   }
 
   state.status = `${player.name} 掷出 ${state.dice} 点，请选择一枚可移动棋子。`
