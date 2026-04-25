@@ -73,7 +73,6 @@ const movePath = ref<number[]>([])
 const movingPoint = ref<{ x: number; y: number } | null>(null)
 const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
 const rollingFace = ref<number>(1)
-const diceSpinAngle = ref(0)
 const diceSpinScale = ref(1)
 const diceIdlePulse = ref(0)
 const diceIdleShake = ref(0)
@@ -307,23 +306,28 @@ function isHumanTurn() {
 
 function startDiceSpin() {
   const startTime = performance.now()
+  let lastTick = 0
+
   const spin = (now: number) => {
     const elapsed = now - startTime
-    const progress = Math.min(1, elapsed / 520)
-    const easing = 1 - Math.pow(1 - progress, 3)
-    diceSpinAngle.value = progress * 24 * Math.PI
-    diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.12
+    const progress = Math.min(1, elapsed / 760)
+    const interval = Math.max(38, 120 - progress * 72)
+    const tick = Math.floor(elapsed / interval)
+    if (tick > lastTick) {
+      rollingFace.value = Math.floor(Math.random() * 6) + 1
+      lastTick = tick
+    }
+    diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.1
     renderScene()
     if (progress < 1) {
       rollFrameId = window.requestAnimationFrame(spin)
     } else {
       rollFrameId = null
-      diceSpinAngle.value = 0
       diceSpinScale.value = 1
       renderScene()
     }
-    void easing
   }
+
   rollFrameId = window.requestAnimationFrame(spin)
 }
 
@@ -491,7 +495,6 @@ function restartGame() {
   clearMovePreview()
   clearTimers()
   isRolling.value = false
-  diceSpinAngle.value = 0
   diceSpinScale.value = 1
   rollingFace.value = 1
   renderScene()
@@ -529,7 +532,6 @@ function handleRoll(fromAuto = false) {
   clearTimers()
   isRolling.value = true
   rollingFace.value = Math.floor(Math.random() * 6) + 1
-  diceSpinAngle.value = 0
   diceSpinScale.value = 1
   startDiceSpin()
 
@@ -873,20 +875,6 @@ function renderScene() {
       : null
     if (activePulse) board.addChild(activePulse)
 
-    const portraitTexture = getPlayerPieceTexture(player.index)
-    if (portraitTexture) {
-      const portrait = new PIXI.Sprite(portraitTexture)
-      portrait.anchor.set(0.5)
-      portrait.position.set(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4)
-      portrait.width = zoneSize * (isActivePlayer ? 0.5 : 0.46)
-      portrait.height = zoneSize * (isActivePlayer ? 0.5 : 0.46)
-      board.addChild(portrait)
-
-      const portraitRing = new PIXI.Graphics()
-        .circle(zoneX + zoneSize / 2, zoneY + zoneSize / 2 - 4, zoneSize * (isActivePlayer ? 0.3 : 0.26))
-        .stroke({ color: 0xffffff, width: 2, alpha: isActivePlayer ? 0.42 : 0.24 })
-      board.addChild(portraitRing)
-    }
 
     const finish = finishSlots[player.index]
     const finishBox = new PIXI.Graphics()
@@ -914,7 +902,6 @@ function renderScene() {
   const currentDiceTint = hexToNumber(currentDiceColor)
   const diceValue = getDiceDisplayValue()
   const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
-  const isDiceRolling = isRolling.value
 
   const diceGroup = new PIXI.Container()
   diceGroup.eventMode = canRoll ? 'static' : 'passive'
@@ -924,7 +911,6 @@ function renderScene() {
     diceGroup.on('pointerdown', () => handleRoll(false))
   }
   diceGroup.scale.set(diceSpinScale.value)
-  diceGroup.rotation = diceSpinAngle.value
   center.addChild(diceGroup)
 
   const diceBackPlate = new PIXI.Graphics()
@@ -984,26 +970,13 @@ function renderScene() {
   diceGroup.position.set(shakeX, shakeY - diceIdleLift.value)
   diceGroup.scale.set(diceSpinScale.value * diceScaleBoost)
 
-  const currentPlayerBadge = new PIXI.Graphics()
-    .roundRect(-diceSize * 0.54, diceSize * 0.72, diceSize * 1.08, 28, 14)
-    .fill({ color: currentPlayer.value.color, alpha: 0.14 })
-    .stroke({ color: currentPlayer.value.color, width: 2, alpha: 0.7 })
-  diceGroup.addChild(currentPlayerBadge)
-
-  const resultHint = diceValue === null
-    ? null
-    : new PIXI.Graphics()
-        .roundRect(-diceSize * 0.24, diceSize * 0.86, diceSize * 0.48, 12, 6)
-        .fill({ color: currentPlayer.value.color, alpha: isDiceRolling ? 0.18 : 0.22 })
-  if (resultHint) diceGroup.addChild(resultHint)
-
-
   if (isRolling.value) {
     const spinRing = new PIXI.Graphics()
       .circle(0, 0, diceSize * 0.74)
       .stroke({ color: currentDiceTint, width: 4, alpha: 0.25 })
     diceGroup.addChildAt(spinRing, 0)
   }
+
 
   if (winner.value) {
     const banner = new PIXI.Graphics()
