@@ -5,17 +5,10 @@ import PrepareScreen from './components/game/PrepareScreen.vue'
 import ResultScreen from './components/game/ResultScreen.vue'
 import PlayScreen from './components/game/PlayScreen.vue'
 import { type AppPage, useFlightLudoPlayScene } from './composables/useFlightLudoPlayScene'
-import { type GameMode, createGame } from './game'
-
+import { type GameMode } from './game'
 const mode = ref<GameMode>(1)
 const piecesPerPlayer = ref(2)
 const page = ref<AppPage>('prepare')
-const game = ref(
-  createGame({
-    mode: mode.value,
-    piecesPerPlayer: piecesPerPlayer.value,
-  }),
-)
 const autoPlayMode = ref(true)
 const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
 
@@ -29,7 +22,6 @@ const {
   setPiecesPerPlayer,
 } = useFlightLudoPlayScene({
   page,
-  game,
   mode,
   piecesPerPlayer,
   autoPlayMode,

@@ -28,7 +28,6 @@ interface PlayScreenHost {
 
 interface UseFlightLudoPlaySceneOptions {
   page: Ref<AppPage>
-  game: Ref<GameState>
   mode: Ref<GameMode>
   piecesPerPlayer: Ref<number>
   autoPlayMode: Ref<boolean>
@@ -42,10 +41,10 @@ type BoardLayout = {
 }
 
 export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
-  const currentPlayer = computed(() => getCurrentPlayer(options.game.value))
-  const legalPieces = computed(() => getLegalPieceIds(options.game.value))
+  const currentPlayer = computed(() => getCurrentPlayer(game.value))
+  const legalPieces = computed(() => getLegalPieceIds(game.value))
   const winner = computed(() =>
-    options.game.value.winnerIndex === null ? null : options.game.value.players[options.game.value.winnerIndex],
+    game.value.winnerIndex === null ? null : game.value.players[game.value.winnerIndex],
   )
 
   const assetBase = import.meta.env.BASE_URL
@@ -54,6 +53,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   const canvasEl = computed(() => options.playScreenRef.value?.canvasEl ?? null)
+  const game = ref<GameState>(
+    createGame({
+      mode: options.mode.value,
+      piecesPerPlayer: options.piecesPerPlayer.value,
+    }),
+  )
 
   let app: PIXI.Application | null = null
   let scene: PIXI.Container | null = null
@@ -151,7 +156,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   function getDiceDisplayValue() {
     if (isRolling.value) return rollingFace.value
-    return options.game.value.dice
+    return game.value.dice
   }
 
   function isHumanTurn() {
@@ -270,14 +275,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function scheduleTurnAdvance(delay = 2000) {
-    if (options.game.value.winnerIndex !== null) return
+    if (game.value.winnerIndex !== null) return
     if (turnAdvanceTimer !== null) {
       window.clearTimeout(turnAdvanceTimer)
     }
     isTurnTransitioning.value = true
     turnAdvanceTimer = window.setTimeout(() => {
       turnAdvanceTimer = null
-      advanceTurn(options.game.value)
+      advanceTurn(game.value)
       isTurnTransitioning.value = false
       refreshGameView()
       if (!isHumanTurn() && options.autoPlayMode.value) {
@@ -363,8 +368,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const shouldAnimate =
       options.page.value === 'play' &&
-      options.game.value.winnerIndex === null &&
-      options.game.value.dice === null &&
+      game.value.winnerIndex === null &&
+      game.value.dice === null &&
       !isRolling.value &&
       movingPoint.value === null
 
@@ -374,8 +379,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const loop = (now: number) => {
       if (
         options.page.value !== 'play' ||
-        options.game.value.winnerIndex !== null ||
-        options.game.value.dice !== null ||
+        game.value.winnerIndex !== null ||
+        game.value.dice !== null ||
         isRolling.value ||
         movingPoint.value !== null
       ) {
@@ -539,7 +544,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const point = trackPoints[index]
       const cell = new PIXI.Graphics()
       const playerIndex = Math.floor(index / 10) % PLAYER_DEFS.length
-      const activeColor = options.game.value.players[playerIndex].color
+      const activeColor = game.value.players[playerIndex].color
       cell
         .roundRect(point.x - trackSize / 2, point.y - trackSize / 2, trackSize, trackSize, 9)
         .fill({ color: 0xe2e8f0, alpha: 0.07 })
@@ -547,14 +552,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(cell)
     }
 
-    for (const player of options.game.value.players) {
+    for (const player of game.value.players) {
       const playerBase = new PIXI.Graphics()
       const zoneSize = safeBoardSize * 0.105
       const zonePadding = safeBoardSize * 0.008
       const zoneX = player.index === 0 || player.index === 3 ? originX + zonePadding : originX + safeBoardSize - zonePadding - zoneSize
       const zoneY = player.index === 0 || player.index === 1 ? originY + zonePadding : originY + safeBoardSize - zonePadding - zoneSize
 
-      const isActivePlayer = options.game.value.currentPlayerIndex === player.index
+      const isActivePlayer = game.value.currentPlayerIndex === player.index
       playerBase
         .roundRect(zoneX, zoneY, zoneSize, zoneSize, 14)
         .fill({ color: player.color, alpha: isActivePlayer ? 0.1 : 0.07 })
@@ -579,7 +584,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(finishBox)
     }
 
-    const canRoll = options.game.value.winnerIndex === null && options.game.value.dice === null && !isTurnTransitioning.value && (isHumanTurn() || !options.autoPlayMode.value)
+    const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value && (isHumanTurn() || !options.autoPlayMode.value)
 
     const center = new PIXI.Container()
     center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
@@ -588,7 +593,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     board.addChild(center)
 
     const diceSize = safeBoardSize * 0.18
-    const currentDiceColor = options.game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
+    const currentDiceColor = game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
     const currentDiceTint = hexToNumber(currentDiceColor)
     const diceValue = getDiceDisplayValue()
     const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
@@ -683,7 +688,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     if (currentLayout && replayingPieceId.value && movePath.value.length > 0) {
-      const player = getPlayerByPieceId(options.game.value, replayingPieceId.value)
+      const player = getPlayerByPieceId(game.value, replayingPieceId.value)
       const piece = player?.pieces.find((item) => item.id === replayingPieceId.value)
       if (player && piece && currentLayout) {
         const layout = currentLayout
@@ -710,7 +715,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }
     }
 
-    const pieces = options.game.value.players.flatMap((player) =>
+    const pieces = game.value.players.flatMap((player) =>
       player.pieces.map((piece, pieceIndex) => {
         const location = getPieceLocation(player, piece)
         let x = originX + safeBoardSize / 2
@@ -747,7 +752,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     )
 
     for (const pieceInfo of pieces) {
-      const isLegal = options.game.value.winnerIndex === null && legalPieces.value.includes(pieceInfo.piece.id)
+      const isLegal = game.value.winnerIndex === null && legalPieces.value.includes(pieceInfo.piece.id)
       const isMoving = replayingPieceId.value === pieceInfo.piece.id && movingPoint.value !== null
       const movingPosition = movingPoint.value
       const pieceGroup = new PIXI.Container()
@@ -791,7 +796,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         .stroke({ color: 0xffffff, width: 2, alpha: isLegal ? 0.45 : 0.18 })
       pieceGroup.addChild(badgeGlow)
 
-      if (options.game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
+      if (game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
         const halo = new PIXI.Graphics()
           .circle(0, 0, pieceRadius + 8)
           .stroke({ color: 0xf8fafc, width: 2, alpha: 0.18 })
@@ -810,16 +815,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function refreshGameView() {
-    options.game.value = { ...options.game.value }
+    game.value = { ...game.value }
     renderScene()
     syncDiceIdleAnimation()
-    if (options.game.value.winnerIndex !== null) {
+    if (game.value.winnerIndex !== null) {
       options.page.value = 'result'
     }
   }
 
   function scheduleAutoTurn(delay = 180) {
-    if (options.game.value.winnerIndex !== null) return
+    if (game.value.winnerIndex !== null) return
     if (isTurnTransitioning.value || !options.autoPlayMode.value) return
     if (autoTimer !== null) {
       window.clearTimeout(autoTimer)
@@ -858,19 +863,19 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function getHumanAutoMovePieceId() {
-    if (options.game.value.dice === null || options.game.value.winnerIndex !== null) return null
+    if (game.value.dice === null || game.value.winnerIndex !== null) return null
     const legalIds = legalPieces.value
     if (legalIds.length === 0) return null
-    if (getPlayerTrackCount(currentPlayer.value) === 0 && options.game.value.dice === 6) return legalIds[0] ?? null
+    if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
     if (legalIds.length === 1) return legalIds[0] ?? null
     return null
   }
 
   function playAutoTurn() {
-    if (!options.autoPlayMode.value || options.game.value.winnerIndex !== null) return
+    if (!options.autoPlayMode.value || game.value.winnerIndex !== null) return
     if (isTurnTransitioning.value || isRolling.value || movingPoint.value !== null) return
 
-    if (options.game.value.dice === null) {
+    if (game.value.dice === null) {
       if (!isHumanTurn()) {
         autoMoveTimer = window.setTimeout(() => {
           autoMoveTimer = null
@@ -880,7 +885,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return
     }
 
-    const pieceId = isHumanTurn() ? getHumanAutoMovePieceId() : chooseAutoMovePieceId(options.game.value)
+    const pieceId = isHumanTurn() ? getHumanAutoMovePieceId() : chooseAutoMovePieceId(game.value)
     if (!pieceId) {
       if (!isHumanTurn()) {
         scheduleTurnAdvance(2000)
@@ -895,7 +900,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function handleRoll(fromAuto = false) {
-    if (options.game.value.winnerIndex !== null || options.game.value.dice !== null || isRolling.value || isTurnTransitioning.value) return
+    if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value || isTurnTransitioning.value) return
     if (!isHumanTurn() && !fromAuto) return
 
     clearTimers()
@@ -916,7 +921,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       isRolling.value = false
       rollTimer = null
-      const result = rollDice(options.game.value)
+      const result = rollDice(game.value)
       if (result.rolled) {
         playRollSound()
         refreshGameView()
@@ -941,13 +946,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function handleMove(pieceId: string) {
-    if (!currentLayout || options.game.value.dice === null || options.game.value.winnerIndex !== null || movingPoint.value !== null) return
+    if (!currentLayout || game.value.dice === null || game.value.winnerIndex !== null || movingPoint.value !== null) return
 
-    const player = getCurrentPlayer(options.game.value)
+    const player = getCurrentPlayer(game.value)
     const piece = player.pieces.find((item) => item.id === pieceId)
     if (!piece) return
 
-    const trajectory = buildMoveTrajectory(player, piece, options.game.value.dice)
+    const trajectory = buildMoveTrajectory(player, piece, game.value.dice)
     if (trajectory.length === 0) return
 
     clearTimers()
@@ -956,11 +961,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const pathPoints = [
       resolvePiecePoint(currentLayout, player, piece),
-      ...buildPiecePath(currentLayout, player, piece, options.game.value.dice),
+      ...buildPiecePath(currentLayout, player, piece, game.value.dice),
     ]
 
     if (pathPoints.length <= 1) {
-      const result = movePiece(options.game.value, pieceId)
+      const result = movePiece(game.value, pieceId)
       if (result.moved) {
         playMoveSound()
         if (result.message.includes('吃子')) playCaptureSound()
@@ -1000,7 +1005,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       moveFrameId = null
       movingPoint.value = null
-      const result = movePiece(options.game.value, pieceId)
+      const result = movePiece(game.value, pieceId)
       if (result.moved) {
         playMoveSound()
         if (result.message.includes('吃子')) playCaptureSound()
@@ -1026,7 +1031,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function restartGame() {
-    options.game.value = createGame({
+    game.value = createGame({
       mode: options.mode.value,
       piecesPerPlayer: clampPiecesPerPlayer(options.piecesPerPlayer.value),
     })
@@ -1087,9 +1092,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   watch([options.mode, options.piecesPerPlayer], restartGame)
 
   watch(
-    () => [options.game.value.currentPlayerIndex, options.game.value.dice, options.game.value.winnerIndex, options.autoPlayMode.value] as const,
+    () => [game.value.currentPlayerIndex, game.value.dice, game.value.winnerIndex, options.autoPlayMode.value] as const,
     () => {
-      if (options.game.value.winnerIndex !== null) {
+      if (game.value.winnerIndex !== null) {
         clearTimers()
         return
       }
