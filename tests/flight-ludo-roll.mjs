@@ -4,6 +4,7 @@ import {
   getPlayerTrackCount,
   getWeightedDiceRoll,
   rollDice,
+  movePiece,
 } from '../src/game/flight-ludo.ts'
 
 assert.equal(getWeightedDiceRoll(0, 0.1), 6, 'no track pieces should favor 6')
@@ -23,6 +24,19 @@ try {
   assert.equal(state.currentPlayerIndex, 1, 'turn should advance to the next player')
   assert.equal(state.dice, null, 'the failed roll should clear when the next turn starts')
   assert.notEqual(result.message.includes('已轮到'), false, 'message should mention the next player')
+
+  const sixState = createGame({ mode: 1, piecesPerPlayer: 2 })
+  sixState.dice = 6
+  const launchPieceId = sixState.players[0].pieces[0].id
+  const launchResult = movePiece(sixState, launchPieceId)
+  assert.equal(launchResult.moved, true, 'launching from base on 6 should move a piece')
+  assert.equal(sixState.currentPlayerIndex, 0, 'rolling 6 and launching should keep the current player on turn')
+  assert.equal(sixState.dice, null, 'launching should consume the dice result')
+
+  Math.random = () => 0.1
+  const extraRoll = rollDice(sixState)
+  assert.equal(extraRoll.rolled, true, 'the same player should be able to roll again after launching on 6')
+  assert.equal(sixState.currentPlayerIndex, 0, 'the extra roll should still belong to the same player')
 } finally {
   Math.random = originalRandom
 }

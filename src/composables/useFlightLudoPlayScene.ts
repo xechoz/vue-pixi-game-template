@@ -970,8 +970,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         playMoveSound()
         if (result.message.includes('吃子')) playCaptureSound()
         if (result.message.includes('胜利')) playWinSound()
-        refreshGameView()
         clearMovePreview()
+        refreshGameView()
         if (result.advancePending) {
           scheduleTurnAdvance(2000)
         } else if (!isHumanTurn() && options.autoPlayMode.value) scheduleAutoTurn(220)
