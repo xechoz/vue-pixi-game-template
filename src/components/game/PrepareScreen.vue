@@ -20,10 +20,36 @@ const playerAvatars = [
   { src: `${assetBase}player-yellow.jpg`, alt: '黄色玩家头像' },
 ]
 
-const modeOptions = [1, 2, 3, 4].map((value) => ({
-  value: value as 1 | 2 | 3 | 4,
-  avatars: playerAvatars.slice(0, value),
-}))
+const modeOptions = [
+  {
+    value: 1 as const,
+    avatars: playerAvatars.slice(0, 1),
+    title: '单人闯关',
+    hint: '稳一点',
+    accent: '#ffb347',
+  },
+  {
+    value: 2 as const,
+    avatars: playerAvatars.slice(0, 2),
+    title: '双人对战',
+    hint: '刚刚好',
+    accent: '#5f9cff',
+  },
+  {
+    value: 3 as const,
+    avatars: playerAvatars.slice(0, 3),
+    title: '三人混战',
+    hint: '更热闹',
+    accent: '#56d38f',
+  },
+  {
+    value: 4 as const,
+    avatars: playerAvatars.slice(0, 4),
+    title: '四人乱斗',
+    hint: '经典局',
+    accent: '#f56f7f',
+  },
+]
 </script>
 
 <template>
@@ -44,9 +70,26 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
           :class="['select-card', `card-${option.avatars.length}`, { active: props.mode === option.value }]"
           type="button"
           :aria-label="`${option.value}人模式`"
+          :style="{ '--accent': option.accent }"
           @click="emit('update:mode', option.value); emit('start')"
         >
+          <div class="card-topbar"></div>
           <div class="card-glow"></div>
+          <div class="card-board"></div>
+          <div class="card-route"></div>
+          <div class="card-corners" aria-hidden="true">
+            <span class="corner corner-a"></span>
+            <span class="corner corner-b"></span>
+            <span class="corner corner-c"></span>
+            <span class="corner corner-d"></span>
+          </div>
+          <div class="card-header">
+            <span class="mode-badge">{{ option.value }}P</span>
+            <span class="mode-copy">
+              <strong>{{ option.title }}</strong>
+              <small>{{ option.hint }}</small>
+            </span>
+          </div>
           <div class="avatar-stack" :class="`stack-${option.avatars.length}`">
             <img
               v-for="avatar in option.avatars"
@@ -55,6 +98,12 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
               :src="avatar.src"
               :alt="avatar.alt"
             />
+          </div>
+          <div class="card-footer" aria-hidden="true">
+            <span class="foot-piece"></span>
+            <span class="foot-piece"></span>
+            <span class="foot-piece"></span>
+            <span class="foot-piece"></span>
           </div>
         </button>
       </div>
@@ -117,15 +166,15 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
 }
 
 .select-card {
-  border: 1px solid rgba(255, 255, 255, 0.22);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 30px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(245, 249, 255, 0.78)),
-    rgba(255, 255, 255, 0.76);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.16)),
+    rgba(255, 255, 255, 0.12);
   color: rgba(0, 0, 0, 0.95);
   cursor: pointer;
   min-height: 250px;
-  padding: 18px;
+  padding: 18px 18px 16px;
   display: grid;
   align-items: center;
   justify-items: center;
@@ -138,9 +187,10 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
     filter 0.18s ease;
   touch-action: manipulation;
   box-shadow:
-    0 12px 26px rgba(0, 31, 61, 0.12),
+    0 14px 28px rgba(0, 31, 61, 0.14),
     0 2px 8px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
 }
 
 .select-card::before {
@@ -148,35 +198,150 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.58), transparent 32%),
-    radial-gradient(circle at 50% 68%, rgba(0, 117, 222, 0.05), transparent 45%);
+    radial-gradient(circle at 20% 18%, rgba(255, 255, 255, 0.42), transparent 20%),
+    radial-gradient(circle at 80% 18%, rgba(255, 255, 255, 0.34), transparent 18%),
+    radial-gradient(circle at 50% 76%, rgba(255, 255, 255, 0.18), transparent 42%);
   pointer-events: none;
 }
 
+.select-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, transparent 0 18%, rgba(255, 255, 255, 0.2) 18% 19%, transparent 19% 100%),
+    linear-gradient(315deg, transparent 0 18%, rgba(255, 255, 255, 0.18) 18% 19%, transparent 19% 100%);
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.card-topbar,
+.card-board,
+.card-route,
+.card-corners,
+.card-header,
+.card-footer,
 .card-glow {
   position: absolute;
-  inset: 10px;
+  pointer-events: none;
+}
+
+.card-topbar {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 16px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 88%, white), transparent);
+  opacity: 0.9;
+}
+
+.card-board {
+  inset: 14px;
   border-radius: 24px;
-  background: radial-gradient(circle at center, rgba(0, 117, 222, 0.14), transparent 62%);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.14), transparent 56%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.card-route {
+  inset: 31% 16% 26%;
+  border-radius: 20px;
+  border: 2px dashed rgba(255, 255, 255, 0.42);
+  opacity: 0.8;
+}
+
+.card-corners {
+  inset: 18px;
+}
+
+.corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 80%, white);
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.18);
+}
+
+.corner-a { top: 0; left: 0; }
+.corner-b { top: 0; right: 0; }
+.corner-c { bottom: 0; left: 0; }
+.corner-d { bottom: 0; right: 0; }
+
+.card-header {
+  top: 18px;
+  left: 18px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 2;
+}
+
+.mode-badge {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white), color-mix(in srgb, var(--accent) 78%, black));
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.mode-copy {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.mode-copy strong {
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: #123;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.mode-copy small {
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(18, 38, 62, 0.72);
+}
+
+.card-glow {
+  inset: 14px;
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at center, color-mix(in srgb, var(--accent) 24%, transparent), transparent 58%),
+    radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.12), transparent 42%);
   opacity: 0;
   transition: opacity 0.18s ease;
 }
 
 .select-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(0, 117, 222, 0.18);
+  border-color: color-mix(in srgb, var(--accent) 58%, white);
   box-shadow:
     0 18px 34px rgba(0, 67, 134, 0.14),
     0 3px 10px rgba(0, 0, 0, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
 
 .select-card.active {
   transform: translateY(-3px) scale(1.02);
-  border-color: rgba(0, 117, 222, 0.5);
+  border-color: color-mix(in srgb, var(--accent) 62%, white);
   box-shadow:
-    0 0 0 1px rgba(0, 117, 222, 0.08) inset,
-    0 22px 42px rgba(0, 117, 222, 0.16),
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+    0 22px 42px color-mix(in srgb, var(--accent) 20%, rgba(0, 117, 222, 0.12)),
     0 12px 20px rgba(0, 31, 61, 0.08);
   filter: saturate(1.08);
 }
@@ -195,11 +360,11 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: linear-gradient(180deg, #0075de, #005bab);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white), color-mix(in srgb, var(--accent) 78%, black));
   color: #fff;
   font-size: 15px;
   font-weight: 800;
-  box-shadow: 0 6px 14px rgba(0, 117, 222, 0.24);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 .avatar-stack {
@@ -292,8 +457,41 @@ const modeOptions = [1, 2, 3, 4].map((value) => ({
 
   .select-card {
     min-height: 200px;
-    padding: 14px;
+    padding: 14px 14px 12px;
     border-radius: 24px;
+  }
+
+  .card-topbar {
+    height: 14px;
+  }
+
+  .card-board {
+    inset: 12px;
+  }
+
+  .card-route {
+    inset: 33% 15% 27%;
+  }
+
+  .card-header {
+    top: 14px;
+    left: 14px;
+    right: 14px;
+  }
+
+  .mode-badge {
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    font-size: 13px;
+  }
+
+  .mode-copy strong {
+    font-size: 15px;
+  }
+
+  .mode-copy small {
+    font-size: 11px;
   }
 
   .avatar-icon {
