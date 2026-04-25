@@ -1,16 +1,5 @@
 <script setup lang="ts">
-import heroImage from '../../assets/hero.png'
-
-const modeOptions: Array<{ value: 1 | 2 | 3 | 4; label: string }> = [
-  { value: 1, label: '1P' },
-  { value: 2, label: '2P' },
-  { value: 3, label: '3P' },
-  { value: 4, label: '4P' },
-]
-
-const pieceOptions = [1, 2, 3, 4]
-
-defineProps<{
+const props = defineProps<{
   mode: 1 | 2 | 3 | 4
   piecesPerPlayer: number
 }>()
@@ -21,268 +10,295 @@ const emit = defineEmits<{
   (event: 'start'): void
   (event: 'reset'): void
 }>()
+
+const assetBase = import.meta.env.BASE_URL
+
+const playerAvatars = [
+  { src: `${assetBase}player-red.jpg`, alt: '红色玩家头像' },
+  { src: `${assetBase}player-blue.jpg`, alt: '蓝色玩家头像' },
+  { src: `${assetBase}player-green.jpg`, alt: '绿色玩家头像' },
+  { src: `${assetBase}player-yellow.jpg`, alt: '黄色玩家头像' },
+]
+
+const modeOptions = [1, 2, 3, 4].map((value) => ({
+  value: value as 1 | 2 | 3 | 4,
+  avatars: playerAvatars.slice(0, value),
+}))
 </script>
 
 <template>
-  <section class="page page-prepare">
-    <div class="hero-shell glass-card">
-      <div class="hero-copy">
-        <p class="eyebrow">Flight Ludo</p>
-        <h1>飞行棋</h1>
-        <p class="intro">选好模式，马上开局。</p>
-        <div class="hero-badges">
-          <span>快速对战</span>
-          <span>棋盘对局</span>
-          <span>轻量简洁</span>
-        </div>
+  <section
+    class="page page-prepare"
+    :style="{
+      backgroundImage: `url(${assetBase}prepare-bg.jpg)`,
+      backgroundPosition: 'center center',
+      backgroundSize: 'cover',
+      backgroundRepeat: 'no-repeat',
+    }"
+  >
+    <div class="mode-shell">
+      <div class="mode-grid">
+        <button
+          v-for="option in modeOptions"
+          :key="option.value"
+          :class="['select-card', `card-${option.avatars.length}`, { active: props.mode === option.value }]"
+          type="button"
+          :aria-label="`${option.value}人模式`"
+          @click="emit('update:mode', option.value); emit('start')"
+        >
+          <div class="card-glow"></div>
+          <div class="avatar-stack" :class="`stack-${option.avatars.length}`">
+            <img
+              v-for="avatar in option.avatars"
+              :key="avatar.src"
+              class="avatar-icon"
+              :src="avatar.src"
+              :alt="avatar.alt"
+            />
+          </div>
+        </button>
       </div>
-      <img class="hero-art" :src="heroImage" alt="飞行棋插画" />
-    </div>
-
-    <div class="grid prep-grid">
-      <section class="panel">
-        <div class="section-head">
-          <h2>玩家模式</h2>
-          <p>选择手动玩家人数，其余由电脑控制。</p>
-        </div>
-        <div class="mode-grid">
-          <button
-            v-for="option in modeOptions"
-            :key="option.value"
-            :class="['mode-card', { active: mode === option.value }]"
-            type="button"
-            @click="emit('update:mode', option.value)"
-          >
-            <span>{{ option.label }}</span>
-          </button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="section-head">
-          <h2>棋子数量</h2>
-          <p>每位玩家携带几枚棋子。</p>
-        </div>
-        <div class="count-grid">
-          <button
-            v-for="count in pieceOptions"
-            :key="count"
-            :class="['mode-card', 'count-card', { active: piecesPerPlayer === count }]"
-            type="button"
-            @click="emit('update:piecesPerPlayer', count)"
-          >
-            <span>{{ count }}</span>
-            <small>枚</small>
-          </button>
-        </div>
-        <div class="actions">
-          <button class="primary start-button" type="button" @click="emit('start')">开始游戏</button>
-          <button class="secondary" type="button" @click="emit('reset')">重置选项</button>
-        </div>
-      </section>
     </div>
   </section>
 </template>
 
 <style scoped>
 .page {
-  width: min(1280px, 100%);
+  width: min(1120px, 100%);
+  min-height: calc(100dvh - 28px);
   margin: 0 auto;
   display: grid;
-  gap: 14px;
-}
-
-.glass-card,
-.panel {
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  border-radius: 22px;
-  background:
-    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92)),
-    radial-gradient(circle at top, rgba(56, 189, 248, 0.08), transparent 45%);
-  box-shadow: 0 20px 60px rgba(2, 6, 23, 0.45);
-  backdrop-filter: blur(14px);
-}
-
-.hero-shell {
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
+  align-content: center;
+  justify-items: center;
   gap: 16px;
-  padding: 16px;
-  align-items: center;
+  position: relative;
+  isolation: isolate;
+  background: none;
 }
 
-.hero-copy {
-  display: grid;
-  gap: 10px;
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(0, 0, 0, 0), transparent 42%),
+    radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0), transparent 30%),
+    radial-gradient(circle at center, rgba(0, 0, 0, 0), transparent 55%);
+  z-index: -2;
 }
 
-.hero-shell h1 {
-  margin: 0;
-  font-size: clamp(2.2rem, 7vw, 3.4rem);
-  line-height: 1;
+.page::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0), rgba(0, 34, 76, 0.18));
+  z-index: -1;
 }
 
-.eyebrow {
-  margin: 0;
-  color: #38bdf8;
-  text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.74rem;
-}
-
-.intro,
-.section-head p {
-  margin: 0;
-  color: #cbd5e1;
-  line-height: 1.5;
-}
-
-.hero-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hero-badges span {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(8, 47, 73, 0.72);
-  border: 1px solid rgba(56, 189, 248, 0.22);
-  color: #dbeafe;
-  font-size: 0.82rem;
-}
-
-.hero-art {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
-  border-radius: 18px;
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  background: rgba(2, 6, 23, 0.42);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.06);
-}
-
-.prep-grid {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.panel {
-  padding: 16px;
-  display: grid;
-  gap: 14px;
-}
-
-.section-head {
-  display: grid;
-  gap: 4px;
-}
-
-h2 {
-  margin: 0;
-  color: #e2e8f0;
-  font-size: 1rem;
-}
-
-.mode-grid,
-.count-grid {
-  display: grid;
-  gap: 10px;
+.mode-shell {
+  width: min(980px, calc(100% - 24px));
+  margin: 0 auto;
+  padding: 22px;
+  border-radius: 32px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)),
+    rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow:
+    0 26px 72px rgba(0, 49, 104, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  backdrop-filter: blur(8px);
 }
 
 .mode-grid {
+  display: grid;
+  gap: 18px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.count-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.mode-card,
-.primary,
-.secondary {
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 16px;
-  background: rgba(15, 23, 42, 0.85);
-  color: #e2e8f0;
+.select-card {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 30px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(245, 249, 255, 0.78)),
+    rgba(255, 255, 255, 0.76);
+  color: rgba(0, 0, 0, 0.95);
   cursor: pointer;
+  min-height: 250px;
+  padding: 18px;
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  position: relative;
+  overflow: hidden;
   transition:
     transform 0.18s ease,
     border-color 0.18s ease,
-    background 0.18s ease;
+    box-shadow 0.18s ease,
+    filter 0.18s ease;
   touch-action: manipulation;
+  box-shadow:
+    0 12px 26px rgba(0, 31, 61, 0.12),
+    0 2px 8px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
-.mode-card {
-  padding: 16px 12px;
+.select-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.58), transparent 32%),
+    radial-gradient(circle at 50% 68%, rgba(0, 117, 222, 0.05), transparent 45%);
+  pointer-events: none;
+}
+
+.card-glow {
+  position: absolute;
+  inset: 10px;
+  border-radius: 24px;
+  background: radial-gradient(circle at center, rgba(0, 117, 222, 0.14), transparent 62%);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.select-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(0, 117, 222, 0.18);
+  box-shadow:
+    0 18px 34px rgba(0, 67, 134, 0.14),
+    0 3px 10px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.select-card.active {
+  transform: translateY(-3px) scale(1.02);
+  border-color: rgba(0, 117, 222, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(0, 117, 222, 0.08) inset,
+    0 22px 42px rgba(0, 117, 222, 0.16),
+    0 12px 20px rgba(0, 31, 61, 0.08);
+  filter: saturate(1.08);
+}
+
+.select-card.active .card-glow {
+  opacity: 1;
+}
+
+.select-card.active::after {
+  content: '✓';
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  min-height: 62px;
-  font-size: 1.1rem;
+  background: linear-gradient(180deg, #0075de, #005bab);
+  color: #fff;
+  font-size: 15px;
   font-weight: 800;
+  box-shadow: 0 6px 14px rgba(0, 117, 222, 0.24);
 }
 
-.mode-card small {
-  color: #94a3b8;
-  font-size: 0.72rem;
+.avatar-stack {
+  position: relative;
+  width: min(78%, 180px);
+  aspect-ratio: 1;
+  min-height: 0;
+  margin: 0 auto;
+  z-index: 1;
 }
 
-.mode-card.active {
-  border-color: rgba(56, 189, 248, 0.62);
-  background: rgba(8, 47, 73, 0.92);
+.avatar-icon {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
+  background: #fff;
+  transform: translate(-50%, -50%);
 }
 
-.mode-card:hover,
-.primary:hover,
-.secondary:hover {
-  transform: translateY(-1px);
-  border-color: rgba(56, 189, 248, 0.45);
+.avatar-stack.stack-1 .avatar-icon {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(1.18);
 }
 
-.mode-card:active,
-.primary:active,
-.secondary:active {
-  transform: translateY(0);
+.avatar-stack.stack-2 .avatar-icon:first-child {
+  top: 50%;
+  left: 34%;
 }
 
-.count-card {
-  min-height: 72px;
-  gap: 3px;
+.avatar-stack.stack-2 .avatar-icon:last-child {
+  top: 50%;
+  left: 66%;
 }
 
-.actions {
-  display: grid;
-  gap: 10px;
-  margin-top: 2px;
+.avatar-stack.stack-3 .avatar-icon:nth-child(1) {
+  top: 28%;
+  left: 50%;
 }
 
-.primary,
-.secondary {
-  padding: 14px 16px;
-  font-weight: 700;
+.avatar-stack.stack-3 .avatar-icon:nth-child(2) {
+  top: 74%;
+  left: 28%;
 }
 
-.primary {
-  background: linear-gradient(180deg, rgba(14, 165, 233, 0.95), rgba(8, 145, 178, 0.9));
+.avatar-stack.stack-3 .avatar-icon:nth-child(3) {
+  top: 74%;
+  left: 72%;
 }
 
-.secondary {
-  background: rgba(15, 23, 42, 0.92);
+.avatar-stack.stack-4 .avatar-icon:nth-child(1) {
+  top: 28%;
+  left: 28%;
 }
 
-.start-button {
-  font-size: 1.02rem;
+.avatar-stack.stack-4 .avatar-icon:nth-child(2) {
+  top: 28%;
+  left: 72%;
 }
 
-@media (max-width: 859px) {
-  .hero-shell,
-  .prep-grid {
-    grid-template-columns: 1fr;
+.avatar-stack.stack-4 .avatar-icon:nth-child(3) {
+  top: 72%;
+  left: 28%;
+}
+
+.avatar-stack.stack-4 .avatar-icon:nth-child(4) {
+  top: 72%;
+  left: 72%;
+}
+
+@media (max-width: 540px) {
+  .page {
+    gap: 12px;
   }
 
-  .count-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .mode-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .mode-shell {
+    width: min(100%, calc(100% - 18px));
+    padding: 16px;
+    border-radius: 26px;
+  }
+
+  .select-card {
+    min-height: 200px;
+    padding: 14px;
+    border-radius: 24px;
+  }
+
+  .avatar-icon {
+    width: 62px;
+    height: 62px;
   }
 }
 </style>
