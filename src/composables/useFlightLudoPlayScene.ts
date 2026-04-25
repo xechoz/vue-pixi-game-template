@@ -91,8 +91,73 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let appInitPromise: Promise<void> | null = null
   let audioCtx: AudioContext | null = null
   let bgmTimer: number | null = null
-  let bgmOscillator: OscillatorNode | null = null
-  let bgmGain: GainNode | null = null
+  let bgmStyleTimer: number | null = null
+  let bgmBassOscillator: OscillatorNode | null = null
+  let bgmLeadOscillator: OscillatorNode | null = null
+  let bgmBassGain: GainNode | null = null
+  let bgmLeadGain: GainNode | null = null
+  let bgmLeadFilter: BiquadFilterNode | null = null
+  let bgmStyleIndex = 0
+  let bgmStepIndex = 0
+
+  type BgmStyle = {
+    bassWave: OscillatorType
+    leadWave: OscillatorType
+    leadFilterHz: number
+    bassGain: number
+    leadGain: number
+    stepMs: number
+    bassPattern: number[]
+    leadPattern: number[]
+    accentPattern: boolean[]
+  }
+
+  const bgmStyles: BgmStyle[] = [
+    {
+      bassWave: 'triangle',
+      leadWave: 'square',
+      leadFilterHz: 1200,
+      bassGain: 0.022,
+      leadGain: 0.018,
+      stepMs: 420,
+      bassPattern: [110, 110, 130.81, 110, 146.83, 146.83, 130.81, 110],
+      leadPattern: [329.63, 392.0, 440.0, 392.0, 329.63, 349.23, 392.0, 440.0],
+      accentPattern: [true, false, false, false, true, false, false, false],
+    },
+    {
+      bassWave: 'sawtooth',
+      leadWave: 'triangle',
+      leadFilterHz: 900,
+      bassGain: 0.02,
+      leadGain: 0.016,
+      stepMs: 360,
+      bassPattern: [130.81, 130.81, 164.81, 196.0, 164.81, 146.83, 130.81, 110],
+      leadPattern: [392.0, 440.0, 494.88, 523.25, 494.88, 440.0, 392.0, 349.23],
+      accentPattern: [true, false, false, true, false, false, true, false],
+    },
+    {
+      bassWave: 'square',
+      leadWave: 'sine',
+      leadFilterHz: 700,
+      bassGain: 0.024,
+      leadGain: 0.014,
+      stepMs: 450,
+      bassPattern: [110, 146.83, 164.81, 196.0, 164.81, 146.83, 130.81, 110],
+      leadPattern: [440.0, 523.25, 587.33, 659.25, 587.33, 523.25, 494.88, 440.0],
+      accentPattern: [true, false, true, false, true, false, true, false],
+    },
+    {
+      bassWave: 'triangle',
+      leadWave: 'sine',
+      leadFilterHz: 550,
+      bassGain: 0.018,
+      leadGain: 0.012,
+      stepMs: 520,
+      bassPattern: [98.0, 98.0, 110.0, 98.0, 87.31, 98.0, 110.0, 123.47],
+      leadPattern: [261.63, 293.66, 329.63, 392.0, 329.63, 293.66, 261.63, 246.94],
+      accentPattern: [true, false, false, false, false, false, false, false],
+    },
+  ]
 
   function lerp(start: number, end: number, t: number) {
     return start + (end - start) * t
@@ -190,60 +255,128 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       window.clearTimeout(bgmTimer)
       bgmTimer = null
     }
-    if (bgmOscillator) {
+    if (bgmStyleTimer !== null) {
+      window.clearInterval(bgmStyleTimer)
+      bgmStyleTimer = null
+    }
+    if (bgmBassOscillator) {
       try {
-        bgmOscillator.stop()
+        bgmBassOscillator.stop()
       } catch {
         // ignore
       }
-      bgmOscillator.disconnect()
-      bgmOscillator = null
+      bgmBassOscillator.disconnect()
+      bgmBassOscillator = null
     }
-    if (bgmGain) {
-      bgmGain.disconnect()
-      bgmGain = null
+    if (bgmLeadOscillator) {
+      try {
+        bgmLeadOscillator.stop()
+      } catch {
+        // ignore
+      }
+      bgmLeadOscillator.disconnect()
+      bgmLeadOscillator = null
     }
+    if (bgmBassGain) {
+      bgmBassGain.disconnect()
+      bgmBassGain = null
+    }
+    if (bgmLeadGain) {
+      bgmLeadGain.disconnect()
+      bgmLeadGain = null
+    }
+    if (bgmLeadFilter) {
+      bgmLeadFilter.disconnect()
+      bgmLeadFilter = null
+    }
+    bgmStyleIndex = 0
+    bgmStepIndex = 0
   }
 
   function startBackgroundMusic() {
     const ctx = ensureAudioContext()
-    if (!ctx || bgmOscillator) return
+    if (!ctx || bgmBassOscillator || bgmLeadOscillator) return
 
-    const master = ctx.createGain()
-    master.gain.value = 0.018
-    master.connect(ctx.destination)
+    const bassGain = ctx.createGain()
+    bassGain.gain.value = 0.28
+    bassGain.connect(ctx.destination)
 
-    const osc = ctx.createOscillator()
-    const lfo = ctx.createOscillator()
-    const lfoGain = ctx.createGain()
-    lfo.frequency.value = 0.18
-    lfoGain.gain.value = 18
-    lfo.connect(lfoGain)
-    lfoGain.connect(osc.frequency)
+    const leadGain = ctx.createGain()
+    leadGain.gain.value = 0.22
+    leadGain.connect(ctx.destination)
 
-    osc.type = 'triangle'
-    osc.frequency.value = 196
-    osc.connect(master)
-    osc.start()
-    lfo.start()
+    const leadFilter = ctx.createBiquadFilter()
+    leadFilter.type = 'lowpass'
+    leadFilter.frequency.value = 1200
+    leadFilter.connect(leadGain)
 
-    bgmGain = master
-    bgmOscillator = osc
+    const bass = ctx.createOscillator()
+    bass.type = bgmStyles[0].bassWave
+    bass.frequency.value = bgmStyles[0].bassPattern[0]
+    bass.connect(bassGain)
+    bass.start()
 
-    const chordPattern = [
-      196, 220, 247, 196,
-      174.61, 196, 220, 174.61,
-    ]
-    let index = 0
-    const step = () => {
-      if (!bgmGain) return
-      const now = ctx.currentTime
-      const next = chordPattern[index % chordPattern.length]
-      osc.frequency.setTargetAtTime(next, now, 0.08)
-      index += 1
-      bgmTimer = window.setTimeout(step, 1400)
+    const lead = ctx.createOscillator()
+    lead.type = bgmStyles[0].leadWave
+    lead.frequency.value = bgmStyles[0].leadPattern[0]
+    lead.connect(leadFilter)
+    lead.start()
+
+    bgmBassOscillator = bass
+    bgmLeadOscillator = lead
+    bgmBassGain = bassGain
+    bgmLeadGain = leadGain
+    bgmLeadFilter = leadFilter
+    bgmStyleIndex = 0
+    bgmStepIndex = 0
+
+    const applyStyle = (style: BgmStyle) => {
+      if (!bgmBassOscillator || !bgmLeadOscillator || !bgmBassGain || !bgmLeadGain || !bgmLeadFilter) return
+      bgmBassOscillator.type = style.bassWave
+      bgmLeadOscillator.type = style.leadWave
+      bgmLeadFilter.frequency.setValueAtTime(style.leadFilterHz, ctx.currentTime)
+      bgmBassGain.gain.setValueAtTime(style.bassGain, ctx.currentTime)
+      bgmLeadGain.gain.setValueAtTime(style.leadGain, ctx.currentTime)
     }
+
+    const step = () => {
+      if (!bgmBassOscillator || !bgmLeadOscillator || !bgmBassGain || !bgmLeadGain || !bgmLeadFilter) return
+      const style = bgmStyles[bgmStyleIndex % bgmStyles.length]
+      const now = ctx.currentTime
+      const bassNote = style.bassPattern[bgmStepIndex % style.bassPattern.length]
+      const leadNote = style.leadPattern[bgmStepIndex % style.leadPattern.length]
+      const accented = style.accentPattern[bgmStepIndex % style.accentPattern.length]
+
+      applyStyle(style)
+      bass.frequency.setTargetAtTime(bassNote, now, 0.02)
+      lead.frequency.setTargetAtTime(leadNote, now, 0.02)
+
+      bgmBassGain.gain.cancelScheduledValues(now)
+      bgmLeadGain.gain.cancelScheduledValues(now)
+      bgmBassGain.gain.setValueAtTime(0.0001, now)
+      bgmBassGain.gain.linearRampToValueAtTime(accented ? style.bassGain : style.bassGain * 0.66, now + 0.06)
+      bgmBassGain.gain.linearRampToValueAtTime(0.0001, now + Math.min(0.42, style.stepMs / 1000 - 0.02))
+      bgmLeadGain.gain.setValueAtTime(0.0001, now)
+      bgmLeadGain.gain.linearRampToValueAtTime(accented ? style.leadGain : style.leadGain * 0.66, now + 0.05)
+      bgmLeadGain.gain.linearRampToValueAtTime(0.0001, now + Math.min(0.34, style.stepMs / 1000 - 0.02))
+
+      bgmStepIndex += 1
+      bgmTimer = window.setTimeout(step, style.stepMs)
+    }
+
+    const switchStyle = () => {
+      if (!bgmBassOscillator || !bgmLeadOscillator || !bgmBassGain || !bgmLeadGain || !bgmLeadFilter) return
+      bgmStyleIndex = (bgmStyleIndex + 1) % bgmStyles.length
+      bgmStepIndex = 0
+      if (bgmTimer !== null) {
+        window.clearTimeout(bgmTimer)
+        bgmTimer = null
+      }
+      step()
+    }
+
     step()
+    bgmStyleTimer = window.setInterval(switchStyle, 20000)
   }
 
   function playTone(frequency: number, duration = 0.09, type: OscillatorType = 'sine', gainValue = 0.04) {
