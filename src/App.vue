@@ -6,8 +6,9 @@ import ResultScreen from './components/game/ResultScreen.vue'
 import PlayScreen from './components/game/PlayScreen.vue'
 import { type AppPage, useFlightLudoPlayScene } from './composables/useFlightLudoPlayScene'
 import { type GameMode } from './game'
+
 const mode = ref<GameMode>(1)
-const piecesPerPlayer = ref(2)
+const piecesPerPlayer = ref(4)
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
 const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
