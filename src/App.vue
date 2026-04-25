@@ -60,7 +60,7 @@ const {
 
 <style scoped>
 .shell {
-  min-height: 100vh;
-  padding: 14px;
+  min-height: 100dvh;
+  padding: 0;
 }
 </style>

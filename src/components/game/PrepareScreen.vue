@@ -62,6 +62,18 @@ const modeOptions = [
       backgroundRepeat: 'no-repeat',
     }"
   >
+    <div class="bg-decor" aria-hidden="true">
+      <span class="bg-orbit bg-orbit-a"></span>
+      <span class="bg-orbit bg-orbit-b"></span>
+      <span class="bg-orbit bg-orbit-c"></span>
+      <span class="bg-cloud bg-cloud-a"></span>
+      <span class="bg-cloud bg-cloud-b"></span>
+      <span class="bg-star bg-star-a"></span>
+      <span class="bg-star bg-star-b"></span>
+      <span class="bg-star bg-star-c"></span>
+      <span class="bg-dot bg-dot-a"></span>
+      <span class="bg-dot bg-dot-b"></span>
+    </div>
     <div class="mode-shell">
       <div class="mode-grid">
         <button
@@ -99,6 +111,14 @@ const modeOptions = [
               :alt="avatar.alt"
             />
           </div>
+          <div class="card-track" aria-hidden="true">
+            <span
+              v-for="cell in 12"
+              :key="cell"
+              class="track-cell"
+              :class="{ 'track-cell--accent': cell === 3 || cell === 10 }"
+            ></span>
+          </div>
           <div class="card-footer" aria-hidden="true">
             <span class="foot-piece"></span>
             <span class="foot-piece"></span>
@@ -113,9 +133,9 @@ const modeOptions = [
 
 <style scoped>
 .page {
-  width: min(1120px, 100%);
-  min-height: calc(100dvh - 28px);
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -123,6 +143,7 @@ const modeOptions = [
   position: relative;
   isolation: isolate;
   background: none;
+  overflow: hidden;
 }
 
 .page::before {
@@ -140,8 +161,141 @@ const modeOptions = [
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, rgba(255, 255, 255, 0), rgba(0, 34, 76, 0.18));
+  background:
+    radial-gradient(circle at center, rgba(255, 255, 255, 0), rgba(0, 34, 76, 0.18)),
+    linear-gradient(180deg, rgba(4, 14, 28, 0.12), rgba(4, 14, 28, 0.26));
   z-index: -1;
+}
+
+.bg-decor {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bg-orbit,
+.bg-cloud,
+.bg-star,
+.bg-dot {
+  position: absolute;
+}
+
+.bg-orbit {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  opacity: 0.7;
+}
+
+.bg-orbit-a {
+  width: min(68vw, 760px);
+  height: min(68vw, 760px);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.bg-orbit-b {
+  width: min(48vw, 540px);
+  height: min(48vw, 540px);
+  left: 12%;
+  top: 10%;
+  border-style: dashed;
+  opacity: 0.45;
+}
+
+.bg-orbit-c {
+  width: min(34vw, 380px);
+  height: min(34vw, 380px);
+  right: 8%;
+  bottom: 12%;
+  border-style: dashed;
+  opacity: 0.38;
+}
+
+.bg-cloud {
+  width: 120px;
+  height: 44px;
+  border-radius: 999px;
+  background:
+    radial-gradient(circle at 22% 60%, rgba(255, 255, 255, 0.72) 0 18px, transparent 19px),
+    radial-gradient(circle at 52% 36%, rgba(255, 255, 255, 0.82) 0 22px, transparent 23px),
+    radial-gradient(circle at 78% 60%, rgba(255, 255, 255, 0.68) 0 16px, transparent 17px),
+    rgba(255, 255, 255, 0.24);
+  filter: blur(0.3px);
+  opacity: 0.55;
+}
+
+.bg-cloud-a {
+  top: 8%;
+  left: 8%;
+  transform: scale(1.15);
+}
+
+.bg-cloud-b {
+  right: 10%;
+  top: 15%;
+  transform: scale(0.92);
+}
+
+.bg-star {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
+}
+
+.bg-star::before,
+.bg-star::after {
+  content: '';
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 28px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%);
+}
+
+.bg-star::after {
+  width: 2px;
+  height: 28px;
+}
+
+.bg-star-a {
+  left: 16%;
+  top: 22%;
+}
+
+.bg-star-b {
+  right: 20%;
+  top: 30%;
+}
+
+.bg-star-c {
+  left: 28%;
+  bottom: 18%;
+}
+
+.bg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 70%, white);
+  opacity: 0.6;
+  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.04);
+}
+
+.bg-dot-a {
+  left: 10%;
+  bottom: 28%;
+}
+
+.bg-dot-b {
+  right: 14%;
+  bottom: 24%;
 }
 
 .mode-shell {
@@ -221,6 +375,7 @@ const modeOptions = [
 .card-corners,
 .card-header,
 .card-footer,
+.card-track,
 .card-glow {
   position: absolute;
   pointer-events: none;
@@ -327,6 +482,46 @@ const modeOptions = [
   transition: opacity 0.18s ease;
 }
 
+.card-track {
+  left: 22px;
+  right: 22px;
+  bottom: 48px;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
+  z-index: 1;
+}
+
+.track-cell {
+  height: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.26);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.track-cell--accent {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white), color-mix(in srgb, var(--accent) 72%, black));
+}
+
+.card-footer {
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  z-index: 2;
+}
+
+.foot-piece {
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 90%, white), rgba(255, 255, 255, 0.55));
+  opacity: 0.72;
+}
+
 .select-card:hover {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--accent) 58%, white);
@@ -351,20 +546,7 @@ const modeOptions = [
 }
 
 .select-card.active::after {
-  content: '✓';
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 92%, white), color-mix(in srgb, var(--accent) 78%, black));
-  color: #fff;
-  font-size: 15px;
-  font-weight: 800;
-  box-shadow: 0 6px 14px color-mix(in srgb, var(--accent) 25%, transparent);
+  content: '';
 }
 
 .avatar-stack {
@@ -492,6 +674,28 @@ const modeOptions = [
 
   .mode-copy small {
     font-size: 11px;
+  }
+
+  .card-track {
+    left: 16px;
+    right: 16px;
+    bottom: 42px;
+    gap: 3px;
+  }
+
+  .track-cell {
+    height: 8px;
+  }
+
+  .card-footer {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    gap: 6px;
+  }
+
+  .foot-piece {
+    height: 6px;
   }
 
   .avatar-icon {

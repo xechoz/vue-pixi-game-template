@@ -341,7 +341,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       app = new PIXI.Application()
       await app.init({
         resizeTo: host,
-        background: '#050b16',
+        background: 'transparent',
         antialias: true,
         autoDensity: true,
         resolution: window.devicePixelRatio || 1,
@@ -465,7 +465,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       .stroke({ color: 0x1e293b, width: 1, alpha: 0.5 })
     homes
       .roundRect(innerLeft, innerTop, innerRight - innerLeft, innerBottom - innerTop, 18)
-      .fill({ color: 0x172033, alpha: 0.95 })
       .stroke({ color: 0x263244, width: 2, alpha: 0.9 })
     board.addChild(homes)
 
