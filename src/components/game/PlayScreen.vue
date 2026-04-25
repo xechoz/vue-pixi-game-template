@@ -207,7 +207,7 @@ const emit = defineEmits<{
   gap: 10px;
   width: min(100%, 92vw, 88vh);
   padding: 0 4px;
-  margin-top: -36px;
+  margin-top: -136px;
 }
 
 .play-canvas-shell {

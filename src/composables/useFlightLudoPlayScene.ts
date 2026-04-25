@@ -76,12 +76,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const diceIdlePulse = ref(0)
   const diceIdleShake = ref(0)
   const diceIdleLift = ref(0)
+  const legalPulse = ref(0)
   const isRolling = ref(false)
   const isTurnTransitioning = ref(false)
 
   let rollTimer: number | null = null
   let rollFrameId: number | null = null
   let diceIdleFrameId: number | null = null
+  let turnAccentFrameId: number | null = null
   let diceIdleStart = 0
   let autoTimer: number | null = null
   let autoMoveTimer: number | null = null
@@ -115,6 +117,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceIdlePulse.value = 0
     diceIdleShake.value = 0
     diceIdleLift.value = 0
+    legalPulse.value = 0
   }
 
   function clearTimers() {
@@ -237,11 +240,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     window.setTimeout(() => playTone(523.25, 0.08, 'triangle', 0.028), 70)
   }
 
-  function playCaptureSound() {
-    playTone(220, 0.12, 'sawtooth', 0.03)
-    window.setTimeout(() => playTone(165, 0.14, 'sawtooth', 0.028), 90)
-  }
-
   function playWinSound() {
     playTone(523.25, 0.12, 'triangle', 0.03)
     window.setTimeout(() => playTone(659.25, 0.12, 'triangle', 0.028), 110)
@@ -341,7 +339,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       app = new PIXI.Application()
       await app.init({
         resizeTo: host,
-        background: 'transparent',
+        backgroundAlpha: 0,
         antialias: true,
         autoDensity: true,
         resolution: window.devicePixelRatio || 1,
@@ -408,6 +406,49 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceIdleLift.value = Math.sin(diceIdleStart / 420) * 2
     diceIdlePulse.value = 0.5 + 0.5 * Math.sin(diceIdleStart / 260)
     renderScene()
+  }
+
+  function stopTurnAccentAnimation() {
+    if (turnAccentFrameId !== null) {
+      window.cancelAnimationFrame(turnAccentFrameId)
+      turnAccentFrameId = null
+    }
+    legalPulse.value = 0
+  }
+
+  function syncTurnAccentAnimation() {
+    stopTurnAccentAnimation()
+
+    const shouldAnimate =
+      options.page.value === 'play' &&
+      game.value.winnerIndex === null &&
+      game.value.dice !== null &&
+      !isRolling.value &&
+      movingPoint.value === null &&
+      legalPieces.value.length > 0
+
+    if (!shouldAnimate) return
+
+    const tick = (now: number) => {
+      if (
+        options.page.value !== 'play' ||
+        game.value.winnerIndex !== null ||
+        game.value.dice === null ||
+        isRolling.value ||
+        movingPoint.value !== null ||
+        legalPieces.value.length === 0
+      ) {
+        stopTurnAccentAnimation()
+        renderScene()
+        return
+      }
+
+      legalPulse.value = 0.45 + 0.55 * Math.sin(now / 160)
+      renderScene()
+      turnAccentFrameId = window.requestAnimationFrame(tick)
+    }
+
+    turnAccentFrameId = window.requestAnimationFrame(tick)
   }
 
   function getDiceTexture(value: number) {
@@ -610,7 +651,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
     diceGroup.cursor = canRoll ? 'pointer' : 'default'
-    diceGroup.hitArea = new PIXI.Rectangle(-diceSize * 0.68, -diceSize * 0.68, diceSize * 1.36, diceSize * 1.36)
+    diceGroup.hitArea = new PIXI.Rectangle(-diceSize * 0.7, -diceSize * 0.7, diceSize * 1.4, diceSize * 1.4)
     if (canRoll) {
       diceGroup.on('pointerdown', () => handleRoll(false))
     }
@@ -619,14 +660,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const diceBackPlate = new PIXI.Graphics()
       .roundRect(-diceSize / 2 + 6, -diceSize / 2 + 8, diceSize, diceSize, 24)
-      .fill({ color: 0x020617, alpha: 0.28 })
-      .stroke({ color: 0x000000, width: 1, alpha: 0.16 })
+      .fill({ color: 0x020617, alpha: 0.0 })
+      .stroke({ color: 0x000000, width: 0, alpha: 0 })
     diceGroup.addChildAt(diceBackPlate, 0)
 
     const diceBody = new PIXI.Graphics()
       .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
       .fill({ color: createDiceBackdropTint(diceValue ?? rollingFace.value), alpha: 0.88 })
-      .stroke({ color: 0xffffff, width: 3, alpha: 0.58 })
+      .stroke({ color: 0xffffff, width: 0, alpha: 0 })
     diceGroup.addChild(diceBody)
 
     const diceGlow = new PIXI.Graphics()
@@ -636,7 +677,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const edgeShadow = new PIXI.Graphics()
       .roundRect(-diceSize / 2 + 2, -diceSize / 2 + 3, diceSize - 4, diceSize - 4, 20)
-      .stroke({ color: 0x0f172a, width: 6, alpha: 0.16 })
+      .stroke({ color: 0x0f172a, width: 0, alpha: 0 })
     diceGroup.addChild(edgeShadow)
 
     if (diceFaceTexture) {
@@ -653,19 +694,21 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         .stroke({ color: currentDiceTint, width: 4, alpha: 0.16 + diceIdlePulse.value * 0.18 })
       diceGroup.addChild(idleMark)
 
-      const idleDot = new PIXI.Graphics()
-        .circle(0, 0, diceSize * 0.08)
-        .fill({ color: 0xffffff, alpha: 0.9 })
-      diceGroup.addChild(idleDot)
+      const promptIcon = new PIXI.Graphics()
+        .roundedRect(-diceSize * 0.14, -diceSize * 0.18, diceSize * 0.28, diceSize * 0.36, diceSize * 0.08)
+        .fill({ color: 0xffffff, alpha: 0.34 + diceIdlePulse.value * 0.18 })
+      diceGroup.addChild(promptIcon)
 
-      const idleSquares = 1 + Math.floor(((rollingFace.value || 1) - 1) / 2)
-      const offset = diceSize * 0.18
-      for (let i = 0; i < idleSquares; i += 1) {
-        const dot = new PIXI.Graphics()
-          .circle(-offset + i * offset, 0, diceSize * 0.045)
-          .fill({ color: currentDiceTint, alpha: 0.14 + diceIdlePulse.value * 0.12 })
-        diceGroup.addChild(dot)
-      }
+      const promptStem = new PIXI.Graphics()
+        .moveTo(0, diceSize * 0.1)
+        .lineTo(0, diceSize * 0.18)
+        .stroke({ color: 0xffffff, width: 3, alpha: 0.34 + diceIdlePulse.value * 0.18 })
+      diceGroup.addChild(promptStem)
+
+      const promptDot = new PIXI.Graphics()
+        .circle(0, diceSize * 0.27, diceSize * 0.045)
+        .fill({ color: 0xffffff, alpha: 0.75 })
+      diceGroup.addChild(promptDot)
     }
 
     const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.06 : 0)
@@ -714,7 +757,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         trail.stroke({ color: player.color, width: 5, alpha: 0.45 })
         board.addChild(trail)
 
-        for (const point of pathPoints.slice(1)) {
+        const arcLift = Math.max(4, pieceRadius * 0.75)
+        for (let index = 1; index < pathPoints.length; index += 1) {
+          const point = pathPoints[index]
+          const prev = pathPoints[index - 1]
+          const midX = (prev.x + point.x) / 2
+          const midY = (prev.y + point.y) / 2 - arcLift
+          const arcTrail = new PIXI.Graphics()
+          arcTrail.moveTo(prev.x, prev.y)
+          arcTrail.quadraticCurveTo(midX, midY, point.x, point.y)
+          arcTrail.stroke({ color: player.color, width: 4, alpha: 0.28 })
+          board.addChild(arcTrail)
+
           const marker = new PIXI.Graphics()
             .circle(point.x, point.y, 8)
             .fill({ color: 0xffffff, alpha: 0.14 })
@@ -773,6 +827,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         pieceGroup.on('pointerdown', () => handleMove(pieceInfo.piece.id))
       }
 
+      const legalRing = new PIXI.Graphics()
+        .circle(0, 0, pieceRadius + 11)
+        .stroke({ color: 0xffffff, width: 2, alpha: isLegal ? 0.22 + legalPulse.value * 0.3 : 0.04 })
+      pieceGroup.addChildAt(legalRing, 0)
+
+      if (isLegal && !isMoving) {
+        const legalGlow = new PIXI.Graphics()
+          .circle(0, 0, pieceRadius + 15)
+          .stroke({ color: hexToNumber(pieceInfo.player.color), width: 4, alpha: 0.15 + legalPulse.value * 0.35 })
+        pieceGroup.addChildAt(legalGlow, 0)
+      }
+
       const shadow = new PIXI.Graphics()
         .ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)
         .fill({ color: 0x020617, alpha: 0.26 })
@@ -827,9 +893,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     game.value = { ...game.value }
     renderScene()
     syncDiceIdleAnimation()
+    syncTurnAccentAnimation()
     if (game.value.winnerIndex !== null) {
       options.page.value = 'result'
     }
+    playAutoTurn()
   }
 
   function scheduleAutoTurn(delay = 180) {
@@ -875,9 +943,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (game.value.dice === null || game.value.winnerIndex !== null) return null
     const legalIds = legalPieces.value
     if (legalIds.length === 0) return null
-    if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
     if (legalIds.length === 1) return legalIds[0] ?? null
+    if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
     return null
+  }
+
+  function setDicePromptState(active: boolean) {
+    void active
+  }
+
+  function getHighlightedPieceIds() {
+    if (game.value.dice === null || game.value.winnerIndex !== null) return []
+    return [...legalPieces.value]
   }
 
   function playAutoTurn() {
@@ -931,23 +1008,33 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       isRolling.value = false
       rollTimer = null
       const result = rollDice(game.value)
-      if (result.rolled) {
-        playRollSound()
-        refreshGameView()
-        if (result.advancePending) {
-          scheduleTurnAdvance(2000)
-        }
+      if (!result.rolled) return
 
-        if (result.skipped) {
-          if (!isHumanTurn() && options.autoPlayMode.value) {
-            scheduleAutoTurn(220)
-          }
-          return
-        }
+      playRollSound()
+      refreshGameView()
 
+      if (result.skipped) {
         if (!isHumanTurn() && options.autoPlayMode.value) {
           scheduleAutoTurn(220)
         }
+        return
+      }
+
+      const humanAutoPieceId = isHumanTurn() ? getHumanAutoMovePieceId() : null
+      if (humanAutoPieceId) {
+        autoMoveTimer = window.setTimeout(() => {
+          autoMoveTimer = null
+          handleMove(humanAutoPieceId)
+        }, 220)
+        return
+      }
+
+      if (result.advancePending) {
+        scheduleTurnAdvance(2000)
+      }
+
+      if (!isHumanTurn() && options.autoPlayMode.value) {
+        scheduleAutoTurn(220)
       }
     }
 
@@ -956,6 +1043,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   function handleMove(pieceId: string) {
     if (!currentLayout || game.value.dice === null || game.value.winnerIndex !== null || movingPoint.value !== null) return
+    if (!legalPieces.value.includes(pieceId)) return
 
     const player = getCurrentPlayer(game.value)
     const piece = player.pieces.find((item) => item.id === pieceId)
@@ -973,21 +1061,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       ...buildPiecePath(currentLayout, player, piece, game.value.dice),
     ]
 
-    if (pathPoints.length <= 1) {
-      const result = movePiece(game.value, pieceId)
-      if (result.moved) {
-        playMoveSound()
-        if (result.message.includes('吃子')) playCaptureSound()
-        if (result.message.includes('胜利')) playWinSound()
-        clearMovePreview()
-        refreshGameView()
-        if (result.advancePending) {
-          scheduleTurnAdvance(2000)
-        } else if (!isHumanTurn() && options.autoPlayMode.value) scheduleAutoTurn(220)
-      }
-      return
-    }
-
     const totalDuration = Math.max(420, (pathPoints.length - 1) * 130)
     const startTime = performance.now()
     const stepDelay = 110
@@ -1003,7 +1076,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       movingPoint.value = {
         x: lerp(start.x, end.x, segmentProgress),
-        y: lerp(start.y, end.y, segmentProgress),
+        y: lerp(start.y, end.y, segmentProgress) - Math.sin(segmentProgress * Math.PI) * (safeBoardSize * 0.018),
       }
       renderScene()
 
@@ -1021,15 +1094,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         if (result.message.includes('胜利')) playWinSound()
         refreshGameView()
         clearMovePreview()
-        landingPoint.value = { x: end.x, y: end.y, color: player.color }
-        if (landingTimer !== null) window.clearTimeout(landingTimer)
-        landingTimer = window.setTimeout(() => {
-          landingTimer = null
-          landingPoint.value = null
-        }, 260)
         if (result.advancePending) {
           scheduleTurnAdvance(2000)
-        } else if (!isHumanTurn() && options.autoPlayMode.value) scheduleAutoTurn(220)
+        } else if (!isHumanTurn() && options.autoPlayMode.value) {
+          scheduleAutoTurn(220)
+        }
       }
     }
 
