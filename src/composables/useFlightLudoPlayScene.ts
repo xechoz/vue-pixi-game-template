@@ -62,7 +62,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   let app: PIXI.Application | null = null
   let scene: PIXI.Container | null = null
-  let boardTexture: PIXI.Texture | null = null
   let pieceTexture: PIXI.Texture | null = null
   let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
   const diceTextures: Partial<Record<number, PIXI.Texture>> = {}
@@ -324,8 +323,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       scene = new PIXI.Container()
       app.stage.addChild(scene)
 
-      const [loadedBoard, loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece, ...diceFaces] = await Promise.all([
-        PIXI.Assets.load(assetUrl('flight-ludo-board.svg')),
+      const [loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece, ...diceFaces] = await Promise.all([
         PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
         PIXI.Assets.load(assetUrl('player-red.png')),
         PIXI.Assets.load(assetUrl('player-yellow.png')),
@@ -338,7 +336,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         PIXI.Assets.load(assetUrl('dice-5.svg')),
         PIXI.Assets.load(assetUrl('dice-6.svg')),
       ])
-      boardTexture = loadedBoard instanceof PIXI.Texture ? loadedBoard : PIXI.Texture.from(assetUrl('flight-ludo-board.svg'))
       pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
       playerPieceTextures = {
         0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.png')),
@@ -375,30 +372,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     if (!shouldAnimate) return
 
+    // 之前这里用 RAF 持续整页重绘来做骰子呼吸动画，
+    // 但会反复创建/销毁整张棋盘与所有棋子，容易在多回合后造成卡死或崩溃。
+    // 现在只做一次轻量刷新，避免无限重绘循环。
     diceIdleStart = performance.now()
-    const loop = (now: number) => {
-      if (
-        options.page.value !== 'play' ||
-        game.value.winnerIndex !== null ||
-        game.value.dice !== null ||
-        isRolling.value ||
-        movingPoint.value !== null
-      ) {
-        stopDiceIdleAnimation()
-        return
-      }
-
-      const elapsed = now - diceIdleStart
-      const wobble = Math.sin(elapsed / 120)
-      const pulse = 0.5 + 0.5 * Math.sin(elapsed / 260)
-      diceIdleShake.value = wobble
-      diceIdleLift.value = Math.sin(elapsed / 420) * 4
-      diceIdlePulse.value = pulse
-      renderScene()
-      diceIdleFrameId = window.requestAnimationFrame(loop)
-    }
-
-    diceIdleFrameId = window.requestAnimationFrame(loop)
+    diceIdleShake.value = Math.sin(diceIdleStart / 120)
+    diceIdleLift.value = Math.sin(diceIdleStart / 420) * 2
+    diceIdlePulse.value = 0.5 + 0.5 * Math.sin(diceIdleStart / 260)
+    renderScene()
   }
 
   function getDiceTexture(value: number) {
@@ -418,8 +399,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     const { width, height } = app.screen
-    const boardSize = Math.min(width, height) - 32
-    const safeBoardSize = Math.max(260, boardSize)
+    const boardSize = Math.min(width, height) - 72
+    const safeBoardSize = Math.max(240, boardSize)
     const originX = (width - safeBoardSize) / 2
     const originY = (height - safeBoardSize) / 2
     const cellSize = safeBoardSize * 0.06
@@ -449,13 +430,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(pulse)
     }
 
-    if (boardTexture) {
-      const boardSprite = new PIXI.Sprite(boardTexture)
-      boardSprite.position.set(originX, originY)
-      boardSprite.width = safeBoardSize
-      boardSprite.height = safeBoardSize
-      board.addChild(boardSprite)
-    }
 
     const homes = new PIXI.Graphics()
     homes
@@ -486,24 +460,24 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     const buildBaseSlots = (originXValue: number, originYValue: number, size: number) => {
-      const cornerInset = size * 0.08
-      const gap = size * 0.075
+      const zoneSize = size * 0.085
+      const spread = zoneSize * 0.22
 
-      const corners = [
-        { x: originXValue + cornerInset, y: originYValue + cornerInset },
-        { x: originXValue + size - cornerInset, y: originYValue + cornerInset },
-        { x: originXValue + size - cornerInset, y: originYValue + size - cornerInset },
-        { x: originXValue + cornerInset, y: originYValue + size - cornerInset },
+      const zones = [
+        { x: originXValue - zoneSize * 0.66, y: originYValue - zoneSize * 0.66 },
+        { x: originXValue + size - zoneSize * 0.34, y: originYValue - zoneSize * 0.66 },
+        { x: originXValue + size - zoneSize * 0.34, y: originYValue + size - zoneSize * 0.34 },
+        { x: originXValue - zoneSize * 0.66, y: originYValue + size - zoneSize * 0.34 },
       ]
 
-      return corners.map((corner, index) => {
-        const xDir = index === 0 || index === 3 ? -1 : 1
-        const yDir = index === 0 || index === 1 ? -1 : 1
+      return zones.map((zone) => {
+        const centerX = zone.x + zoneSize / 2
+        const centerY = zone.y + zoneSize / 2
         return [
-          { x: corner.x - gap, y: corner.y - gap },
-          { x: corner.x + xDir * gap, y: corner.y - gap },
-          { x: corner.x - gap, y: corner.y + yDir * gap },
-          { x: corner.x + xDir * gap, y: corner.y + yDir * gap },
+          { x: centerX - spread, y: centerY - spread },
+          { x: centerX + spread, y: centerY - spread },
+          { x: centerX - spread, y: centerY + spread },
+          { x: centerX + spread, y: centerY + spread },
         ]
       })
     }

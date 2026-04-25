@@ -14,11 +14,11 @@ const emit = defineEmits<{
 <template>
   <section class="page page-play">
     <div class="grid play-grid">
-      <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
-      <div class="play-floating-actions">
+      <div class="play-actions-bar">
         <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
         <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
       </div>
+      <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
     </div>
   </section>
 </template>
@@ -48,17 +48,17 @@ const emit = defineEmits<{
   width: 100%;
 }
 
-.play-canvas-shell {
-  min-height: min(92vh, 980px);
+.play-actions-bar {
+  display: flex;
+  justify-content: flex-start;
+  gap: 10px;
+  width: min(100%, 92vw, 88vh);
+  padding: 0 4px;
+  margin-top: -50px;
 }
 
-.play-floating-actions {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  display: grid;
-  gap: 10px;
-  z-index: 2;
+.play-canvas-shell {
+  min-height: min(92vh, 980px);
 }
 
 .circle-action {
