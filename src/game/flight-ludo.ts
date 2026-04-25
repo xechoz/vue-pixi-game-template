@@ -67,6 +67,15 @@ export function clampPiecesPerPlayer(value: number): number {
   return Math.min(4, Math.max(1, Math.trunc(value) || 1))
 }
 
+export function getWeightedDiceRoll(trackPieceCount: number, randomValue = Math.random()): number {
+  if (trackPieceCount <= 0) {
+    if (randomValue < 0.5) return 6
+    return Math.floor((randomValue - 0.5) / (0.5 / 5)) + 1
+  }
+
+  return Math.floor(randomValue * 6) + 1
+}
+
 export function createGame(settings: GameSettings): GameState {
   const mode = settings.mode
   const piecesPerPlayer = clampPiecesPerPlayer(settings.piecesPerPlayer)
@@ -200,11 +209,18 @@ export function rollDice(state: GameState): { rolled: boolean; skipped: boolean;
   }
 
   const player = getCurrentPlayer(state)
-  state.dice = Math.floor(Math.random() * 6) + 1
+  const trackPieceCount = getPlayerTrackCount(player)
+  state.dice = getWeightedDiceRoll(trackPieceCount)
 
   const legalPieces = getLegalPieceIds(state)
   if (legalPieces.length === 0) {
     const rolled = state.dice
+    if (trackPieceCount === 0 && rolled !== 6) {
+      state.dice = null
+      state.status = `${player.name} 没摇到 6，可以继续再试一次。`
+      return { rolled: true, skipped: false, advancePending: false, message: state.status }
+    }
+
     state.status = `${player.name} 掷出 ${rolled} 点，但没有可移动棋子，稍后自动跳过。`
     return { rolled: true, skipped: true, advancePending: true, message: state.status }
   }

@@ -286,7 +286,7 @@ function syncDiceIdleAnimation() {
 
 function scheduleAutoTurn(delay = 180) {
   if (game.value.winnerIndex !== null) return
-  if (!autoPlayMode.value || isHumanTurn()) return
+  if (isTurnTransitioning.value || !autoPlayMode.value) return
   if (autoTimer !== null) {
     window.clearTimeout(autoTimer)
   }
@@ -457,7 +457,7 @@ function getPlayerByPieceId(state: GameState, pieceId: string) {
 
 function playAutoTurn() {
   if (!autoPlayMode.value || game.value.winnerIndex !== null) return
-  if (isRolling.value || movingPoint.value !== null) return
+  if (isTurnTransitioning.value || isRolling.value || movingPoint.value !== null) return
 
   if (game.value.dice === null) {
     if (!isHumanTurn()) {
@@ -523,7 +523,7 @@ function goToPrepare() {
 }
 
 function handleRoll(fromAuto = false) {
-  if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value) return
+  if (game.value.winnerIndex !== null || game.value.dice !== null || isRolling.value || isTurnTransitioning.value) return
   if (!isHumanTurn() && !fromAuto) return
 
   clearTimers()
@@ -550,7 +550,16 @@ function handleRoll(fromAuto = false) {
       playRollSound()
       refreshGameView()
       if (result.advancePending) {
-        scheduleTurnAdvance(2000)
+        scheduleTurnAdvance(result.skipped ? 260 : 2000)
+      } else if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) {
+        const autoPieceId = getHumanAutoMovePieceId()
+        if (autoPieceId) {
+          const launchResult = movePiece(game.value, autoPieceId)
+          if (launchResult.moved) {
+            playMoveSound()
+            refreshGameView()
+          }
+        }
       } else if (!isHumanTurn() && autoPlayMode.value) {
         scheduleAutoTurn(220)
       }
