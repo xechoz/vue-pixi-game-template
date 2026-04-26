@@ -74,6 +74,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let pieceTexture: PIXI.Texture | null = null
   let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
   let diceFaceTextures: Partial<Record<number, PIXI.Texture>> = {}
+  let diceIdleTexture: PIXI.Texture | null = null
   let diceRollTextures: PIXI.Texture[] = []
   let currentLayout: BoardLayout | null = null
 
@@ -241,6 +242,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     return null
   }
 
+  async function loadDiceIdleAsset() {
+    return loadFirstAvailableTexture([
+      assetUrl('dice/idle-question.png'),
+      assetUrl('dice/idle-question.webp'),
+      assetUrl('dice/idle-question.jpg'),
+      assetUrl('dice/idle-question.jpeg'),
+      assetUrl('dice/idle-question.svg'),
+    ])
+  }
+
   async function loadDiceFaceAssets() {
     const textures: Partial<Record<number, PIXI.Texture>> = {}
     const extensions = ['webp', 'png', 'jpg', 'jpeg', 'svg']
@@ -319,6 +330,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function getIdleDiceAssetTexture() {
+    if (game.value.dice === null && !isRolling.value) {
+      return diceIdleTexture ?? getDiceFaceAssetTexture(1)
+    }
     return getDiceFaceAssetTexture(game.value.dice ?? rollingFace.value ?? 1) ?? getDiceFaceAssetTexture(1)
   }
 
@@ -673,7 +687,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
       }
       pieceTexture = playerPieceTextures[0] ?? playerPieceTextures[1] ?? playerPieceTextures[2] ?? playerPieceTextures[3] ?? null
-      const [loadedDiceFaces, loadedDiceRoll] = await Promise.all([loadDiceFaceAssets(), loadDiceRollAssets()])
+      const [loadedDiceIdle, loadedDiceFaces, loadedDiceRoll] = await Promise.all([
+        loadDiceIdleAsset(),
+        loadDiceFaceAssets(),
+        loadDiceRollAssets(),
+      ])
+      diceIdleTexture = loadedDiceIdle
       diceFaceTextures = loadedDiceFaces
       diceRollTextures = loadedDiceRoll
     })()
@@ -968,6 +987,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const diceSize = safeBoardSize * 0.18
     const diceValue = getDiceDisplayValue()
+    const isIdleDiceState = !isRolling.value && game.value.dice === null
     const orientation = isRolling.value ? diceOrientation.value : createOrientationForFront(diceValue ?? rollingFace.value)
     const rollingDiceAssetTexture = getRollingDiceAssetTexture()
     const previousRollingDiceAssetTexture = getPreviousRollingDiceAssetTexture()
@@ -1031,14 +1051,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
           .fill({ color: 0x020617, alpha: shadowAlpha })
         diceGroup.addChildAt(diceShadow, 0)
 
-        if (!isRolling.value && diceValue === null) {
+        if (!isRolling.value && isIdleDiceState) {
           const promptGlow = new PIXI.Graphics()
             .roundRect(-faceSize * 0.16, faceSize * 0.08, faceSize * 0.32, faceSize * 0.22, faceSize * 0.08)
             .fill({ color: 0xffffff, alpha: 0.18 + diceIdlePulse.value * 0.1 })
           diceGroup.addChild(promptGlow)
         }
 
-        const settleFlashAlpha = !isRolling.value && diceValue !== null
+        const settleFlashAlpha = !isRolling.value && !isIdleDiceState
           ? Math.max(0, Math.min(0.18, diceLandingSquash.value * 0.32 + diceLandingLift.value * 0.004))
           : 0
         if (settleFlashAlpha > 0.001) {
@@ -1053,7 +1073,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
         const landingScaleX = 1 + diceLandingSquash.value * 0.34 + diceResultPop.value * 0.08
         const landingScaleY = 1 - diceLandingSquash.value * 0.24 + diceResultPop.value * 0.04
-        const landingSettleNudge = !isRolling.value && diceValue !== null ? Math.max(0, diceLandingSquash.value * 0.1) : 0
+        const landingSettleNudge = !isRolling.value && !isIdleDiceState ? Math.max(0, diceLandingSquash.value * 0.1) : 0
         const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1) * landingScaleX
         const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1) * landingScaleY
         diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value + landingSettleNudge * fittedHeight * 0.08)
