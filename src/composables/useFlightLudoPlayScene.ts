@@ -279,11 +279,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const dx = to.x - from.x
     const dy = to.y - from.y
     const length = Math.hypot(dx, dy) || 1
-    const clamped = Math.min(distance, length * 0.45)
+    const clamped = Math.min(distance, length * 0.4)
     return {
       x: from.x + (dx / length) * clamped,
       y: from.y + (dy / length) * clamped,
     }
+  }
+
+  function toClockwiseQuad(corners: Array<{ x: number; y: number }>) {
+    if (corners.length !== 4) return corners
+    return [corners[0]!, corners[1]!, corners[3]!, corners[2]!]
   }
 
   function createRoundedQuad(
@@ -292,21 +297,19 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     fillColor: number,
     strokeColor: number,
     alpha = 1,
-    strokeAlpha = 0.1,
+    strokeAlpha = 0.08,
   ) {
     const graphic = new PIXI.Graphics()
-    if (corners.length < 3) return graphic
+    if (corners.length !== 4) return graphic
 
-    const count = corners.length
     const first = corners[0]!
-    const firstNext = corners[1]!
-    const start = insetPoint(first, firstNext, radius)
+    const start = insetPoint(first, corners[1]!, radius)
     graphic.moveTo(start.x, start.y)
 
-    for (let index = 1; index <= count; index += 1) {
-      const current = corners[index % count]!
-      const prev = corners[(index - 1 + count) % count]!
-      const next = corners[(index + 1) % count]!
+    for (let index = 0; index < corners.length; index += 1) {
+      const current = corners[index]!
+      const next = corners[(index + 1) % corners.length]!
+      const prev = corners[(index - 1 + corners.length) % corners.length]!
       const entry = insetPoint(current, prev, radius)
       const exit = insetPoint(current, next, radius)
       graphic.lineTo(entry.x, entry.y)
@@ -314,7 +317,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     graphic.fill({ color: fillColor, alpha })
-    graphic.stroke({ color: strokeColor, width: 0.8, alpha: strokeAlpha })
+    graphic.stroke({ color: strokeColor, width: 0.7, alpha: strokeAlpha })
     return graphic
   }
 
@@ -859,14 +862,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const skew = depth * (0.52 + perspectiveYaw * 0.78)
     const liftDepth = depth * (0.52 + perspectivePitch * 0.92)
     const baseFaceColor = createDiceBackdropTint(orientation.front)
-    const frontColor = mixHexColor(baseFaceColor, 0xffffff, 0.04 + perspectivePitch * 0.07)
-    const topColor = mixHexColor(createDiceBackdropTint(orientation.top), 0xffffff, 0.34 + perspectivePitch * 0.1)
-    const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.18 + perspectiveYaw * 0.08)
-    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.28)
+    const frontColor = mixHexColor(baseFaceColor, 0xffffff, 0.05 + perspectivePitch * 0.05)
+    const topColor = mixHexColor(createDiceBackdropTint(orientation.top), 0xffffff, 0.22 + perspectivePitch * 0.08)
+    const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.12 + perspectiveYaw * 0.04)
+    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.26)
     const pipColor = 0x102033
-    const topCornerRadius = faceSize * 0.12
-    const sideCornerRadius = faceSize * 0.1
-    const frontCornerRadius = faceSize * 0.19
 
     const shadowWidth = faceSize * (0.44 + perspectiveYaw * 0.1 + diceLandingSquash.value * 0.12)
     const shadowHeight = faceSize * (0.14 + (1.12 - perspectivePitch) * 0.04 + (isRolling.value ? 0.05 : 0.02))
@@ -895,82 +895,62 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       { x: faceSize / 2, y: faceSize / 2 },
     ]
 
-    const topFace = createRoundedQuad(topCorners, topCornerRadius, topColor, strokeColor, 0.98, 0.08)
+    const topFace = createRoundedQuad(toClockwiseQuad(topCorners), faceSize * 0.08, topColor, strokeColor, 0.99, 0.06)
     diceGroup.addChild(topFace)
 
-    const sideFace = createRoundedQuad(rightCorners, sideCornerRadius, sideColor, strokeColor, 0.98, 0.08)
+    const sideFace = createRoundedQuad(toClockwiseQuad(rightCorners), faceSize * 0.07, sideColor, strokeColor, 0.99, 0.06)
     diceGroup.addChild(sideFace)
 
     const frontFace = new PIXI.Graphics()
-      .roundRect(-faceSize / 2, -faceSize / 2 + frontFaceInset, faceSize, faceSize - frontFaceInset, frontCornerRadius)
-      .fill({ color: frontColor, alpha: 0.98 })
-      .stroke({ color: strokeColor, width: 0.9, alpha: 0.16 })
+      .roundRect(-faceSize / 2, -faceSize / 2 + frontFaceInset, faceSize, faceSize - frontFaceInset, faceSize * 0.17)
+      .fill({ color: frontColor, alpha: 0.99 })
+      .stroke({ color: strokeColor, width: 0.9, alpha: 0.14 })
     diceGroup.addChild(frontFace)
 
     const topFaceHighlight = createRoundedQuad(
-      [
-        { x: -faceSize / 2 + faceSize * 0.1, y: -faceSize / 2 - liftDepth * 0.08 },
-        { x: faceSize / 2 - faceSize * 0.22, y: -faceSize / 2 - liftDepth * 0.08 },
-        { x: -faceSize / 2 + skew * 0.42, y: -faceSize / 2 - liftDepth * 0.68 },
-        { x: faceSize / 2 + skew * 0.48, y: -faceSize / 2 - liftDepth * 0.68 },
-      ],
-      faceSize * 0.08,
+      toClockwiseQuad([
+        { x: -faceSize / 2 + faceSize * 0.1, y: -faceSize / 2 - liftDepth * 0.06 },
+        { x: faceSize / 2 - faceSize * 0.2, y: -faceSize / 2 - liftDepth * 0.06 },
+        { x: -faceSize / 2 + skew * 0.38, y: -faceSize / 2 - liftDepth * 0.62 },
+        { x: faceSize / 2 + skew * 0.45, y: -faceSize / 2 - liftDepth * 0.62 },
+      ]),
+      faceSize * 0.05,
       0xffffff,
       0xffffff,
-      0.08,
+      0.05,
       0,
     )
     diceGroup.addChild(topFaceHighlight)
 
-    const topShade = createRoundedQuad(
-      [
-        { x: -faceSize / 2 + faceSize * 0.02, y: -faceSize / 2 - liftDepth * 0.18 },
-        { x: faceSize / 2 - faceSize * 0.1, y: -faceSize / 2 - liftDepth * 0.18 },
-        { x: -faceSize / 2 + skew * 0.58, y: -faceSize / 2 - liftDepth * 0.92 },
-        { x: faceSize / 2 + skew * 0.72, y: -faceSize / 2 - liftDepth * 0.92 },
-      ],
-      faceSize * 0.08,
-      0x0f172a,
-      0x0f172a,
-      0.05 + (1 - perspectivePitch) * 0.04,
-      0,
-    )
-    diceGroup.addChild(topShade)
-
     const sideShade = createRoundedQuad(
-      [
-        { x: faceSize / 2 + skew * 0.26, y: -faceSize / 2 - liftDepth * 0.02 },
-        { x: faceSize / 2 + skew * 0.9, y: -faceSize / 2 - liftDepth * 0.18 },
-        { x: faceSize / 2 + skew * 0.22, y: faceSize / 2 - liftDepth * 0.06 },
-        { x: faceSize / 2 + skew * 0.88, y: faceSize / 2 - liftDepth * 0.22 },
-      ],
-      faceSize * 0.06,
+      toClockwiseQuad([
+        { x: faceSize / 2 + skew * 0.24, y: -faceSize / 2 - liftDepth * 0.02 },
+        { x: faceSize / 2 + skew * 0.84, y: -faceSize / 2 - liftDepth * 0.14 },
+        { x: faceSize / 2 + skew * 0.2, y: faceSize / 2 - liftDepth * 0.06 },
+        { x: faceSize / 2 + skew * 0.82, y: faceSize / 2 - liftDepth * 0.18 },
+      ]),
+      faceSize * 0.04,
       0x0f172a,
       0x0f172a,
-      0.08 + perspectiveYaw * 0.05,
+      0.06,
       0,
     )
     diceGroup.addChild(sideShade)
 
     const faceHighlight = createRoundedQuad(
-      [
-        { x: -faceSize / 2 + faceSize * 0.06, y: -faceSize / 2 + frontFaceInset + faceSize * 0.07 },
-        { x: faceSize * 0.18, y: -faceSize / 2 + frontFaceInset + faceSize * 0.07 },
-        { x: -faceSize / 2 + faceSize * 0.02, y: -faceSize / 2 + frontFaceInset + faceSize * 0.24 },
-        { x: faceSize * 0.3, y: -faceSize / 2 + frontFaceInset + faceSize * 0.24 },
-      ],
-      faceSize * 0.07,
+      toClockwiseQuad([
+        { x: -faceSize / 2 + faceSize * 0.06, y: -faceSize / 2 + frontFaceInset + faceSize * 0.06 },
+        { x: faceSize * 0.18, y: -faceSize / 2 + frontFaceInset + faceSize * 0.06 },
+        { x: -faceSize / 2 + faceSize * 0.02, y: -faceSize / 2 + frontFaceInset + faceSize * 0.22 },
+        { x: faceSize * 0.28, y: -faceSize / 2 + frontFaceInset + faceSize * 0.22 },
+      ]),
+      faceSize * 0.05,
       0xffffff,
       0xffffff,
-      0.11,
+      0.08,
       0,
     )
     diceGroup.addChild(faceHighlight)
-
-    const frontShade = new PIXI.Graphics()
-      .roundRect(-faceSize / 2 + faceSize * 0.04, faceSize * 0.04, faceSize * 0.92, faceSize * 0.34, faceSize * 0.12)
-      .fill({ color: 0x0f172a, alpha: 0.04 + (1 - perspectivePitch) * 0.06 })
-    diceGroup.addChild(frontShade)
 
     drawProjectedPips(
       diceGroup,
