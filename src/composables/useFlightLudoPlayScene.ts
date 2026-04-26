@@ -1043,17 +1043,17 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         if (!isRolling.value && isIdleDiceState && diceIdleTexture) {
           const overlayWidth = fittedWidth * 0.34
           const overlayHeight = fittedHeight * 0.34
-          const idleOverlayPlate = new PIXI.Graphics()
-            .roundRect(-overlayWidth * 0.62, -overlayHeight * 0.62, overlayWidth * 1.24, overlayHeight * 1.24, overlayWidth * 0.28)
-            .fill({ color: 0xffffff, alpha: 0.84 + diceIdlePulse.value * 0.06 })
-            .stroke({ color: 0xe2e8f0, width: Math.max(1, overlayWidth * 0.04), alpha: 0.65 })
-          diceGroup.addChild(idleOverlayPlate)
+
+          const idleOverlayShadow = new PIXI.Graphics()
+            .ellipse(0, overlayHeight * 0.08, overlayWidth * 0.42, overlayHeight * 0.2)
+            .fill({ color: 0x0f172a, alpha: 0.08 + diceIdlePulse.value * 0.03 })
+          diceGroup.addChild(idleOverlayShadow)
 
           const idleOverlaySprite = new PIXI.Sprite(diceIdleTexture)
           idleOverlaySprite.anchor.set(0.5)
           idleOverlaySprite.width = overlayWidth
           idleOverlaySprite.height = overlayHeight
-          idleOverlaySprite.alpha = 0.92 + diceIdlePulse.value * 0.08
+          idleOverlaySprite.alpha = 0.94 + diceIdlePulse.value * 0.06
           diceGroup.addChild(idleOverlaySprite)
         }
 
