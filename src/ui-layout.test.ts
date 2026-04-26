@@ -117,13 +117,16 @@ test('player plane sprites use board-step-aware sizing with softer clickable glo
   assert.ok(pieceRenderBlock.includes('.stroke({ color: hexToNumber(pieceInfo.player.color), width: 2, alpha: 0.12 + legalPulse.value * 0.16 })'))
 })
 
-test('idle dice prompt overlay uses the refreshed icon with larger centered sizing', () => {
+test('idle dice prompt overlay uses 0.8x sizing and blurs the idle dice face', () => {
   const playScene = read('composables/useFlightLudoPlayScene.ts')
   const idleOverlayBlock = sliceSceneBlock(playScene, 'if (!isRolling.value && isIdleDiceState && diceIdleTexture) {', 'const landingShadowScale =')
 
-  assert.ok(idleOverlayBlock.includes('const overlayWidth = fittedWidth * 0.5'))
-  assert.ok(idleOverlayBlock.includes('const overlayHeight = fittedHeight * 0.5'))
-  assert.ok(idleOverlayBlock.includes('const overlayCenterY = -overlayHeight * 0.04'))
+  assert.ok(idleOverlayBlock.includes('const idleFaceBlur = new PIXI.Graphics()'))
+  assert.ok(idleOverlayBlock.includes('.roundRect(-fittedWidth * 0.36, -fittedHeight * 0.36, fittedWidth * 0.72, fittedHeight * 0.72, fittedWidth * 0.12)'))
+  assert.ok(idleOverlayBlock.includes('.fill({ color: 0xffffff, alpha: 0.3 })'))
+  assert.ok(idleOverlayBlock.includes('const overlayWidth = fittedWidth * 0.8'))
+  assert.ok(idleOverlayBlock.includes('const overlayHeight = fittedHeight * 0.8'))
+  assert.ok(idleOverlayBlock.includes('const overlayCenterY = -overlayHeight * 0.02'))
   assert.ok(idleOverlayBlock.includes('idleOverlaySprite.position.set(0, overlayCenterY)'))
   assert.ok(idleOverlayBlock.includes('idleOverlaySprite.width = overlayWidth'))
   assert.ok(idleOverlayBlock.includes('idleOverlaySprite.height = overlayHeight'))
