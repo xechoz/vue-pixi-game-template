@@ -4,8 +4,11 @@ import * as PIXI from 'pixi.js'
 import {
   type GameMode,
   type GameState,
+  FINISH_STEP,
+  HOME_STEPS,
   PLAYER_DEFS,
   TRACK_LENGTH,
+  TRACK_STEPS_PER_SIDE,
   advanceTurn,
   buildMoveTrajectory,
   chooseAutoMovePieceId,
@@ -16,6 +19,7 @@ import {
   getPieceLocation,
   getPlayerTrackCount,
   getTrackCellIndex,
+  isSafeCell,
   movePiece,
   rollDice,
 } from '../game'
@@ -585,12 +589,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
     }
 
-    if (piece.progress < TRACK_LENGTH + 4) {
+    if (piece.progress < FINISH_STEP) {
       const laneIndex = piece.progress - TRACK_LENGTH
       return layout.finishSlots[player.index]?.[laneIndex] ?? { x: centerX, y: centerY }
     }
 
-    return layout.finishSlots[player.index]?.[3] ?? { x: centerX, y: centerY }
+    return layout.finishSlots[player.index]?.[HOME_STEPS - 1] ?? { x: centerX, y: centerY }
   }
 
   function buildPiecePath(
@@ -608,7 +612,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return path
     }
 
-    const target = Math.min(progress + dice, TRACK_LENGTH + 4)
+    const target = Math.min(progress + dice, FINISH_STEP)
     while (progress < target) {
       progress += 1
       path.push(resolvePiecePoint(layout, player, { progress }))
@@ -842,9 +846,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const bottom = originYValue + size * 0.86
 
       return Array.from({ length: TRACK_LENGTH }, (_, index) => {
-        const progress = index / 10
-        const side = Math.floor(progress)
-        const local = progress - side
+        const side = Math.floor(index / TRACK_STEPS_PER_SIDE)
+        const localIndex = index % TRACK_STEPS_PER_SIDE
+        const local = TRACK_STEPS_PER_SIDE <= 1 ? 0 : localIndex / (TRACK_STEPS_PER_SIDE - 1)
 
         if (side === 0) return { x: lerp(left, right, local), y: top }
         if (side === 1) return { x: right, y: lerp(top, bottom, local) }
@@ -892,12 +896,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return corners.map((corner, index) => {
         const xDir = index === 0 || index === 3 ? -1 : 1
         const yDir = index === 0 || index === 1 ? -1 : 1
-        return [
-          { x: corner.x - gap, y: corner.y - gap },
-          { x: corner.x + xDir * gap, y: corner.y - gap },
-          { x: corner.x - gap, y: corner.y + yDir * gap },
-          { x: corner.x + xDir * gap, y: corner.y + yDir * gap },
-        ]
+        return Array.from({ length: HOME_STEPS }, (_, laneIndex) => ({
+          x: corner.x + xDir * gap * laneIndex,
+          y: corner.y + yDir * gap * laneIndex,
+        }))
       })
     }
 
@@ -911,12 +913,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     for (let index = 0; index < trackPoints.length; index += 1) {
       const point = trackPoints[index]
       const cell = new PIXI.Graphics()
-      const playerIndex = Math.floor(index / 10) % PLAYER_DEFS.length
+      const playerIndex = Math.floor(index / TRACK_STEPS_PER_SIDE) % PLAYER_DEFS.length
       const activeColor = game.value.players[playerIndex].color
+      const isStartCell = index % TRACK_STEPS_PER_SIDE === 0
+      const isSafeTrackCell = isSafeCell(index)
       cell
         .roundRect(point.x - trackSize / 2, point.y - trackSize / 2, trackSize, trackSize, 9)
-        .fill({ color: 0xe2e8f0, alpha: 0.07 })
-        .stroke({ color: activeColor, width: index % 10 === 0 ? 3 : 1, alpha: 0.35 })
+        .fill({ color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0, alpha: isSafeTrackCell ? 0.16 : 0.07 })
+        .stroke({ color: activeColor, width: isStartCell ? 3 : isSafeTrackCell ? 2 : 1, alpha: isSafeTrackCell ? 0.55 : 0.35 })
       board.addChild(cell)
     }
 

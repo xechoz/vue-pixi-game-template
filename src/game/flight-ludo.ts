@@ -1,5 +1,6 @@
-export const TRACK_LENGTH = 40
-export const HOME_STEPS = 4
+export const TRACK_STEPS_PER_SIDE = 4
+export const TRACK_LENGTH = TRACK_STEPS_PER_SIDE * 4
+export const HOME_STEPS = 2
 export const FINISH_STEP = TRACK_LENGTH + HOME_STEPS
 
 export type GameMode = 1 | 2 | 3 | 4
@@ -45,18 +46,13 @@ export interface GameState {
 
 export const PLAYER_DEFS: PlayerMeta[] = [
   { index: 0, name: '红方', color: '#ef4444', startIndex: 0, corner: '左上' },
-  { index: 1, name: '黄方', color: '#f59e0b', startIndex: 10, corner: '右上' },
-  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: 20, corner: '右下' },
-  { index: 3, name: '绿方', color: '#22c55e', startIndex: 30, corner: '左下' },
+  { index: 1, name: '黄方', color: '#f59e0b', startIndex: 4, corner: '右上' },
+  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: 8, corner: '右下' },
+  { index: 3, name: '绿方', color: '#22c55e', startIndex: 12, corner: '左下' },
 ]
 
-export const SAFE_CELLS = new Set([0, 10, 20, 30])
-export const FLIGHT_JUMPS = new Map<number, number>([
-  [5, 9],
-  [12, 16],
-  [22, 26],
-  [31, 35],
-])
+export const SAFE_CELLS = new Set([0, 4, 8, 12])
+export const FLIGHT_JUMPS = new Map<number, number>()
 
 export function getTurnOrder(mode: GameMode): number[] {
   void mode
