@@ -14,7 +14,16 @@ Put 6 settled-face images in:
 
 Accepted extensions for each face: `webp`, `png`, `jpg`, `jpeg`, `svg`.
 
-The renderer checks `public/dice/faces/` only. If these files are missing, the game keeps using the existing Pixi-drawn 3D dice.
+The renderer first checks `public/dice/faces/`. It also supports the existing legacy files in the public root:
+
+- `public/dice-1.svg`
+- `public/dice-2.svg`
+- `public/dice-3.svg`
+- `public/dice-4.svg`
+- `public/dice-5.svg`
+- `public/dice-6.svg`
+
+If none of these files are available, the game keeps using the existing Pixi-drawn 3D dice.
 
 ## Roll animation frames
 Recommended: transparent frame sequence in:

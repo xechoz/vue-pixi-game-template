@@ -239,9 +239,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const extensions = ['webp', 'png', 'jpg', 'jpeg', 'svg']
 
     for (let value = 1; value <= 6; value += 1) {
-      const texture = await loadFirstAvailableTexture(
-        extensions.map((extension) => assetUrl(`dice/faces/${value}.${extension}`)),
-      )
+      const texture = await loadFirstAvailableTexture([
+        ...extensions.map((extension) => assetUrl(`dice/faces/${value}.${extension}`)),
+        assetUrl(`dice-${value}.svg`),
+      ])
       if (texture) {
         textures[value] = texture
       }
