@@ -39,10 +39,8 @@ const {
       v-if="page === 'prepare'"
       :mode="mode"
       :pieces-per-player="piecesPerPlayer"
-      :board-preset-id="boardPresetId"
       @update:mode="setMode"
       @update:pieces-per-player="setPiecesPerPlayer"
-      @update:board-preset-id="setBoardPresetId"
       @start="startGame"
       @reset="restartGame"
     />
@@ -50,8 +48,10 @@ const {
     <PlayScreen
       v-else-if="page === 'play'"
       ref="playScreenRef"
+      :board-preset-id="boardPresetId"
       @back="goToPrepare"
       @restart="restartGame"
+      @update:board-preset-id="setBoardPresetId"
     />
 
     <ResultScreen

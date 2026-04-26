@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+import { getBoardPreset, type BoardPresetId } from '../../game'
+
+const props = defineProps<{
+  boardPresetId: BoardPresetId
+}>()
+
 const assetBase = import.meta.env.BASE_URL
 const canvasEl = ref<HTMLDivElement | null>(null)
 
@@ -9,7 +15,32 @@ defineExpose({ canvasEl })
 const emit = defineEmits<{
   (event: 'back'): void
   (event: 'restart'): void
+  (event: 'update:board-preset-id', value: BoardPresetId): void
 }>()
+
+const difficultyOptions = [
+  {
+    value: 'tiny-4' as const,
+    title: '快速模式',
+    hint: `${getBoardPreset('tiny-4').stepsPerSide}步/边`,
+    accent: '#ffb347',
+    image: `${assetBase}difficulty/quick-mode.png`,
+  },
+  {
+    value: 'normal-6' as const,
+    title: '正常模式',
+    hint: `${getBoardPreset('normal-6').stepsPerSide}步/边`,
+    accent: '#5f9cff',
+    image: `${assetBase}difficulty/normal-mode.png`,
+  },
+  {
+    value: 'hell-8' as const,
+    title: '地狱模式',
+    hint: `${getBoardPreset('hell-8').stepsPerSide}步/边`,
+    accent: '#ef4444',
+    image: `${assetBase}difficulty/hell-mode.png`,
+  },
+]
 </script>
 
 <template>
@@ -35,9 +66,28 @@ const emit = defineEmits<{
       <span class="bg-dot bg-dot-b"></span>
     </div>
     <div class="grid play-grid">
-      <div class="play-actions-bar">
-        <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
-        <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
+      <div class="play-topbar">
+        <div class="play-actions-bar">
+          <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
+          <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
+        </div>
+        <div class="board-preset-row" aria-label="难度模式">
+          <button
+            v-for="option in difficultyOptions"
+            :key="option.value"
+            type="button"
+            class="preset-pill"
+            :class="{ active: props.boardPresetId === option.value }"
+            :style="{
+              '--accent': option.accent,
+              '--preset-image': `url(${option.image})`,
+            }"
+            :aria-label="option.title"
+            @click="emit('update:board-preset-id', option.value)"
+          >
+            <span class="sr-only">{{ option.title }}</span>
+          </button>
+        </div>
       </div>
       <div class="play-stage">
         <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
@@ -72,6 +122,18 @@ const emit = defineEmits<{
   width: 100%;
   min-height: 100dvh;
   z-index: 1;
+}
+
+.play-topbar {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 12px;
+  width: min(100%, 92vw, 88vh);
+  padding: 0 4px;
+  z-index: 3;
 }
 
 .play-stage {
@@ -212,16 +274,79 @@ const emit = defineEmits<{
 }
 
 .play-actions-bar {
-  position: fixed;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  width: min(100%, 92vw, 88vh);
-  padding: 0 4px;
-  z-index: 3;
+  width: 100%;
+}
+
+.board-preset-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.preset-pill {
+  position: relative;
+  min-height: 92px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 22px;
+  padding: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
+    rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 12px 28px rgba(0, 31, 61, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.preset-pill::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(6, 18, 36, 0.1), rgba(6, 18, 36, 0.18)),
+    var(--preset-image) center center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.preset-pill::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.28), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 55%);
+  pointer-events: none;
+}
+
+.preset-pill.active {
+  border-color: color-mix(in srgb, var(--accent) 62%, white);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+    0 18px 28px color-mix(in srgb, var(--accent) 16%, rgba(0, 117, 222, 0.1));
+  transform: translateY(-1px);
+}
+
+.preset-pill.active::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .play-canvas-shell {
@@ -272,7 +397,22 @@ const emit = defineEmits<{
   }
 
   .play-actions-bar {
-    top: 100px;
+    width: 100%;
+  }
+
+  .board-preset-row {
+    gap: 10px;
+  }
+
+  .preset-pill {
+    min-height: 78px;
+    border-radius: 18px;
+  }
+
+  .preset-pill::before,
+  .preset-pill::after {
+    inset: 6px;
+    border-radius: 14px;
   }
 
   .play-floating-actions {
