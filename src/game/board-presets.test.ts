@@ -33,3 +33,34 @@ test('tiny-4 render layout is preset-driven and keeps compact-board-specific spa
   assert.equal(layout.finishGapRatio, 0.08)
   assert.equal(layout.finishBoxSizeRatio, 0.036)
 })
+
+test('board presets also expose a normal-6 preset without changing the default board', () => {
+  assert.equal(DEFAULT_BOARD_PRESET_ID, 'tiny-4')
+  assert.ok(BOARD_PRESETS['normal-6'])
+
+  const preset = getBoardPreset('normal-6')
+  assert.equal(preset.id, 'normal-6')
+  assert.equal(preset.stepsPerSide, 6)
+  assert.equal(preset.trackLength, 24)
+  assert.equal(preset.homeSteps, 4)
+  assert.deepEqual(preset.startIndices, [0, 6, 12, 18])
+  assert.deepEqual(preset.safeCells, [0, 6, 12, 18])
+  assert.deepEqual(preset.flightJumps, [
+    [2, 4],
+    [8, 10],
+    [14, 16],
+    [20, 22],
+  ])
+})
+
+test('normal-6 render layout expands the path and center spacing for a longer board', () => {
+  const layout = getBoardRenderLayout('normal-6')
+
+  assert.equal(layout.trackInsetRatio, 0.14)
+  assert.equal(layout.trackSizeRatio, 0.068)
+  assert.equal(layout.baseZoneSizeRatio, 0.11)
+  assert.equal(layout.baseSlotSpreadRatio, 0.22)
+  assert.equal(layout.finishOffsetRatio, 0.12)
+  assert.equal(layout.finishGapRatio, 0.055)
+  assert.equal(layout.finishBoxSizeRatio, 0.03)
+})
