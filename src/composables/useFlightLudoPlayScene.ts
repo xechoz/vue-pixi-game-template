@@ -123,8 +123,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let landingTimer: number | null = null
   let moveFrameId: number | null = null
   let appInitPromise: Promise<void> | null = null
+  let pixiInitToken = 0
   let audioCtx: AudioContext | null = null
   let bgmAudio: HTMLAudioElement | null = null
+
+  function isPlayPageActive() {
+    return options.page.value === 'play'
+  }
 
   function lerp(start: number, end: number, t: number) {
     return start + (end - start) * t
@@ -183,14 +188,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       window.cancelAnimationFrame(diceLandingFrameId)
       diceLandingFrameId = null
     }
-    if (autoTimer !== null) {
-      window.clearTimeout(autoTimer)
-      autoTimer = null
-    }
-    if (autoMoveTimer !== null) {
-      window.clearTimeout(autoMoveTimer)
-      autoMoveTimer = null
-    }
+    clearAutoTimers()
     if (turnAdvanceTimer !== null) {
       window.clearTimeout(turnAdvanceTimer)
       turnAdvanceTimer = null
@@ -205,6 +203,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
     isTurnTransitioning.value = false
     stopDiceIdleAnimation()
+    stopTurnAccentAnimation()
   }
 
   function getDiceDisplayValue() {
@@ -634,13 +633,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function scheduleTurnAdvance(delay = 2000) {
-    if (game.value.winnerIndex !== null) return
+    if (!isPlayPageActive() || game.value.winnerIndex !== null) return
     if (turnAdvanceTimer !== null) {
       window.clearTimeout(turnAdvanceTimer)
     }
     isTurnTransitioning.value = true
-    turnAdvanceTimer = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      if (turnAdvanceTimer !== timer) return
       turnAdvanceTimer = null
+      if (!isPlayPageActive() || game.value.winnerIndex !== null) {
+        isTurnTransitioning.value = false
+        return
+      }
       advanceTurn(game.value)
       isTurnTransitioning.value = false
       refreshGameView()
@@ -648,6 +652,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         scheduleAutoTurn(220)
       }
     }, delay)
+    turnAdvanceTimer = timer
   }
 
   async function ensurePixiReady() {
@@ -670,8 +675,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (!host) return
 
     appInitPromise = (async () => {
-      app = new PIXI.Application()
-      await app.init({
+      const initToken = ++pixiInitToken
+      const nextApp = new PIXI.Application()
+      await nextApp.init({
         resizeTo: host,
         backgroundAlpha: 0,
         antialias: true,
@@ -679,6 +685,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         resolution: window.devicePixelRatio || 1,
       })
 
+      if (initToken !== pixiInitToken || !isPlayPageActive() || canvasEl.value !== host) {
+        nextApp.destroy(true)
+        return
+      }
+
+      app = nextApp
       host.appendChild(app.canvas)
       scene = new PIXI.Container()
       app.stage.addChild(scene)
@@ -689,6 +701,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         PIXI.Assets.load(assetUrl('player-blue.png')),
         PIXI.Assets.load(assetUrl('player-green.png')),
       ])
+      if (initToken !== pixiInitToken || !app || !scene) return
       playerPieceTextures = {
         0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.png')),
         1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.png')),
@@ -701,6 +714,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         loadDiceFaceAssets(),
         loadDiceRollAssets(),
       ])
+      if (initToken !== pixiInitToken || !app || !scene) return
       diceIdleTexture = loadedDiceIdle
       diceFaceTextures = loadedDiceFaces
       diceRollTextures = loadedDiceRoll
@@ -1550,19 +1564,51 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (game.value.winnerIndex !== null) {
       options.page.value = 'result'
     }
-    playAutoTurn()
+    if (isPlayPageActive()) {
+      playAutoTurn()
+    } else {
+      clearAutoTimers()
+    }
   }
 
   function scheduleAutoTurn(delay = 180) {
-    if (game.value.winnerIndex !== null) return
+    if (!isPlayPageActive() || game.value.winnerIndex !== null) return
     if (isTurnTransitioning.value || !options.autoPlayMode.value) return
     if (autoTimer !== null) {
       window.clearTimeout(autoTimer)
     }
-    autoTimer = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
+      if (autoTimer !== timer) return
       autoTimer = null
+      if (!isPlayPageActive() || !options.autoPlayMode.value || game.value.winnerIndex !== null) return
       playAutoTurn()
     }, delay)
+    autoTimer = timer
+  }
+
+  function clearAutoTimers() {
+    if (autoTimer !== null) {
+      window.clearTimeout(autoTimer)
+      autoTimer = null
+    }
+    if (autoMoveTimer !== null) {
+      window.clearTimeout(autoMoveTimer)
+      autoMoveTimer = null
+    }
+  }
+
+  function scheduleAutoMove(action: () => void, delay: number) {
+    if (!isPlayPageActive() || !options.autoPlayMode.value || game.value.winnerIndex !== null) return
+    if (autoMoveTimer !== null) {
+      window.clearTimeout(autoMoveTimer)
+    }
+    const timer = window.setTimeout(() => {
+      if (autoMoveTimer !== timer) return
+      autoMoveTimer = null
+      if (!isPlayPageActive() || !options.autoPlayMode.value || game.value.winnerIndex !== null) return
+      action()
+    }, delay)
+    autoMoveTimer = timer
   }
 
   function startDiceLandingAnimation() {
@@ -1671,15 +1717,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function playAutoTurn() {
-    if (!options.autoPlayMode.value || game.value.winnerIndex !== null) return
+    if (!isPlayPageActive() || !options.autoPlayMode.value || game.value.winnerIndex !== null) {
+      clearAutoTimers()
+      return
+    }
     if (isTurnTransitioning.value || isRolling.value || movingPoint.value !== null) return
 
     if (game.value.dice === null) {
       if (!isHumanTurn()) {
-        autoMoveTimer = window.setTimeout(() => {
-          autoMoveTimer = null
-          handleRoll(true)
-        }, 220)
+        scheduleAutoMove(() => handleRoll(true), 220)
       }
       return
     }
@@ -1692,10 +1738,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return
     }
 
-    autoMoveTimer = window.setTimeout(() => {
-      autoMoveTimer = null
-      handleMove(pieceId)
-    }, isHumanTurn() ? 180 : 260)
+    scheduleAutoMove(() => handleMove(pieceId), isHumanTurn() ? 180 : 260)
   }
 
   function handleRoll(fromAuto = false) {
@@ -1748,10 +1791,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       const humanAutoPieceId = isHumanTurn() ? getHumanAutoMovePieceId() : null
       if (humanAutoPieceId) {
-        autoMoveTimer = window.setTimeout(() => {
-          autoMoveTimer = null
-          handleMove(humanAutoPieceId)
-        }, 220)
+        scheduleAutoMove(() => handleMove(humanAutoPieceId), 220)
         return
       }
 
@@ -1902,13 +1942,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function cleanupPixi() {
+    pixiInitToken += 1
     clearTimers()
     stopBackgroundMusic()
-    if (!app) return
-    app.destroy(true)
-    app = null
-    scene = null
-    currentLayout = null
+    if (app) {
+      app.destroy(true)
+      app = null
+      scene = null
+      currentLayout = null
+    }
     audioCtx?.close().catch(() => {})
     audioCtx = null
   }
@@ -1918,12 +1960,17 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   watch(
     () => [game.value.currentPlayerIndex, game.value.dice, game.value.winnerIndex, options.autoPlayMode.value] as const,
     () => {
-      if (game.value.winnerIndex !== null) {
+      if (!isPlayPageActive() || game.value.winnerIndex !== null) {
         clearTimers()
         return
       }
 
-      if (!options.autoPlayMode.value || isHumanTurn() || isRolling.value || movingPoint.value !== null) {
+      if (!options.autoPlayMode.value) {
+        clearAutoTimers()
+        return
+      }
+
+      if (isHumanTurn() || isRolling.value || movingPoint.value !== null) {
         return
       }
 

@@ -47,24 +47,9 @@ const difficultyOptions = [
   <section
     class="page page-play"
     :style="{
-      backgroundImage: `url(${assetBase}prepare-bg.jpg)`,
-      backgroundPosition: 'center center',
-      backgroundSize: 'cover',
-      backgroundRepeat: 'no-repeat',
+      '--page-bg-image': `url(${assetBase}prepare-bg.jpg)`,
     }"
   >
-    <div class="bg-decor" aria-hidden="true">
-      <span class="bg-orbit bg-orbit-a"></span>
-      <span class="bg-orbit bg-orbit-b"></span>
-      <span class="bg-orbit bg-orbit-c"></span>
-      <span class="bg-cloud bg-cloud-a"></span>
-      <span class="bg-cloud bg-cloud-b"></span>
-      <span class="bg-star bg-star-a"></span>
-      <span class="bg-star bg-star-b"></span>
-      <span class="bg-star bg-star-c"></span>
-      <span class="bg-dot bg-dot-a"></span>
-      <span class="bg-dot bg-dot-b"></span>
-    </div>
     <div class="grid play-grid">
       <div class="play-topbar">
         <div class="play-controls-row">
@@ -116,6 +101,16 @@ const difficultyOptions = [
   background: none;
 }
 
+.page.page-play::before {
+  content: '';
+  position: absolute;
+  inset: -20px;
+  background: var(--page-bg-image) center center / cover no-repeat;
+  filter: blur(14px);
+  transform: scale(1.04);
+  z-index: -1;
+}
+
 .play-grid {
   --play-canvas-width: min(100%, 92vw, 88vh);
   display: grid;
@@ -148,137 +143,6 @@ const difficultyOptions = [
   position: relative;
   width: var(--play-canvas-width);
   height: calc(var(--play-canvas-width) * 1.5);
-}
-
-.bg-decor {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.bg-orbit,
-.bg-cloud,
-.bg-star,
-.bg-dot {
-  position: absolute;
-}
-
-.bg-orbit {
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  opacity: 0.7;
-}
-
-.bg-orbit-a {
-  width: min(72vw, 860px);
-  height: min(72vw, 860px);
-  left: 50%;
-  top: 48%;
-  transform: translate(-50%, -50%);
-}
-
-.bg-orbit-b {
-  width: min(48vw, 540px);
-  height: min(48vw, 540px);
-  left: 8%;
-  top: 10%;
-  border-style: dashed;
-  opacity: 0.45;
-}
-
-.bg-orbit-c {
-  width: min(34vw, 380px);
-  height: min(34vw, 380px);
-  right: 6%;
-  bottom: 10%;
-  border-style: dashed;
-  opacity: 0.38;
-}
-
-.bg-cloud {
-  width: 120px;
-  height: 44px;
-  border-radius: 999px;
-  background:
-    radial-gradient(circle at 22% 60%, rgba(255, 255, 255, 0.72) 0 18px, transparent 19px),
-    radial-gradient(circle at 52% 36%, rgba(255, 255, 255, 0.82) 0 22px, transparent 23px),
-    radial-gradient(circle at 78% 60%, rgba(255, 255, 255, 0.68) 0 16px, transparent 17px),
-    rgba(255, 255, 255, 0.24);
-  filter: blur(0.3px);
-  opacity: 0.55;
-}
-
-.bg-cloud-a {
-  top: 8%;
-  left: 8%;
-  transform: scale(1.15);
-}
-
-.bg-cloud-b {
-  right: 10%;
-  top: 15%;
-  transform: scale(0.92);
-}
-
-.bg-star {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 0 18px rgba(255, 255, 255, 0.45);
-}
-
-.bg-star::before,
-.bg-star::after {
-  content: '';
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 28px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.6);
-  transform: translate(-50%, -50%);
-}
-
-.bg-star::after {
-  width: 2px;
-  height: 28px;
-}
-
-.bg-star-a {
-  left: 16%;
-  top: 22%;
-}
-
-.bg-star-b {
-  right: 20%;
-  top: 30%;
-}
-
-.bg-star-c {
-  left: 28%;
-  bottom: 18%;
-}
-
-.bg-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 70%, white);
-  opacity: 0.6;
-  box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.04);
-}
-
-.bg-dot-a {
-  left: 10%;
-  bottom: 28%;
-}
-
-.bg-dot-b {
-  right: 14%;
-  bottom: 24%;
 }
 
 .play-controls-row {
