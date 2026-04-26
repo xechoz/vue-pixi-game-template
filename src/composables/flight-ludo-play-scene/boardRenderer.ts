@@ -51,7 +51,6 @@ type RenderPlaySceneOptions = {
   boardPreset: BoardPreset
   boardRenderLayout: BoardRenderLayout
   game: GameState
-  currentPlayer: PlayerState
   legalPieces: string[]
   winner: PlayerState | null
   autoPlayMode: boolean
@@ -114,6 +113,24 @@ export function getPlayerByPieceId(state: GameState, pieceId: string) {
   )
 }
 
+function getPaddedPointBounds(points: Point[], padding: number) {
+  if (points.length === 0) {
+    return { x: 0, y: 0, width: 0, height: 0 }
+  }
+
+  const minX = Math.min(...points.map((point) => point.x))
+  const maxX = Math.max(...points.map((point) => point.x))
+  const minY = Math.min(...points.map((point) => point.y))
+  const maxY = Math.max(...points.map((point) => point.y))
+
+  return {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  }
+}
+
 export function renderPlayScene(options: RenderPlaySceneOptions) {
   const removable = options.scene.removeChildren()
   for (const child of removable) {
@@ -128,53 +145,23 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   const cellSize = safeBoardSize * 0.06
   const trackSize = cellSize * 0.68
   const pieceRadius = cellSize * 0.28
+  const trackPieceBodyScale =
+    options.boardPreset.stepsPerSide <= 4
+      ? 5.6
+      : options.boardPreset.stepsPerSide <= 6
+        ? 5.15
+        : 4.85
+  const basePieceBodyScale = trackPieceBodyScale + 1.15
+  const basePlaneBoundsPadding = Math.max(
+    pieceRadius + 7,
+    (pieceRadius * basePieceBodyScale) / 2 + 3,
+  )
 
   const board = new PIXI.Container()
   options.scene.addChild(board)
 
-  const boardInset = safeBoardSize * options.boardRenderLayout.trackInsetRatio
-  const innerLeft = originX + boardInset
-  const innerTop = originY + boardInset
-  const innerRight = originX + safeBoardSize - boardInset
-  const innerBottom = originY + safeBoardSize - boardInset
   const centerX = originX + safeBoardSize / 2
   const centerY = originY + safeBoardSize / 2
-
-  const currentPlayerGlow = new PIXI.Graphics()
-    .roundRect(
-      originX + 8,
-      originY + 8,
-      safeBoardSize - 16,
-      safeBoardSize - 16,
-      30,
-    )
-    .stroke({
-      color: hexToNumber(options.currentPlayer.color),
-      width: 5,
-      alpha: options.dice.isRolling ? 0.42 : 0.22,
-    })
-  board.addChild(currentPlayerGlow)
-
-  const homes = new PIXI.Graphics()
-  homes
-    .roundRect(
-      originX + 16,
-      originY + 16,
-      safeBoardSize - 32,
-      safeBoardSize - 32,
-      22,
-    )
-    .stroke({ color: 0x1e293b, width: 1, alpha: 0.5 })
-  homes
-    .roundRect(
-      innerLeft,
-      innerTop,
-      innerRight - innerLeft,
-      innerBottom - innerTop,
-      18,
-    )
-    .stroke({ color: 0x263244, width: 2, alpha: 0.9 })
-  board.addChild(homes)
 
   const layout = buildBoardLayout(
     originX,
@@ -225,21 +212,20 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
   for (const player of options.game.players) {
     const playerBase = new PIXI.Graphics()
-    const zoneSize = safeBoardSize * options.boardRenderLayout.baseZoneSizeRatio
-    const zonePadding =
-      safeBoardSize * options.boardRenderLayout.baseZonePaddingRatio
-    const zoneX =
-      player.index === 0 || player.index === 3
-        ? originX + zonePadding
-        : originX + safeBoardSize - zonePadding - zoneSize
-    const zoneY =
-      player.index === 0 || player.index === 1
-        ? originY + zonePadding
-        : originY + safeBoardSize - zonePadding - zoneSize
+    const baseBounds = getPaddedPointBounds(
+      baseSlots[player.index],
+      basePlaneBoundsPadding,
+    )
 
     const isActivePlayer = options.game.currentPlayerIndex === player.index
     playerBase
-      .roundRect(zoneX, zoneY, zoneSize, zoneSize, 14)
+      .roundRect(
+        baseBounds.x,
+        baseBounds.y,
+        baseBounds.width,
+        baseBounds.height,
+        14,
+      )
       .fill({ color: player.color, alpha: isActivePlayer ? 0.1 : 0.07 })
       .stroke({
         color: player.color,
@@ -251,7 +237,12 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     if (isActivePlayer && canRoll) {
       playerBase.eventMode = 'static'
       playerBase.cursor = 'pointer'
-      playerBase.hitArea = new PIXI.Rectangle(zoneX, zoneY, zoneSize, zoneSize)
+      playerBase.hitArea = new PIXI.Rectangle(
+        baseBounds.x,
+        baseBounds.y,
+        baseBounds.width,
+        baseBounds.height,
+      )
       playerBase.on('pointerdown', () => options.onRoll(false))
     }
 
@@ -262,12 +253,12 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       activeDiceAnchor = {
         x:
           player.index === 0 || player.index === 3
-            ? zoneX + zoneSize + diceHalf + diceGap
-            : zoneX - diceHalf - diceGap,
+            ? baseBounds.x + baseBounds.width + diceHalf + diceGap
+            : baseBounds.x - diceHalf - diceGap,
         y:
           player.index === 0 || player.index === 1
-            ? zoneY + zoneSize / 2 - diceYOffset
-            : zoneY + zoneSize / 2 + diceYOffset,
+            ? baseBounds.y + baseBounds.height / 2 - diceYOffset
+            : baseBounds.y + baseBounds.height / 2 + diceYOffset,
       }
     }
 
@@ -640,15 +631,9 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
     const tint = hexToNumber(pieceInfo.player.color)
     const texture = options.getPlayerPieceTexture(pieceInfo.player.index)
-    const trackPieceBodyScale =
-      options.boardPreset.stepsPerSide <= 4
-        ? 5.6
-        : options.boardPreset.stepsPerSide <= 6
-          ? 5.15
-          : 4.85
     const pieceBodyScale =
       pieceInfo.location === 'base'
-        ? trackPieceBodyScale + 1.15
+        ? basePieceBodyScale
         : trackPieceBodyScale
     if (texture) {
       const body = new PIXI.Sprite(texture)

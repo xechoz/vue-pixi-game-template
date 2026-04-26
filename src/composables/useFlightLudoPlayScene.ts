@@ -111,7 +111,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       boardPreset: boardPreset.value,
       boardRenderLayout: boardRenderLayout.value,
       game: game.value,
-      currentPlayer: currentPlayer.value,
       legalPieces: legalPieces.value,
       winner: winner.value,
       autoPlayMode: options.autoPlayMode.value,

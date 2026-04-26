@@ -93,11 +93,11 @@ const difficultyOptions = [
 
 .page.page-play {
   width: 100%;
-  min-height: 100dvh;
+  height: 100dvh;
   align-content: center;
   position: relative;
   isolation: isolate;
-  overflow: visible;
+  overflow: hidden;
   background: none;
 }
 
@@ -112,12 +112,12 @@ const difficultyOptions = [
 }
 
 .play-grid {
-  --play-canvas-width: min(100%, 92vw, 88vh);
+  --play-canvas-width: min(100%, calc(100dvw - 24px), calc((100dvh - 204px) / 1.5));
   display: grid;
   place-items: center;
   position: relative;
   width: 100%;
-  min-height: 100dvh;
+  height: 100%;
   z-index: 1;
 }
 
@@ -284,7 +284,7 @@ const difficultyOptions = [
 @media (max-width: 859px) {
   .page.page-play {
     width: 100%;
-    min-height: 100dvh;
+    height: 100dvh;
   }
 
   .play-grid {
