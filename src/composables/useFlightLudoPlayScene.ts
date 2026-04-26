@@ -101,6 +101,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   const replayingPieceId = ref<string | null>(null)
   const movePath = ref<number[]>([])
+  const replayingStartProgress = ref<number | null>(null)
   const movingPoint = ref<{ x: number; y: number } | null>(null)
   const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
   const rollingFace = ref<number>(1)
@@ -117,6 +118,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const legalPulse = ref(0)
   const isRolling = ref(false)
   const isTurnTransitioning = ref(false)
+  const diceHandoffHiding = ref(false)
 
   let rollTimer: number | null = null
   let rollFrameId: number | null = null
@@ -148,6 +150,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   function clearMovePreview() {
     replayingPieceId.value = null
     movePath.value = []
+    replayingStartProgress.value = null
     movingPoint.value = null
     landingPoint.value = null
   }
@@ -204,6 +207,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       moveFrameId = null
     }
     isTurnTransitioning.value = false
+    diceHandoffHiding.value = false
     stopDiceIdleAnimation()
     stopTurnAccentAnimation()
   }
@@ -281,33 +285,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     )
   }
 
-  function buildPiecePath(
-    layout: BoardLayout,
-    player: { index: number; startIndex: number },
-    piece: { progress: number },
-    dice: number,
-  ) {
-    const activeBoardPreset = boardPreset.value
-    const finishStep =
-      activeBoardPreset.trackLength + activeBoardPreset.homeSteps
-    const path: Array<{ x: number; y: number }> = []
-    let progress = piece.progress
-
-    if (progress < 0) {
-      if (dice !== 6) return path
-      path.push(resolvePiecePoint(layout, player, { progress: 0 }))
-      return path
-    }
-
-    const target = Math.min(progress + dice, finishStep)
-    while (progress < target) {
-      progress += 1
-      path.push(resolvePiecePoint(layout, player, { progress }))
-    }
-
-    return path
-  }
-
   function getPlayerByPieceId(state: GameState, pieceId: string) {
     return (
       state.players.find((player) =>
@@ -331,6 +308,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }
       advanceTurn(game.value)
       isTurnTransitioning.value = false
+      diceHandoffHiding.value = false
       refreshGameView()
       if (!isHumanTurn() && options.autoPlayMode.value) {
         scheduleAutoTurn(220)
@@ -443,7 +421,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       game.value.winnerIndex === null &&
       game.value.dice === null &&
       !isRolling.value &&
-      movingPoint.value === null
+      movingPoint.value === null &&
+      !diceHandoffHiding.value &&
+      !isTurnTransitioning.value
 
     if (!shouldAnimate) return
 
@@ -455,7 +435,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         game.value.winnerIndex !== null ||
         game.value.dice !== null ||
         isRolling.value ||
-        movingPoint.value !== null
+        movingPoint.value !== null ||
+        diceHandoffHiding.value ||
+        isTurnTransitioning.value
       ) {
         stopDiceIdleAnimation()
         renderScene()
@@ -634,6 +616,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       game.value.winnerIndex === null &&
       game.value.dice === null &&
       !isTurnTransitioning.value &&
+      movingPoint.value === null &&
       (isHumanTurn() || !options.autoPlayMode.value)
 
     for (const player of game.value.players) {
@@ -706,6 +689,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(finishBox)
     }
 
+    const hideHandoffDice =
+      (diceHandoffHiding.value || isTurnTransitioning.value) &&
+      !isRolling.value &&
+      game.value.dice === null
+
+    if (!hideHandoffDice) {
     const center = new PIXI.Container()
     center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
     center.eventMode = 'passive'
@@ -872,6 +861,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceGroup.scale.set(spinScaleX, spinScaleY)
       }
     }
+    }
 
     if (winner.value) {
       const banner = new PIXI.Graphics()
@@ -905,8 +895,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       )
       if (player && piece && currentLayout) {
         const layout = currentLayout
+        const startP =
+          replayingStartProgress.value != null
+            ? replayingStartProgress.value
+            : piece.progress
         const pathPoints = [
-          resolvePiecePoint(layout, player, piece),
+          resolvePiecePoint(layout, player, { progress: startP }),
           ...movePath.value.map((progress) =>
             resolvePiecePoint(layout, player, { progress }),
           ),
@@ -1046,12 +1040,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
   }
 
-  function refreshGameView() {
+  function refreshGameView(viewOptions?: { deferResultPage?: boolean }) {
     game.value = { ...game.value }
     renderScene()
     syncDiceIdleAnimation()
     syncTurnAccentAnimation()
-    if (game.value.winnerIndex !== null) {
+    if (game.value.winnerIndex !== null && !viewOptions?.deferResultPage) {
       options.page.value = 'result'
     }
     if (isPlayPageActive()) {
@@ -1248,7 +1242,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       game.value.winnerIndex !== null ||
       game.value.dice !== null ||
       isRolling.value ||
-      isTurnTransitioning.value
+      isTurnTransitioning.value ||
+      movingPoint.value !== null
     )
       return
     if (!isHumanTurn() && !fromAuto) return
@@ -1320,19 +1315,38 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const piece = player.pieces.find((item) => item.id === pieceId)
     if (!piece) return
 
-    const trajectory = buildMoveTrajectory(player, piece, game.value.dice)
+    const diceValue = game.value.dice
+    const startProgress = piece.progress
+    const trajectory = buildMoveTrajectory(player, piece, diceValue)
     if (trajectory.length === 0) return
 
+    const layout = currentLayout
+    const resolveProgress = (p: number) =>
+      resolvePiecePoint(layout, player, { progress: p })
+    const animPathPoints = [resolveProgress(startProgress), ...trajectory.map(resolveProgress)]
+    const endPoint = animPathPoints[animPathPoints.length - 1] ?? animPathPoints[0]
+
     clearTimers()
+    replayingStartProgress.value = startProgress
+    const result = movePiece(game.value, pieceId)
+    if (!result.moved) {
+      replayingStartProgress.value = null
+      clearMovePreview()
+      refreshGameView()
+      return
+    }
+
+    const willWin = result.message.includes('胜利')
+    if (result.advancePending) {
+      diceHandoffHiding.value = true
+    }
     replayingPieceId.value = pieceId
     movePath.value = trajectory
+    movingPoint.value = { x: animPathPoints[0]!.x, y: animPathPoints[0]!.y }
+    refreshGameView({ deferResultPage: willWin })
 
-    const pathPoints = [
-      resolvePiecePoint(currentLayout, player, piece),
-      ...buildPiecePath(currentLayout, player, piece, game.value.dice),
-    ]
-    const hopLift = Math.max(8, pathPoints.length * 2)
-    const totalDuration = Math.max(420, (pathPoints.length - 1) * 120)
+    const hopLift = Math.max(8, animPathPoints.length * 2)
+    const totalDuration = Math.max(420, (animPathPoints.length - 1) * 120)
     const startTime = performance.now()
     const stepDelay = 100
 
@@ -1341,13 +1355,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       moveFrameId = null
     }
 
+    const pathPoints = animPathPoints
     const frame = (now: number) => {
       const elapsed = now - startTime
       const totalSteps = pathPoints.length - 1
       const rawStep = Math.min(totalSteps, Math.floor(elapsed / stepDelay))
       const segmentProgress = Math.min(1, (elapsed % stepDelay) / stepDelay)
       const currentStep = Math.min(totalSteps - 1, rawStep)
-      const start = pathPoints[currentStep]
+      const start = pathPoints[currentStep]!
       const end = pathPoints[currentStep + 1] ?? start
       const lift = Math.sin(segmentProgress * Math.PI) * hopLift
 
@@ -1364,18 +1379,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       moveFrameId = null
       movingPoint.value = null
-      const result = movePiece(game.value, pieceId)
-      if (!result.moved) {
-        clearMovePreview()
-        refreshGameView()
-        return
-      }
-
       playMoveSound()
       if (result.message.includes('吃子')) playFailSound()
       if (result.message.includes('胜利')) playWinSound()
       clearMovePreview()
-      landingPoint.value = { x: end.x, y: end.y, color: player.color }
+      landingPoint.value = { x: endPoint.x, y: endPoint.y, color: player.color }
       if (landingTimer !== null) window.clearTimeout(landingTimer)
       landingTimer = window.setTimeout(() => {
         landingTimer = null
@@ -1383,9 +1391,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }, 260)
       refreshGameView()
       if (result.advancePending) {
+        diceHandoffHiding.value = false
         scheduleTurnAdvance(2000)
-      } else if (!isHumanTurn() && options.autoPlayMode.value) {
-        scheduleAutoTurn(220)
       }
     }
 
