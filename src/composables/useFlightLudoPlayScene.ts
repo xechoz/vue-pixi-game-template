@@ -330,9 +330,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   }
 
   function getIdleDiceAssetTexture() {
-    if (game.value.dice === null && !isRolling.value) {
-      return diceIdleTexture ?? getDiceFaceAssetTexture(1)
-    }
     return getDiceFaceAssetTexture(game.value.dice ?? rollingFace.value ?? 1) ?? getDiceFaceAssetTexture(1)
   }
 
@@ -1043,6 +1040,23 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceSprite.height = fittedHeight
         diceGroup.addChild(diceSprite)
 
+        if (!isRolling.value && isIdleDiceState && diceIdleTexture) {
+          const overlayWidth = fittedWidth * 0.34
+          const overlayHeight = fittedHeight * 0.34
+          const idleOverlayPlate = new PIXI.Graphics()
+            .roundRect(-overlayWidth * 0.62, -overlayHeight * 0.62, overlayWidth * 1.24, overlayHeight * 1.24, overlayWidth * 0.28)
+            .fill({ color: 0xffffff, alpha: 0.84 + diceIdlePulse.value * 0.06 })
+            .stroke({ color: 0xe2e8f0, width: Math.max(1, overlayWidth * 0.04), alpha: 0.65 })
+          diceGroup.addChild(idleOverlayPlate)
+
+          const idleOverlaySprite = new PIXI.Sprite(diceIdleTexture)
+          idleOverlaySprite.anchor.set(0.5)
+          idleOverlaySprite.width = overlayWidth
+          idleOverlaySprite.height = overlayHeight
+          idleOverlaySprite.alpha = 0.92 + diceIdlePulse.value * 0.08
+          diceGroup.addChild(idleOverlaySprite)
+        }
+
         const landingShadowScale = 1 + diceLandingSquash.value * 0.45 + (isRolling.value ? 0.06 : 0)
         const landingShadowOffset = fittedHeight * (0.36 + diceLandingSquash.value * 0.08)
         const shadowAlpha = 0.16 + (isRolling.value ? 0.08 : 0.02) + diceLandingSquash.value * 0.14
@@ -1053,8 +1067,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
         if (!isRolling.value && isIdleDiceState) {
           const promptGlow = new PIXI.Graphics()
-            .roundRect(-faceSize * 0.16, faceSize * 0.08, faceSize * 0.32, faceSize * 0.22, faceSize * 0.08)
-            .fill({ color: 0xffffff, alpha: 0.18 + diceIdlePulse.value * 0.1 })
+            .roundRect(-faceSize * 0.18, faceSize * 0.09, faceSize * 0.36, faceSize * 0.2, faceSize * 0.08)
+            .fill({ color: 0xffffff, alpha: 0.14 + diceIdlePulse.value * 0.08 })
           diceGroup.addChild(promptGlow)
         }
 
