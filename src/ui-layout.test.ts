@@ -9,6 +9,18 @@ function read(relativePath: string) {
   return readFileSync(resolve(root, relativePath), 'utf8')
 }
 
+function sliceBlock(source: string, selector: string) {
+  const start = source.indexOf(selector)
+
+  assert.notEqual(start, -1, `Missing selector block: ${selector}`)
+
+  const end = source.indexOf('\n}\n', start)
+
+  assert.notEqual(end, -1, `Unclosed selector block: ${selector}`)
+
+  return source.slice(start, end + 3)
+}
+
 test('difficulty mode selector lives on PlayScreen instead of PrepareScreen', () => {
   const prepareScreen = read('components/game/PrepareScreen.vue')
   const playScreen = read('components/game/PlayScreen.vue')
@@ -64,4 +76,15 @@ test('play topbar sits lower and uses the uploaded image-based back button asset
   assert.ok(playScreen.includes("const backButtonImage = `${assetBase}ui/back-button.png`"))
   assert.ok(playScreen.includes('<img class="back-icon" :src="backButtonImage" alt="" />'))
   assert.ok(!playScreen.includes('>↩</button>'))
+})
+
+test('back button is a rounded rectangle instead of a circle', () => {
+  const playScreen = read('components/game/PlayScreen.vue')
+  const backActionBlock = sliceBlock(playScreen, '.back-action {')
+
+  assert.ok(backActionBlock.includes('width: 56px;'))
+  assert.ok(backActionBlock.includes('height: 40px;'))
+  assert.ok(backActionBlock.includes('padding: 6px 10px;'))
+  assert.ok(backActionBlock.includes('border-radius: 14px;'))
+  assert.ok(!backActionBlock.includes('border-radius: 999px;'))
 })

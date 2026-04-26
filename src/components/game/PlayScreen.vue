@@ -290,11 +290,15 @@ const difficultyOptions = [
 }
 
 .play-controls-spacer {
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 40px;
 }
 
 .back-action {
+  width: 56px;
+  height: 40px;
+  padding: 6px 10px;
+  border-radius: 14px;
   overflow: visible;
   background: transparent;
   border: none;
@@ -458,6 +462,11 @@ const difficultyOptions = [
 
   .circle-action {
     width: 40px;
+    height: 40px;
+  }
+
+  .play-controls-spacer {
+    width: 56px;
     height: 40px;
   }
 }
