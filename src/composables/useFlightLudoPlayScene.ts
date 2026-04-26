@@ -1071,16 +1071,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     )
     diceGroup.addChild(frontGlazeTail)
 
-    const frontGlazeSpark = new PIXI.Graphics()
-      .roundRect(
-        -faceSize / 2 + faceSize * 0.16,
-        -faceSize / 2 + frontFaceInset + faceSize * 0.11,
-        faceSize * 0.09,
-        faceSize * 0.03,
-        faceSize * 0.02,
-      )
-      .fill({ color: 0xffffff, alpha: 0.09 })
-    diceGroup.addChild(frontGlazeSpark)
 
     const topFrontSeam = new PIXI.Graphics()
       .roundRect(
