@@ -875,7 +875,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.1 + perspectiveYaw * 0.035)
     const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.22)
     const pipColor = 0x102033
-    const seamOverlap = faceSize * 0.024
+    const seamOverlap = faceSize * 0.034
 
     const shadowWidth = faceSize * (0.44 + perspectiveYaw * 0.1 + diceLandingSquash.value * 0.12)
     const shadowHeight = faceSize * (0.14 + (1.12 - perspectivePitch) * 0.04 + (isRolling.value ? 0.05 : 0.02))
@@ -903,16 +903,28 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       { x: -faceSize / 2, y: faceSize / 2 },
       { x: faceSize / 2, y: faceSize / 2 },
     ]
+    const topDrawCorners = [
+      { x: topCorners[0]!.x - seamOverlap * 0.08, y: topCorners[0]!.y + seamOverlap * 0.42 },
+      { x: topCorners[1]!.x + seamOverlap * 0.22, y: topCorners[1]!.y + seamOverlap * 0.42 },
+      { x: topCorners[2]!.x - seamOverlap * 0.04, y: topCorners[2]!.y - seamOverlap * 0.08 },
+      { x: topCorners[3]!.x + seamOverlap * 0.28, y: topCorners[3]!.y - seamOverlap * 0.08 },
+    ]
+    const rightDrawCorners = [
+      { x: rightCorners[0]!.x - seamOverlap * 0.76, y: rightCorners[0]!.y - seamOverlap * 0.06 },
+      { x: rightCorners[1]!.x + seamOverlap * 0.08, y: rightCorners[1]!.y - seamOverlap * 0.1 },
+      { x: rightCorners[2]!.x - seamOverlap * 0.76, y: rightCorners[2]!.y + seamOverlap * 0.06 },
+      { x: rightCorners[3]!.x + seamOverlap * 0.08, y: rightCorners[3]!.y + seamOverlap * 0.03 },
+    ]
 
-    const topFace = createRoundedQuad(toClockwiseQuad(topCorners), faceSize * 0.08, topColor, strokeColor, 0.995, 0.04)
+    const topFace = createRoundedQuad(toClockwiseQuad(topDrawCorners), faceSize * 0.08, topColor, strokeColor, 0.995, 0.04)
     diceGroup.addChild(topFace)
 
     const topGlaze = createRoundedQuad(
       toClockwiseQuad([
-        { x: -faceSize / 2 + faceSize * 0.06, y: -faceSize / 2 - liftDepth * 0.03 },
-        { x: faceSize / 2 - faceSize * 0.16, y: -faceSize / 2 - liftDepth * 0.03 },
-        { x: -faceSize / 2 + skew * 0.34, y: -faceSize / 2 - liftDepth * 0.54 },
-        { x: faceSize / 2 + skew * 0.3, y: -faceSize / 2 - liftDepth * 0.58 },
+        { x: topDrawCorners[0]!.x + faceSize * 0.08, y: topDrawCorners[0]!.y + faceSize * 0.01 },
+        { x: topDrawCorners[1]!.x - faceSize * 0.18, y: topDrawCorners[1]!.y + faceSize * 0.01 },
+        { x: topDrawCorners[2]!.x + faceSize * 0.18, y: topDrawCorners[2]!.y + liftDepth * 0.44 },
+        { x: topDrawCorners[3]!.x - faceSize * 0.22, y: topDrawCorners[3]!.y + liftDepth * 0.38 },
       ]),
       faceSize * 0.05,
       0xffffff,
@@ -924,10 +936,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const topBevel = createRoundedQuad(
       toClockwiseQuad([
-        { x: -faceSize / 2 + faceSize * 0.015, y: -faceSize / 2 - liftDepth * 0.02 },
-        { x: faceSize / 2 - faceSize * 0.015, y: -faceSize / 2 - liftDepth * 0.02 },
-        { x: -faceSize / 2 + skew * 0.96, y: -faceSize / 2 - liftDepth * 0.97 },
-        { x: faceSize / 2 + skew * 0.96, y: -faceSize / 2 - liftDepth * 0.97 },
+        { x: topDrawCorners[0]!.x + faceSize * 0.03, y: topDrawCorners[0]!.y + faceSize * 0.005 },
+        { x: topDrawCorners[1]!.x - faceSize * 0.03, y: topDrawCorners[1]!.y + faceSize * 0.005 },
+        { x: topDrawCorners[2]!.x + faceSize * 0.04, y: topDrawCorners[2]!.y + liftDepth * 0.04 },
+        { x: topDrawCorners[3]!.x - faceSize * 0.04, y: topDrawCorners[3]!.y + liftDepth * 0.04 },
       ]),
       faceSize * 0.045,
       0xffffff,
@@ -937,15 +949,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     )
     diceGroup.addChild(topBevel)
 
-    const sideFace = createRoundedQuad(toClockwiseQuad(rightCorners), faceSize * 0.07, sideColor, strokeColor, 0.995, 0.04)
+    const sideFace = createRoundedQuad(toClockwiseQuad(rightDrawCorners), faceSize * 0.07, sideColor, strokeColor, 0.995, 0.04)
     diceGroup.addChild(sideFace)
 
     const sideGloss = createRoundedQuad(
       toClockwiseQuad([
-        { x: faceSize / 2 + skew * 0.08, y: -faceSize / 2 - liftDepth * 0.03 },
-        { x: faceSize / 2 + skew * 0.46, y: -faceSize / 2 - liftDepth * 0.08 },
-        { x: faceSize / 2 + skew * 0.08, y: faceSize * 0.14 },
-        { x: faceSize / 2 + skew * 0.44, y: faceSize * 0.08 - liftDepth * 0.1 },
+        { x: rightDrawCorners[0]!.x + seamOverlap * 0.22, y: rightDrawCorners[0]!.y + faceSize * 0.02 },
+        { x: rightDrawCorners[1]!.x - faceSize * 0.2, y: rightDrawCorners[1]!.y + liftDepth * 0.05 },
+        { x: rightDrawCorners[2]!.x + seamOverlap * 0.2, y: rightDrawCorners[2]!.y - faceSize * 0.32 },
+        { x: rightDrawCorners[3]!.x - faceSize * 0.22, y: rightDrawCorners[3]!.y - faceSize * 0.28 },
       ]),
       faceSize * 0.035,
       0xffffff,
@@ -957,10 +969,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const sideBevel = createRoundedQuad(
       toClockwiseQuad([
-        { x: faceSize / 2 + skew * 0.02, y: -faceSize / 2 - liftDepth * 0.01 },
-        { x: faceSize / 2 + skew * 0.98, y: -faceSize / 2 - liftDepth * 0.2 },
-        { x: faceSize / 2 + skew * 0.02, y: faceSize / 2 - liftDepth * 0.01 },
-        { x: faceSize / 2 + skew * 0.98, y: faceSize / 2 - liftDepth * 0.2 },
+        { x: rightDrawCorners[0]!.x + seamOverlap * 0.16, y: rightDrawCorners[0]!.y + faceSize * 0.01 },
+        { x: rightDrawCorners[1]!.x - faceSize * 0.03, y: rightDrawCorners[1]!.y + liftDepth * 0.05 },
+        { x: rightDrawCorners[2]!.x + seamOverlap * 0.16, y: rightDrawCorners[2]!.y - faceSize * 0.02 },
+        { x: rightDrawCorners[3]!.x - faceSize * 0.04, y: rightDrawCorners[3]!.y + liftDepth * 0.02 },
       ]),
       faceSize * 0.04,
       0x0f172a,
@@ -973,13 +985,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const frontFace = new PIXI.Graphics()
       .roundRect(
         -faceSize / 2,
-        -faceSize / 2 + frontFaceInset - seamOverlap,
-        faceSize + seamOverlap,
-        faceSize - frontFaceInset + seamOverlap,
-        faceSize * 0.175,
+        -faceSize / 2 + frontFaceInset - seamOverlap * 1.08,
+        faceSize + seamOverlap * 1.1,
+        faceSize - frontFaceInset + seamOverlap * 1.12,
+        faceSize * 0.178,
       )
       .fill({ color: frontColor, alpha: 0.995 })
-      .stroke({ color: strokeColor, width: 0.82, alpha: 0.1 })
+      .stroke({ color: strokeColor, width: 0.78, alpha: 0.085 })
     diceGroup.addChild(frontFace)
 
     const frontBevel = new PIXI.Graphics()
@@ -1021,25 +1033,40 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const topFrontSeam = new PIXI.Graphics()
       .roundRect(
-        -faceSize / 2 + faceSize * 0.045,
-        -faceSize / 2 + frontFaceInset - seamOverlap * 0.7,
-        faceSize * 0.92,
-        faceSize * 0.05,
-        faceSize * 0.03,
+        -faceSize / 2 + faceSize * 0.03,
+        -faceSize / 2 + frontFaceInset - seamOverlap * 0.96,
+        faceSize * 0.97,
+        faceSize * 0.062,
+        faceSize * 0.034,
       )
-      .fill({ color: 0xffffff, alpha: 0.03 })
+      .fill({ color: 0xffffff, alpha: 0.038 })
     diceGroup.addChild(topFrontSeam)
 
     const frontRightSeam = new PIXI.Graphics()
       .roundRect(
-        faceSize / 2 - seamOverlap * 0.9,
-        -faceSize / 2 + frontFaceInset + faceSize * 0.04,
-        faceSize * 0.05,
-        faceSize * 0.9,
-        faceSize * 0.03,
+        faceSize / 2 - seamOverlap * 1.18,
+        -faceSize / 2 + frontFaceInset + faceSize * 0.025,
+        faceSize * 0.068,
+        faceSize * 0.95,
+        faceSize * 0.034,
       )
-      .fill({ color: 0xffffff, alpha: 0.025 })
+      .fill({ color: 0xffffff, alpha: 0.034 })
     diceGroup.addChild(frontRightSeam)
+
+    const topRightSeam = createRoundedQuad(
+      toClockwiseQuad([
+        { x: faceSize / 2 - seamOverlap * 0.22, y: -faceSize / 2 + seamOverlap * 0.1 },
+        { x: faceSize / 2 + skew * 0.18, y: -faceSize / 2 - liftDepth * 0.08 },
+        { x: faceSize / 2 + skew * 0.26, y: -faceSize / 2 - liftDepth * 0.28 },
+        { x: faceSize / 2 + seamOverlap * 0.04, y: -faceSize / 2 - seamOverlap * 0.08 },
+      ]),
+      faceSize * 0.022,
+      0xffffff,
+      0xffffff,
+      0.028,
+      0,
+    )
+    diceGroup.addChild(topRightSeam)
 
     const topFaceHighlight = createRoundedQuad(
       toClockwiseQuad([
