@@ -54,3 +54,14 @@ test('back button shares the same row with horizontally centered difficulty butt
 
   assert.ok(!playScreen.includes('<div class="play-actions-stack">'))
 })
+
+test('play topbar sits lower and uses the uploaded image-based back button asset', () => {
+  const playScreen = read('components/game/PlayScreen.vue')
+
+  assert.ok(playScreen.includes("top: calc(50% - (var(--play-canvas-width) * 0.75) - 86px);"))
+  assert.ok(playScreen.includes("top: calc(50% - (var(--play-canvas-width) * 0.75) - 70px);"))
+
+  assert.ok(playScreen.includes("const backButtonImage = `${assetBase}ui/back-button.png`"))
+  assert.ok(playScreen.includes('<img class="back-icon" :src="backButtonImage" alt="" />'))
+  assert.ok(!playScreen.includes('>↩</button>'))
+})

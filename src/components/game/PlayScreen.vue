@@ -8,6 +8,7 @@ const props = defineProps<{
 }>()
 
 const assetBase = import.meta.env.BASE_URL
+const backButtonImage = `${assetBase}ui/back-button.png`
 const canvasEl = ref<HTMLDivElement | null>(null)
 
 defineExpose({ canvasEl })
@@ -67,7 +68,9 @@ const difficultyOptions = [
     <div class="grid play-grid">
       <div class="play-topbar">
         <div class="play-controls-row">
-          <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
+          <button class="circle-action secondary back-action" type="button" aria-label="返回准备" @click="emit('back')">
+            <img class="back-icon" :src="backButtonImage" alt="" />
+          </button>
           <div class="board-preset-row" aria-label="难度模式">
             <button
               v-for="option in difficultyOptions"
@@ -126,7 +129,7 @@ const difficultyOptions = [
 .play-topbar {
   position: absolute;
   left: 50%;
-  top: calc(50% - (var(--play-canvas-width) * 0.75) - 118px);
+  top: calc(50% - (var(--play-canvas-width) * 0.75) - 86px);
   width: var(--play-canvas-width);
   transform: translateX(-50%);
   z-index: 3;
@@ -291,6 +294,20 @@ const difficultyOptions = [
   height: 44px;
 }
 
+.back-action {
+  overflow: visible;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+.back-icon {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
 .board-preset-row {
   display: grid;
   grid-template-columns: repeat(3, 50px);
@@ -407,7 +424,7 @@ const difficultyOptions = [
   }
 
   .play-topbar {
-    top: calc(50% - (var(--play-canvas-width) * 0.75) - 94px);
+    top: calc(50% - (var(--play-canvas-width) * 0.75) - 70px);
   }
 
   .canvas-shell {
