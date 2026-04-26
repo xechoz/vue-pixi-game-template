@@ -66,7 +66,7 @@ const difficultyOptions = [
     </div>
     <div class="grid play-grid">
       <div class="play-topbar">
-        <div class="play-actions-stack">
+        <div class="play-controls-row">
           <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
           <div class="board-preset-row" aria-label="难度模式">
             <button
@@ -85,6 +85,7 @@ const difficultyOptions = [
               <span class="sr-only">{{ option.title }}</span>
             </button>
           </div>
+          <div class="play-controls-spacer" aria-hidden="true"></div>
         </div>
       </div>
       <div class="play-stage">
@@ -132,11 +133,10 @@ const difficultyOptions = [
   pointer-events: none;
 }
 
-.play-actions-stack {
+.play-controls-row {
   display: grid;
-  justify-items: start;
-  align-items: flex-start;
-  gap: 10px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   width: 100%;
   pointer-events: auto;
 }
@@ -278,19 +278,25 @@ const difficultyOptions = [
   bottom: 24%;
 }
 
-.play-actions-stack {
+.play-controls-row {
   display: grid;
-  justify-items: start;
-  align-items: flex-start;
-  gap: 10px;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
   width: 100%;
   pointer-events: auto;
+}
+
+.play-controls-spacer {
+  width: 44px;
+  height: 44px;
 }
 
 .board-preset-row {
   display: grid;
   grid-template-columns: repeat(3, 50px);
   grid-auto-rows: 50px;
+  justify-content: center;
+  justify-self: center;
   gap: 8px;
 }
 

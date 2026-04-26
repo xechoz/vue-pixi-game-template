@@ -20,7 +20,7 @@ test('difficulty mode selector lives on PlayScreen instead of PrepareScreen', ()
   assert.ok(playScreen.includes("update:board-preset-id"))
 })
 
-test('play controls keep only the back button and place 50x50 difficulty buttons beneath it', () => {
+test('play controls keep only the back button and use 50x50 difficulty buttons', () => {
   const appVue = read('App.vue')
   const playScreen = read('components/game/PlayScreen.vue')
 
@@ -29,10 +29,6 @@ test('play controls keep only the back button and place 50x50 difficulty buttons
   assert.ok(!playScreen.includes('aria-label="重开本局"'))
   assert.ok(!appVue.includes('@restart="restartGame"'))
 
-  assert.ok(playScreen.includes('<div class="play-actions-stack">'))
-  assert.ok(playScreen.includes('.play-actions-stack {'))
-  assert.ok(playScreen.includes('align-items: flex-start;'))
-
   assert.ok(playScreen.includes('.board-preset-row {'))
   assert.ok(playScreen.includes('grid-template-columns: repeat(3, 50px);'))
   assert.ok(playScreen.includes('grid-auto-rows: 50px;'))
@@ -40,4 +36,21 @@ test('play controls keep only the back button and place 50x50 difficulty buttons
   assert.ok(playScreen.includes('.preset-pill {'))
   assert.ok(playScreen.includes('width: 50px;'))
   assert.ok(playScreen.includes('height: 50px;'))
+})
+
+test('back button shares the same row with horizontally centered difficulty buttons', () => {
+  const playScreen = read('components/game/PlayScreen.vue')
+
+  assert.ok(playScreen.includes('<div class="play-controls-row">'))
+  assert.ok(playScreen.includes('.play-controls-row {'))
+  assert.ok(playScreen.includes('grid-template-columns: auto 1fr auto;'))
+  assert.ok(playScreen.includes('align-items: center;'))
+
+  assert.ok(playScreen.includes('<div class="play-controls-spacer" aria-hidden="true"></div>'))
+
+  assert.ok(playScreen.includes('.board-preset-row {'))
+  assert.ok(playScreen.includes('justify-content: center;'))
+  assert.ok(playScreen.includes('justify-self: center;'))
+
+  assert.ok(!playScreen.includes('<div class="play-actions-stack">'))
 })
