@@ -73,6 +73,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
   const rollingFace = ref<number>(1)
   const diceSpinScale = ref(1)
+  const diceSpinRotation = ref(0)
+  const diceSpinFlip = ref(1)
   const diceIdlePulse = ref(0)
   const diceIdleShake = ref(0)
   const diceIdleLift = ref(0)
@@ -116,6 +118,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       diceIdleFrameId = null
     }
     diceIdleLastRender = 0
+    diceSpinRotation.value = 0
+    diceSpinFlip.value = 1
     diceIdlePulse.value = 0
     diceIdleShake.value = 0
     diceIdleLift.value = 0
@@ -760,8 +764,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.06 : 0)
     const shakeX = diceIdleShake.value * (isRolling.value ? 4 : 3)
     const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2
+    const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1)
+    const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.16 : 1)
     diceGroup.position.set(shakeX, shakeY - diceIdleLift.value)
-    diceGroup.scale.set(diceSpinScale.value * diceScaleBoost)
+    diceGroup.rotation = diceSpinRotation.value
+    diceGroup.scale.set(spinScaleX, spinScaleY)
 
     if (isRolling.value) {
       const spinRing = new PIXI.Graphics()
@@ -971,13 +978,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         rollingFace.value = Math.floor(Math.random() * 6) + 1
         lastTick = tick
       }
+      const wobbleDecay = 1 - progress * 0.28
       diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.08
+      diceSpinRotation.value = Math.sin(progress * Math.PI * 5.2) * 0.22 * wobbleDecay
+      diceSpinFlip.value = 0.58 + Math.abs(Math.cos(progress * Math.PI * 8.4)) * 0.42
       renderScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
       } else {
         rollFrameId = null
         diceSpinScale.value = 1
+        diceSpinRotation.value = 0
+        diceSpinFlip.value = 1
         renderScene()
       }
     }
