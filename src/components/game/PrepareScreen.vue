@@ -61,12 +61,14 @@ const difficultyOptions = [
     title: '快速模式',
     hint: `${getBoardPreset('tiny-4').stepsPerSide}步/边`,
     accent: '#ffb347',
+    image: `${assetBase}difficulty/quick-mode.png`,
   },
   {
     value: 'normal-6' as const,
-    title: '标准模式',
+    title: '正常模式',
     hint: `${getBoardPreset('normal-6').stepsPerSide}步/边`,
     accent: '#5f9cff',
+    image: `${assetBase}difficulty/normal-mode.png`,
   },
 ]
 </script>
@@ -101,11 +103,14 @@ const difficultyOptions = [
           type="button"
           class="preset-pill"
           :class="{ active: props.boardPresetId === option.value }"
-          :style="{ '--accent': option.accent }"
+          :style="{
+            '--accent': option.accent,
+            '--preset-image': `url(${option.image})`,
+          }"
+          :aria-label="option.title"
           @click="emit('update:board-preset-id', option.value)"
         >
-          <strong>{{ option.title }}</strong>
-          <small>{{ option.hint }}</small>
+          <span class="sr-only">{{ option.title }}</span>
         </button>
       </div>
       <div class="mode-grid">
@@ -354,31 +359,40 @@ const difficultyOptions = [
 }
 
 .preset-pill {
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 18px;
-  padding: 12px 14px;
-  display: grid;
-  gap: 2px;
-  justify-items: start;
-  text-align: left;
+  position: relative;
+  min-height: 108px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  border-radius: 22px;
+  padding: 0;
+  overflow: hidden;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
     rgba(255, 255, 255, 0.08);
-  color: #123;
   box-shadow:
-    0 10px 24px rgba(0, 31, 61, 0.08),
-    inset 0 1px 0 rgba(255, 255, 255, 0.46);
+    0 12px 28px rgba(0, 31, 61, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
-.preset-pill strong {
-  font-size: 15px;
-  line-height: 1.1;
+.preset-pill::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(6, 18, 36, 0.1), rgba(6, 18, 36, 0.18)),
+    var(--preset-image) center/contain no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.preset-pill small {
-  font-size: 12px;
-  line-height: 1;
-  color: rgba(18, 38, 62, 0.72);
+.preset-pill::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.28), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 55%);
+  pointer-events: none;
 }
 
 .preset-pill.active {
@@ -387,6 +401,24 @@ const difficultyOptions = [
     0 0 0 1px rgba(255, 255, 255, 0.15) inset,
     0 18px 28px color-mix(in srgb, var(--accent) 16%, rgba(0, 117, 222, 0.1));
   transform: translateY(-1px);
+}
+
+.preset-pill.active::before {
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .mode-grid {
@@ -710,6 +742,17 @@ const difficultyOptions = [
   .board-preset-row {
     gap: 10px;
     margin-bottom: 14px;
+  }
+
+  .preset-pill {
+    min-height: 88px;
+    border-radius: 18px;
+  }
+
+  .preset-pill::before,
+  .preset-pill::after {
+    inset: 6px;
+    border-radius: 14px;
   }
 
   .mode-shell {
