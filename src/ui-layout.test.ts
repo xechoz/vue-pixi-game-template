@@ -88,3 +88,25 @@ test('back button is a rounded rectangle instead of a circle', () => {
   assert.ok(backActionBlock.includes('border-radius: 14px;'))
   assert.ok(!backActionBlock.includes('border-radius: 999px;'))
 })
+
+function sliceSceneBlock(source: string, anchor: string, endAnchor: string) {
+  const start = source.indexOf(anchor)
+  assert.notEqual(start, -1, `Missing anchor: ${anchor}`)
+
+  const end = source.indexOf(endAnchor, start)
+  assert.notEqual(end, -1, `Missing end anchor: ${endAnchor}`)
+
+  return source.slice(start, end)
+}
+
+test('player plane sprites are larger with lighter rings and a softer legal highlight', () => {
+  const playScene = read('composables/useFlightLudoPlayScene.ts')
+  const pieceRenderBlock = sliceSceneBlock(playScene, 'const shadow = new PIXI.Graphics()', 'board.addChild(pieceGroup)')
+
+  assert.ok(pieceRenderBlock.includes('body.width = pieceRadius * 5.6'))
+  assert.ok(pieceRenderBlock.includes('body.height = pieceRadius * 5.6'))
+  assert.ok(pieceRenderBlock.includes('.circle(0, 0, pieceRadius + 6)'))
+  assert.ok(pieceRenderBlock.includes('.stroke({ color: tint, width: 2, alpha: 0.55 })'))
+  assert.ok(pieceRenderBlock.includes('.stroke({ color: 0xffffff, width: 1.5, alpha: isLegal ? 0.32 : 0.12 })'))
+  assert.ok(pieceRenderBlock.includes('.stroke({ color: 0xf8fafc, width: 1.5, alpha: 0.18 })'))
+})
