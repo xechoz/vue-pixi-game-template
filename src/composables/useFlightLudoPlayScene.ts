@@ -1526,12 +1526,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       const tint = hexToNumber(pieceInfo.player.color)
       const texture = getPlayerPieceTexture(pieceInfo.player.index)
+      const pieceBodyScale = pieceInfo.location === 'base' ? 5.8 : 5.2
       if (texture) {
         const body = new PIXI.Sprite(texture)
         body.anchor.set(0.5)
         body.position.set(0, -2)
-        body.width = pieceRadius * 5.6
-        body.height = pieceRadius * 5.6
+        body.width = pieceRadius * pieceBodyScale
+        body.height = pieceRadius * pieceBodyScale
         pieceGroup.addChild(body)
       } else {
         const body = new PIXI.Graphics()
@@ -1542,26 +1543,26 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }
 
       const badgeRing = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 6)
-        .stroke({ color: tint, width: 2, alpha: 0.55 })
+        .circle(0, 0, pieceRadius + 5)
+        .stroke({ color: tint, width: 1.5, alpha: 0.38 })
       pieceGroup.addChildAt(badgeRing, 0)
 
       const badgeGlow = new PIXI.Graphics()
         .circle(0, 0, pieceRadius + 2)
-        .stroke({ color: 0xffffff, width: 1.5, alpha: isLegal ? 0.32 : 0.12 })
+        .stroke({ color: 0xffffff, width: 1.25, alpha: isLegal ? 0.26 : 0.08 })
       pieceGroup.addChild(badgeGlow)
 
       if (game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
         const halo = new PIXI.Graphics()
-          .circle(0, 0, pieceRadius + 6)
-          .stroke({ color: 0xf8fafc, width: 1.5, alpha: 0.18 })
+          .circle(0, 0, pieceRadius + 5)
+          .stroke({ color: 0xf8fafc, width: 1.25, alpha: 0.12 })
         pieceGroup.addChildAt(halo, 0)
       }
 
       if (isLegal) {
         const ring = new PIXI.Graphics()
           .circle(0, 0, pieceRadius + 4)
-          .stroke({ color: 0xf8fafc, width: 1.5, alpha: 0.18 })
+          .stroke({ color: 0xf8fafc, width: 1.25, alpha: 0.12 })
         pieceGroup.addChildAt(ring, 0)
       }
 
