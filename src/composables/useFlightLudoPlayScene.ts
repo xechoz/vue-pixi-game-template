@@ -914,9 +914,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       { x: faceSize / 2, y: faceSize / 2 },
     ]
     const topDrawCorners = [
-      { x: topCorners[0]!.x - seamOverlap * 0.04, y: topCorners[0]!.y + seamOverlap * 0.24 },
+      { x: topCorners[0]!.x + seamOverlap * 0.02, y: topCorners[0]!.y + seamOverlap * 0.18 },
       { x: topCorners[1]!.x + seamOverlap * 0.12, y: topCorners[1]!.y + seamOverlap * 0.24 },
-      { x: topCorners[2]!.x - seamOverlap * 0.02, y: topCorners[2]!.y - seamOverlap * 0.04 },
+      { x: topCorners[2]!.x + seamOverlap * 0.02, y: topCorners[2]!.y - seamOverlap * 0.02 },
       { x: topCorners[3]!.x + seamOverlap * 0.16, y: topCorners[3]!.y - seamOverlap * 0.04 },
     ]
     const rightDrawCorners = [
