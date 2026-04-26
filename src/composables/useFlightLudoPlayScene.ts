@@ -1007,9 +1007,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceSprite.height = fittedHeight
         diceGroup.addChild(diceSprite)
 
+        const landingShadowScale = 1 + diceLandingSquash.value * 0.45 + (isRolling.value ? 0.06 : 0)
+        const landingShadowOffset = fittedHeight * (0.36 + diceLandingSquash.value * 0.08)
+        const shadowAlpha = 0.16 + (isRolling.value ? 0.08 : 0.02) + diceLandingSquash.value * 0.14
         const diceShadow = new PIXI.Graphics()
-          .ellipse(0, fittedHeight * 0.36, fittedWidth * 0.28, fittedHeight * 0.1)
-          .fill({ color: 0x020617, alpha: 0.18 + (isRolling.value ? 0.08 : 0) + diceLandingSquash.value * 0.08 })
+          .ellipse(0, landingShadowOffset, fittedWidth * 0.24 * landingShadowScale, fittedHeight * 0.08 * (1 + diceLandingSquash.value * 0.35))
+          .fill({ color: 0x020617, alpha: shadowAlpha })
         diceGroup.addChildAt(diceShadow, 0)
 
         if (!isRolling.value && diceValue === null) {
@@ -1019,14 +1022,25 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
           diceGroup.addChild(promptGlow)
         }
 
+        const settleFlashAlpha = !isRolling.value && diceValue !== null
+          ? Math.max(0, Math.min(0.18, diceLandingSquash.value * 0.32 + diceLandingLift.value * 0.004))
+          : 0
+        if (settleFlashAlpha > 0.001) {
+          const settleFlash = new PIXI.Graphics()
+            .roundRect(-fittedWidth * 0.33, -fittedHeight * 0.33, fittedWidth * 0.66, fittedHeight * 0.24, fittedWidth * 0.08)
+            .fill({ color: 0xffffff, alpha: settleFlashAlpha })
+          diceGroup.addChild(settleFlash)
+        }
+
         const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.05 : 0)
         const shakeX = diceIdleShake.value * (isRolling.value ? 4.5 : 3)
         const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
-        const landingScaleX = 1 + diceLandingSquash.value * 0.22
-        const landingScaleY = 1 - diceLandingSquash.value * 0.16
+        const landingScaleX = 1 + diceLandingSquash.value * 0.34
+        const landingScaleY = 1 - diceLandingSquash.value * 0.24
+        const landingSettleNudge = !isRolling.value && diceValue !== null ? Math.max(0, diceLandingSquash.value * 0.1) : 0
         const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1) * landingScaleX
         const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1) * landingScaleY
-        diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value)
+        diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value + landingSettleNudge * fittedHeight * 0.08)
         diceGroup.rotation = diceSpinRotation.value
         diceGroup.scale.set(spinScaleX, spinScaleY)
       }
@@ -1551,10 +1565,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const animate = (now: number) => {
       const progress = Math.min(1, (now - startTime) / 420)
       const bounce = Math.sin(progress * Math.PI) * (1 - progress)
-      const rebound = Math.sin(progress * Math.PI * 2.4) * Math.pow(1 - progress, 1.4)
-
-      diceLandingLift.value = Math.max(0, bounce * 18 + rebound * 6)
-      diceLandingSquash.value = Math.max(0, Math.sin(progress * Math.PI * 1.15) * (1 - progress * 0.7))
+      const rebound = Math.sin(progress * Math.PI * 2.6) * (1 - progress) * 0.28
+      diceLandingLift.value = Math.max(0, bounce * 20 + rebound * 8)
+      diceLandingSquash.value = Math.max(0, Math.sin(progress * Math.PI * 1.2) * (1 - progress * 0.58))
       renderScene()
 
       if (progress < 1) {
