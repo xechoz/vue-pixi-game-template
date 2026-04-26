@@ -1,6 +1,10 @@
-export const TRACK_STEPS_PER_SIDE = 4
-export const TRACK_LENGTH = TRACK_STEPS_PER_SIDE * 4
-export const HOME_STEPS = 2
+import { getBoardPreset } from './board-presets.ts'
+
+const activeBoardPreset = getBoardPreset()
+
+export const TRACK_STEPS_PER_SIDE = activeBoardPreset.stepsPerSide
+export const TRACK_LENGTH = activeBoardPreset.trackLength
+export const HOME_STEPS = activeBoardPreset.homeSteps
 export const FINISH_STEP = TRACK_LENGTH + HOME_STEPS
 
 export type GameMode = 1 | 2 | 3 | 4
@@ -45,14 +49,14 @@ export interface GameState {
 }
 
 export const PLAYER_DEFS: PlayerMeta[] = [
-  { index: 0, name: '红方', color: '#ef4444', startIndex: 0, corner: '左上' },
-  { index: 1, name: '黄方', color: '#f59e0b', startIndex: 4, corner: '右上' },
-  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: 8, corner: '右下' },
-  { index: 3, name: '绿方', color: '#22c55e', startIndex: 12, corner: '左下' },
+  { index: 0, name: '红方', color: '#ef4444', startIndex: activeBoardPreset.startIndices[0], corner: '左上' },
+  { index: 1, name: '黄方', color: '#f59e0b', startIndex: activeBoardPreset.startIndices[1], corner: '右上' },
+  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: activeBoardPreset.startIndices[2], corner: '右下' },
+  { index: 3, name: '绿方', color: '#22c55e', startIndex: activeBoardPreset.startIndices[3], corner: '左下' },
 ]
 
-export const SAFE_CELLS = new Set([0, 4, 8, 12])
-export const FLIGHT_JUMPS = new Map<number, number>()
+export const SAFE_CELLS = new Set(activeBoardPreset.safeCells)
+export const FLIGHT_JUMPS = new Map<number, number>(activeBoardPreset.flightJumps)
 
 export function getTurnOrder(mode: GameMode): number[] {
   void mode

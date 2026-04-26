@@ -1,3 +1,5 @@
+export * from './board-presets'
+
 export {
   FLIGHT_JUMPS,
   HOME_STEPS,

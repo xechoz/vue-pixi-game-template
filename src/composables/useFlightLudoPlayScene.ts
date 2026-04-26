@@ -2,6 +2,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } 
 import * as PIXI from 'pixi.js'
 
 import {
+  type BoardRenderLayout,
   type GameMode,
   type GameState,
   FINISH_STEP,
@@ -14,6 +15,7 @@ import {
   chooseAutoMovePieceId,
   clampPiecesPerPlayer,
   createGame,
+  getBoardRenderLayout,
   getCurrentPlayer,
   getLegalPieceIds,
   getPieceLocation,
@@ -72,6 +74,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       piecesPerPlayer: options.piecesPerPlayer.value,
     }),
   )
+  const boardRenderLayout: BoardRenderLayout = getBoardRenderLayout()
 
   let app: PIXI.Application | null = null
   let scene: PIXI.Container | null = null
@@ -816,7 +819,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const board = new PIXI.Container()
     scene.addChild(board)
 
-    const boardInset = safeBoardSize * 0.12
+    const boardInset = safeBoardSize * boardRenderLayout.trackInsetRatio
     const innerLeft = originX + boardInset
     const innerTop = originY + boardInset
     const innerRight = originX + safeBoardSize - boardInset
@@ -840,10 +843,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     board.addChild(homes)
 
     const buildTrackPoints = (originXValue: number, originYValue: number, size: number) => {
-      const left = originXValue + size * 0.14
-      const right = originXValue + size * 0.86
-      const top = originYValue + size * 0.14
-      const bottom = originYValue + size * 0.86
+      const left = originXValue + size * boardRenderLayout.trackInsetRatio
+      const right = originXValue + size * (1 - boardRenderLayout.trackInsetRatio)
+      const top = originYValue + size * boardRenderLayout.trackInsetRatio
+      const bottom = originYValue + size * (1 - boardRenderLayout.trackInsetRatio)
 
       return Array.from({ length: TRACK_LENGTH }, (_, index) => {
         const side = Math.floor(index / TRACK_STEPS_PER_SIDE)
@@ -858,8 +861,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     const buildBaseSlots = (originXValue: number, originYValue: number, size: number) => {
-      const zoneSize = size * 0.085
-      const spread = zoneSize * 0.22
+      const zoneSize = size * boardRenderLayout.baseZoneSizeRatio
+      const spread = zoneSize * boardRenderLayout.baseSlotSpreadRatio
 
       const zones = [
         { x: originXValue - zoneSize * 0.66, y: originYValue - zoneSize * 0.66 },
@@ -883,8 +886,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const buildFinishSlots = (originXValue: number, originYValue: number, size: number) => {
       const centerXValue = originXValue + size / 2
       const centerYValue = originYValue + size / 2
-      const offset = size * 0.11
-      const gap = size * 0.055
+      const offset = size * boardRenderLayout.finishOffsetRatio
+      const gap = size * boardRenderLayout.finishGapRatio
 
       const corners = [
         { x: centerXValue - offset, y: centerYValue - offset },
@@ -928,8 +931,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     for (const player of game.value.players) {
       const playerBase = new PIXI.Graphics()
-      const zoneSize = safeBoardSize * 0.105
-      const zonePadding = safeBoardSize * 0.008
+      const zoneSize = safeBoardSize * boardRenderLayout.baseZoneSizeRatio
+      const zonePadding = safeBoardSize * boardRenderLayout.baseZonePaddingRatio
       const zoneX = player.index === 0 || player.index === 3 ? originX + zonePadding : originX + safeBoardSize - zonePadding - zoneSize
       const zoneY = player.index === 0 || player.index === 1 ? originY + zonePadding : originY + safeBoardSize - zonePadding - zoneSize
 
@@ -964,10 +967,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }
 
       const finish = finishSlots[player.index]
-      const gapSize = () => safeBoardSize * 0.028
+      const finishBoxRadius = safeBoardSize * boardRenderLayout.finishBoxSizeRatio
       const finishBox = new PIXI.Graphics()
       finishBox
-        .roundRect(finish[0].x - gapSize(), finish[0].y - gapSize(), gapSize() * 2, gapSize() * 2, 12)
+        .roundRect(
+          finish[0].x - finishBoxRadius,
+          finish[0].y - finishBoxRadius,
+          finishBoxRadius * 2,
+          finishBoxRadius * 2,
+          12,
+        )
         .fill({ color: player.color, alpha: 0.08 })
         .stroke({ color: player.color, width: 1, alpha: 0.24 })
       board.addChild(finishBox)
