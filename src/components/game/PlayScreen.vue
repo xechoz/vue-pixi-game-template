@@ -217,10 +217,10 @@ const emit = defineEmits<{
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   gap: 10px;
-  width: auto;
-  padding: 0;
+  width: min(100%, 92vw, 88vh);
+  padding: 0 4px;
   z-index: 3;
 }
 
