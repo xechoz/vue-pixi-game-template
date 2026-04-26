@@ -66,10 +66,9 @@ const emit = defineEmits<{
 
 .play-grid {
   --play-canvas-width: min(100%, 92vw, 88vh);
-  grid-template-columns: 1fr;
+  display: grid;
+  place-items: center;
   position: relative;
-  justify-items: center;
-  align-items: center;
   width: 100%;
   min-height: 100dvh;
   z-index: 1;
@@ -213,15 +212,16 @@ const emit = defineEmits<{
 }
 
 .play-actions-bar {
-  position: absolute;
-  top: max(12px, calc(50% - (var(--play-canvas-width) * 0.75) - 200px));
-  left: max(4px, calc(50% - (var(--play-canvas-width) / 2) + 4px));
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 10px;
   width: auto;
   padding: 0;
-  z-index: 2;
+  z-index: 3;
 }
 
 .play-canvas-shell {
@@ -272,8 +272,7 @@ const emit = defineEmits<{
   }
 
   .play-actions-bar {
-    top: max(8px, calc(50% - (var(--play-canvas-width) * 0.75) - 200px));
-    left: max(8px, calc(50% - (var(--play-canvas-width) / 2)));
+    top: 100px;
   }
 
   .play-floating-actions {
