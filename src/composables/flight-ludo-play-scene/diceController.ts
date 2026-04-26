@@ -1,0 +1,354 @@
+import { ref, type Ref } from 'vue'
+import type * as PIXI from 'pixi.js'
+
+import { rollDice, type GameState } from '../../game'
+import type { Point, RefreshGameView } from './types'
+
+type DiceControllerOptions = {
+  game: Ref<GameState>
+  autoPlayMode: Ref<boolean>
+  movingPoint: Ref<Point | null>
+  diceHandoffHiding: Ref<boolean>
+  isTurnTransitioning: Ref<boolean>
+  isPlayPageActive: () => boolean
+  isHumanTurn: () => boolean
+  clearTimers: () => void
+  renderScene: () => void
+  refreshGameView: RefreshGameView
+  scheduleAutoTurn: (delay?: number) => void
+  scheduleAutoMove: (action: () => void, delay: number) => void
+  scheduleTurnAdvance: (delay?: number) => void
+  getHumanAutoMovePieceId: () => string | null
+  handleMove: (pieceId: string) => void
+  playRollSound: () => void
+}
+
+export function createDiceController(options: DiceControllerOptions) {
+  const rollingFace = ref<number>(1)
+  const diceRollFrame = ref(0)
+  const diceSpinScale = ref(1)
+  const diceSpinRotation = ref(0)
+  const diceSpinFlip = ref(1)
+  const diceLandingLift = ref(0)
+  const diceLandingSquash = ref(0)
+  const diceResultPop = ref(0)
+  const diceIdlePulse = ref(0)
+  const diceIdleShake = ref(0)
+  const diceIdleLift = ref(0)
+  const isRolling = ref(false)
+
+  let diceFaceTextures: Partial<Record<number, PIXI.Texture>> = {}
+  let diceIdleTexture: PIXI.Texture | null = null
+  let diceRollTextures: PIXI.Texture[] = []
+  let rollTimer: number | null = null
+  let rollFrameId: number | null = null
+  let diceLandingFrameId: number | null = null
+  let diceIdleFrameId: number | null = null
+  let diceIdleLastRender = 0
+  let diceIdleStart = 0
+
+  function setDiceAssets(
+    idleTexture: PIXI.Texture | null,
+    faceTextures: Partial<Record<number, PIXI.Texture>>,
+    rollTextures: PIXI.Texture[],
+  ) {
+    diceIdleTexture = idleTexture
+    diceFaceTextures = faceTextures
+    diceRollTextures = rollTextures
+  }
+
+  function getDiceIdleTexture() {
+    return diceIdleTexture
+  }
+
+  function clearRollTimers() {
+    if (rollTimer !== null) {
+      window.clearTimeout(rollTimer)
+      rollTimer = null
+    }
+    if (rollFrameId !== null) {
+      window.cancelAnimationFrame(rollFrameId)
+      rollFrameId = null
+    }
+  }
+
+  function stopDiceIdleAnimation() {
+    if (diceIdleFrameId !== null) {
+      window.cancelAnimationFrame(diceIdleFrameId)
+      diceIdleFrameId = null
+    }
+    if (diceLandingFrameId !== null) {
+      window.cancelAnimationFrame(diceLandingFrameId)
+      diceLandingFrameId = null
+    }
+    diceIdleLastRender = 0
+    diceSpinRotation.value = 0
+    diceSpinFlip.value = 1
+    diceLandingLift.value = 0
+    diceLandingSquash.value = 0
+    diceResultPop.value = 0
+    diceIdlePulse.value = 0
+    diceIdleShake.value = 0
+    diceIdleLift.value = 0
+  }
+
+  function resetDiceState() {
+    clearRollTimers()
+    stopDiceIdleAnimation()
+    isRolling.value = false
+    diceSpinScale.value = 1
+    rollingFace.value = 1
+  }
+
+  function getDiceDisplayValue() {
+    if (isRolling.value) return rollingFace.value
+    return options.game.value.dice
+  }
+
+  function getDiceFaceAssetTexture(value: number | null) {
+    if (value === null) return null
+    return diceFaceTextures[value] ?? null
+  }
+
+  function getRollingDiceAssetTexture() {
+    if (!isRolling.value) return null
+    if (diceRollTextures.length > 0) {
+      return (
+        diceRollTextures[diceRollFrame.value] ??
+        diceRollTextures[diceRollTextures.length - 1] ??
+        null
+      )
+    }
+    return getDiceFaceAssetTexture(rollingFace.value)
+  }
+
+  function getIdleDiceAssetTexture() {
+    return (
+      getDiceFaceAssetTexture(
+        options.game.value.dice ?? rollingFace.value ?? 1,
+      ) ?? getDiceFaceAssetTexture(1)
+    )
+  }
+
+  function syncDiceIdleAnimation() {
+    stopDiceIdleAnimation()
+
+    const shouldAnimate =
+      options.isPlayPageActive() &&
+      options.game.value.winnerIndex === null &&
+      options.game.value.dice === null &&
+      !isRolling.value &&
+      options.movingPoint.value === null &&
+      !options.diceHandoffHiding.value &&
+      !options.isTurnTransitioning.value
+
+    if (!shouldAnimate) return
+
+    diceIdleStart = performance.now()
+
+    const tick = (now: number) => {
+      if (
+        !options.isPlayPageActive() ||
+        options.game.value.winnerIndex !== null ||
+        options.game.value.dice !== null ||
+        isRolling.value ||
+        options.movingPoint.value !== null ||
+        options.diceHandoffHiding.value ||
+        options.isTurnTransitioning.value
+      ) {
+        stopDiceIdleAnimation()
+        options.renderScene()
+        return
+      }
+
+      if (diceIdleLastRender === 0 || now - diceIdleLastRender >= 80) {
+        const elapsed = now - diceIdleStart
+        diceIdleShake.value = Math.sin(elapsed / 140)
+        diceIdleLift.value = Math.sin(elapsed / 320) * 2.6
+        diceIdlePulse.value = 0.5 + 0.5 * Math.sin(elapsed / 240)
+        diceIdleLastRender = now
+        options.renderScene()
+      }
+
+      diceIdleFrameId = window.requestAnimationFrame(tick)
+    }
+
+    diceIdleFrameId = window.requestAnimationFrame(tick)
+  }
+
+  function startDiceLandingAnimation() {
+    if (diceLandingFrameId !== null) {
+      window.cancelAnimationFrame(diceLandingFrameId)
+      diceLandingFrameId = null
+    }
+
+    const startTime = performance.now()
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / 420)
+      const bounce = Math.sin(progress * Math.PI) * (1 - progress)
+      const rebound = Math.sin(progress * Math.PI * 2.6) * (1 - progress) * 0.28
+      diceLandingLift.value = Math.max(0, bounce * 20 + rebound * 8)
+      diceLandingSquash.value = Math.max(
+        0,
+        Math.sin(progress * Math.PI * 1.2) * (1 - progress * 0.58),
+      )
+      diceResultPop.value = Math.max(
+        0,
+        Math.sin(progress * Math.PI * 1.35) * (1 - progress * 0.42),
+      )
+      options.renderScene()
+
+      if (progress < 1) {
+        diceLandingFrameId = window.requestAnimationFrame(animate)
+      } else {
+        diceLandingFrameId = null
+        diceLandingLift.value = 0
+        diceLandingSquash.value = 0
+        diceResultPop.value = 0
+        options.renderScene()
+      }
+    }
+
+    diceLandingFrameId = window.requestAnimationFrame(animate)
+  }
+
+  function startDiceSpin() {
+    const startTime = performance.now()
+    let lastTick = 0
+
+    const spin = (now: number) => {
+      const elapsed = now - startTime
+      const progress = Math.min(1, elapsed / 1100)
+      const interval = Math.max(55, 165 - progress * 88)
+      const tick = Math.floor(elapsed / interval)
+      while (lastTick < tick) {
+        rollingFace.value = Math.floor(Math.random() * 6) + 1
+        lastTick += 1
+      }
+      const wobbleDecay = 1 - progress * 0.22
+      const turnProgress = 1 - (1 - progress) * (1 - progress)
+      diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.06
+      diceSpinRotation.value =
+        Math.sin(progress * Math.PI * 4.8) * 0.26 * wobbleDecay +
+        turnProgress * Math.PI * 0.1
+      diceSpinFlip.value =
+        0.46 + Math.abs(Math.cos(progress * Math.PI * 6.8)) * 0.54
+      if (diceRollTextures.length > 0) {
+        diceRollFrame.value = Math.min(
+          diceRollTextures.length - 1,
+          Math.floor(progress * diceRollTextures.length),
+        )
+      }
+      options.renderScene()
+      if (progress < 1) {
+        rollFrameId = window.requestAnimationFrame(spin)
+      } else {
+        rollFrameId = null
+        diceSpinScale.value = 1
+        diceSpinRotation.value = 0
+        diceSpinFlip.value = 1
+        if (diceRollTextures.length > 0) {
+          diceRollFrame.value = Math.max(0, diceRollTextures.length - 1)
+        }
+        options.renderScene()
+      }
+    }
+
+    rollFrameId = window.requestAnimationFrame(spin)
+  }
+
+  function handleRoll(fromAuto = false) {
+    if (
+      options.game.value.winnerIndex !== null ||
+      options.game.value.dice !== null ||
+      isRolling.value ||
+      options.isTurnTransitioning.value ||
+      options.movingPoint.value !== null
+    )
+      return
+    if (!options.isHumanTurn() && !fromAuto) return
+
+    options.clearTimers()
+    isRolling.value = true
+    rollingFace.value = Math.floor(Math.random() * 6) + 1
+    diceRollFrame.value = 0
+    diceSpinScale.value = 1
+    diceLandingLift.value = 0
+    diceLandingSquash.value = 0
+    startDiceSpin()
+
+    let ticks = 0
+    const spin = () => {
+      if (!isRolling.value) return
+      rollingFace.value = Math.floor(Math.random() * 6) + 1
+      ticks += 1
+      if (ticks < 6) {
+        rollTimer = window.setTimeout(spin, 55)
+        return
+      }
+
+      isRolling.value = false
+      rollTimer = null
+      const result = rollDice(options.game.value)
+      if (!result.rolled) return
+
+      startDiceLandingAnimation()
+      options.playRollSound()
+      options.refreshGameView()
+
+      if (result.skipped) {
+        if (!options.isHumanTurn() && options.autoPlayMode.value) {
+          options.scheduleAutoTurn(220)
+        }
+        return
+      }
+
+      const humanAutoPieceId = options.isHumanTurn()
+        ? options.getHumanAutoMovePieceId()
+        : null
+      if (humanAutoPieceId) {
+        options.scheduleAutoMove(
+          () => options.handleMove(humanAutoPieceId),
+          220,
+        )
+        return
+      }
+
+      if (result.advancePending) {
+        options.scheduleTurnAdvance(2000)
+      }
+
+      if (!options.isHumanTurn() && options.autoPlayMode.value) {
+        options.scheduleAutoTurn(220)
+      }
+    }
+
+    spin()
+  }
+
+  return {
+    rollingFace,
+    diceRollFrame,
+    diceSpinScale,
+    diceSpinRotation,
+    diceSpinFlip,
+    diceLandingLift,
+    diceLandingSquash,
+    diceResultPop,
+    diceIdlePulse,
+    diceIdleShake,
+    diceIdleLift,
+    isRolling,
+    setDiceAssets,
+    getDiceIdleTexture,
+    getDiceDisplayValue,
+    getDiceFaceAssetTexture,
+    getRollingDiceAssetTexture,
+    getIdleDiceAssetTexture,
+    clearRollTimers,
+    stopDiceIdleAnimation,
+    resetDiceState,
+    syncDiceIdleAnimation,
+    handleRoll,
+  }
+}

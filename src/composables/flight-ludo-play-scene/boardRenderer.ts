@@ -1,0 +1,672 @@
+import * as PIXI from 'pixi.js'
+
+import {
+  getPieceLocation,
+  getTrackCellIndex,
+  isSafeCell,
+  type BoardPreset,
+  type BoardRenderLayout,
+  type GameState,
+  type PlayerState,
+} from '../../game'
+import { buildBoardLayout } from './boardLayout'
+import type { BoardLayout, LandingPoint, Point } from './types'
+
+type DiceRenderState = {
+  isRolling: boolean
+  diceSpinScale: number
+  diceSpinRotation: number
+  diceSpinFlip: number
+  diceLandingLift: number
+  diceLandingSquash: number
+  diceResultPop: number
+  diceIdlePulse: number
+  diceIdleShake: number
+  diceIdleLift: number
+  diceIdleTexture: PIXI.Texture | null
+  getDiceDisplayValue: () => number | null
+  getDiceFaceAssetTexture: (value: number | null) => PIXI.Texture | null
+  getRollingDiceAssetTexture: () => PIXI.Texture | null
+  getIdleDiceAssetTexture: () => PIXI.Texture | null
+}
+
+type MoveRenderState = {
+  replayingPieceId: string | null
+  movePath: number[]
+  replayingStartProgress: number | null
+  movingPoint: Point | null
+  landingPoint: LandingPoint | null
+}
+
+type TurnRenderState = {
+  legalPulse: number
+  isTurnTransitioning: boolean
+  diceHandoffHiding: boolean
+  isHumanTurn: () => boolean
+}
+
+type RenderPlaySceneOptions = {
+  app: PIXI.Application
+  scene: PIXI.Container
+  boardPreset: BoardPreset
+  boardRenderLayout: BoardRenderLayout
+  game: GameState
+  currentPlayer: PlayerState
+  legalPieces: string[]
+  winner: PlayerState | null
+  autoPlayMode: boolean
+  dice: DiceRenderState
+  move: MoveRenderState
+  turn: TurnRenderState
+  onRoll: (fromAuto?: boolean) => void
+  onMove: (pieceId: string) => void
+  getPlayerPieceTexture: (playerIndex: number) => PIXI.Texture | null
+}
+
+export function hexToNumber(color: string) {
+  return Number.parseInt(color.replace('#', ''), 16)
+}
+
+export function resolvePiecePoint(
+  layout: BoardLayout,
+  boardPreset: BoardPreset,
+  player: { index: number; startIndex: number },
+  piece: { progress: number },
+) {
+  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+
+  const centerX = layout.trackPoints[0]?.x ?? 0
+  const centerY = layout.trackPoints[0]?.y ?? 0
+
+  if (piece.progress < 0) {
+    return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
+  }
+
+  if (piece.progress < boardPreset.trackLength) {
+    const trackIndex =
+      (player.startIndex + piece.progress) % boardPreset.trackLength
+    return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
+  }
+
+  if (piece.progress < finishStep) {
+    const laneIndex = piece.progress - boardPreset.trackLength
+    return (
+      layout.finishSlots[player.index]?.[laneIndex] ?? {
+        x: centerX,
+        y: centerY,
+      }
+    )
+  }
+
+  return (
+    layout.finishSlots[player.index]?.[boardPreset.homeSteps - 1] ?? {
+      x: centerX,
+      y: centerY,
+    }
+  )
+}
+
+export function getPlayerByPieceId(state: GameState, pieceId: string) {
+  return (
+    state.players.find((player) =>
+      player.pieces.some((piece) => piece.id === pieceId),
+    ) ?? null
+  )
+}
+
+export function renderPlayScene(options: RenderPlaySceneOptions) {
+  const removable = options.scene.removeChildren()
+  for (const child of removable) {
+    child.destroy({ children: true })
+  }
+
+  const { width, height } = options.app.screen
+  const boardSize = Math.min(width, height) - 72
+  const safeBoardSize = Math.max(240, boardSize)
+  const originX = (width - safeBoardSize) / 2
+  const originY = (height - safeBoardSize) / 2
+  const cellSize = safeBoardSize * 0.06
+  const trackSize = cellSize * 0.68
+  const pieceRadius = cellSize * 0.28
+
+  const board = new PIXI.Container()
+  options.scene.addChild(board)
+
+  const boardInset = safeBoardSize * options.boardRenderLayout.trackInsetRatio
+  const innerLeft = originX + boardInset
+  const innerTop = originY + boardInset
+  const innerRight = originX + safeBoardSize - boardInset
+  const innerBottom = originY + safeBoardSize - boardInset
+  const centerX = originX + safeBoardSize / 2
+  const centerY = originY + safeBoardSize / 2
+
+  const currentPlayerGlow = new PIXI.Graphics()
+    .roundRect(
+      originX + 8,
+      originY + 8,
+      safeBoardSize - 16,
+      safeBoardSize - 16,
+      30,
+    )
+    .stroke({
+      color: hexToNumber(options.currentPlayer.color),
+      width: 5,
+      alpha: options.dice.isRolling ? 0.42 : 0.22,
+    })
+  board.addChild(currentPlayerGlow)
+
+  const homes = new PIXI.Graphics()
+  homes
+    .roundRect(
+      originX + 16,
+      originY + 16,
+      safeBoardSize - 32,
+      safeBoardSize - 32,
+      22,
+    )
+    .stroke({ color: 0x1e293b, width: 1, alpha: 0.5 })
+  homes
+    .roundRect(
+      innerLeft,
+      innerTop,
+      innerRight - innerLeft,
+      innerBottom - innerTop,
+      18,
+    )
+    .stroke({ color: 0x263244, width: 2, alpha: 0.9 })
+  board.addChild(homes)
+
+  const layout = buildBoardLayout(
+    originX,
+    originY,
+    safeBoardSize,
+    options.boardPreset,
+    options.boardRenderLayout,
+  )
+  const { trackPoints, baseSlots, finishSlots } = layout
+
+  let activeDiceAnchor = { x: centerX, y: centerY }
+
+  for (let index = 0; index < trackPoints.length; index += 1) {
+    const point = trackPoints[index]
+    const cell = new PIXI.Graphics()
+    const playerIndex =
+      Math.floor(index / options.boardPreset.stepsPerSide) %
+      options.game.players.length
+    const activeColor = options.game.players[playerIndex].color
+    const isStartCell = index % options.boardPreset.stepsPerSide === 0
+    const isSafeTrackCell = isSafeCell(index, options.game.boardPresetId)
+    cell
+      .roundRect(
+        point.x - trackSize / 2,
+        point.y - trackSize / 2,
+        trackSize,
+        trackSize,
+        9,
+      )
+      .fill({
+        color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0,
+        alpha: isSafeTrackCell ? 0.16 : 0.07,
+      })
+      .stroke({
+        color: activeColor,
+        width: isStartCell ? 3 : isSafeTrackCell ? 2 : 1,
+        alpha: isSafeTrackCell ? 0.55 : 0.35,
+      })
+    board.addChild(cell)
+  }
+
+  const canRoll =
+    options.game.winnerIndex === null &&
+    options.game.dice === null &&
+    !options.turn.isTurnTransitioning &&
+    options.move.movingPoint === null &&
+    (options.turn.isHumanTurn() || !options.autoPlayMode)
+
+  for (const player of options.game.players) {
+    const playerBase = new PIXI.Graphics()
+    const zoneSize = safeBoardSize * options.boardRenderLayout.baseZoneSizeRatio
+    const zonePadding =
+      safeBoardSize * options.boardRenderLayout.baseZonePaddingRatio
+    const zoneX =
+      player.index === 0 || player.index === 3
+        ? originX + zonePadding
+        : originX + safeBoardSize - zonePadding - zoneSize
+    const zoneY =
+      player.index === 0 || player.index === 1
+        ? originY + zonePadding
+        : originY + safeBoardSize - zonePadding - zoneSize
+
+    const isActivePlayer = options.game.currentPlayerIndex === player.index
+    playerBase
+      .roundRect(zoneX, zoneY, zoneSize, zoneSize, 14)
+      .fill({ color: player.color, alpha: isActivePlayer ? 0.1 : 0.07 })
+      .stroke({
+        color: player.color,
+        width: isActivePlayer ? 3 : 2,
+        alpha: isActivePlayer ? 0.3 : 0.2,
+      })
+    board.addChild(playerBase)
+
+    if (isActivePlayer && canRoll) {
+      playerBase.eventMode = 'static'
+      playerBase.cursor = 'pointer'
+      playerBase.hitArea = new PIXI.Rectangle(zoneX, zoneY, zoneSize, zoneSize)
+      playerBase.on('pointerdown', () => options.onRoll(false))
+    }
+
+    if (isActivePlayer) {
+      const diceHalf = safeBoardSize * 0.09
+      const diceGap = safeBoardSize * 0.012
+      const diceYOffset = safeBoardSize * 0.09
+      activeDiceAnchor = {
+        x:
+          player.index === 0 || player.index === 3
+            ? zoneX + zoneSize + diceHalf + diceGap
+            : zoneX - diceHalf - diceGap,
+        y:
+          player.index === 0 || player.index === 1
+            ? zoneY + zoneSize / 2 - diceYOffset
+            : zoneY + zoneSize / 2 + diceYOffset,
+      }
+    }
+
+    const finish = finishSlots[player.index]
+    const finishBoxRadius =
+      safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
+    const finishBox = new PIXI.Graphics()
+    finishBox
+      .roundRect(
+        finish[0].x - finishBoxRadius,
+        finish[0].y - finishBoxRadius,
+        finishBoxRadius * 2,
+        finishBoxRadius * 2,
+        12,
+      )
+      .fill({ color: player.color, alpha: 0.08 })
+      .stroke({ color: player.color, width: 1, alpha: 0.24 })
+    board.addChild(finishBox)
+  }
+
+  const hideHandoffDice =
+    (options.turn.diceHandoffHiding || options.turn.isTurnTransitioning) &&
+    !options.dice.isRolling &&
+    options.game.dice === null
+
+  if (!hideHandoffDice) {
+    const center = new PIXI.Container()
+    center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
+    center.eventMode = 'passive'
+    center.cursor = 'default'
+    board.addChild(center)
+
+    const diceSize = safeBoardSize * 0.18
+    const diceValue = options.dice.getDiceDisplayValue()
+    const isIdleDiceState =
+      !options.dice.isRolling && options.game.dice === null
+    const rollingDiceAssetTexture = options.dice.getRollingDiceAssetTexture()
+    const settledDiceAssetTexture =
+      options.dice.getDiceFaceAssetTexture(diceValue)
+    const idleDiceAssetTexture = options.dice.getIdleDiceAssetTexture()
+    const useDiceAssetRender =
+      rollingDiceAssetTexture !== null ||
+      settledDiceAssetTexture !== null ||
+      idleDiceAssetTexture !== null
+
+    const diceGroup = new PIXI.Container()
+    diceGroup.eventMode = canRoll ? 'static' : 'passive'
+    diceGroup.cursor = canRoll ? 'pointer' : 'default'
+    diceGroup.hitArea = new PIXI.Rectangle(
+      -diceSize * 0.95,
+      -diceSize * 0.95,
+      diceSize * 1.9,
+      diceSize * 1.9,
+    )
+    if (canRoll) {
+      diceGroup.on('pointerdown', () => options.onRoll(false))
+    }
+    center.addChild(diceGroup)
+
+    const faceSize = diceSize * 0.72
+
+    if (useDiceAssetRender) {
+      const assetTexture =
+        rollingDiceAssetTexture ??
+        settledDiceAssetTexture ??
+        idleDiceAssetTexture
+      if (assetTexture) {
+        const textureWidth = assetTexture.width || 1
+        const textureHeight = assetTexture.height || 1
+        const fittedHeight = diceSize * 0.98
+        const fittedWidth = Math.max(
+          diceSize * 0.8,
+          (fittedHeight * textureWidth) / textureHeight,
+        )
+
+        const diceSprite = new PIXI.Sprite(assetTexture)
+        diceSprite.anchor.set(0.5)
+        diceSprite.width = fittedWidth
+        diceSprite.height = fittedHeight
+        diceGroup.addChild(diceSprite)
+
+        if (
+          !options.dice.isRolling &&
+          isIdleDiceState &&
+          options.dice.diceIdleTexture
+        ) {
+          const idleFaceBlur = new PIXI.Graphics()
+            .roundRect(
+              -fittedWidth * 0.36,
+              -fittedHeight * 0.36,
+              fittedWidth * 0.72,
+              fittedHeight * 0.72,
+              fittedWidth * 0.12,
+            )
+            .fill({ color: 0xffffff, alpha: 0.3 })
+          diceGroup.addChild(idleFaceBlur)
+
+          const overlayWidth = fittedWidth * 0.8
+          const overlayHeight = fittedHeight * 0.8
+          const overlayCenterY = -overlayHeight * 0.02
+
+          const idleOverlaySprite = new PIXI.Sprite(
+            options.dice.diceIdleTexture,
+          )
+          idleOverlaySprite.anchor.set(0.5)
+          idleOverlaySprite.position.set(0, overlayCenterY)
+          idleOverlaySprite.width = overlayWidth
+          idleOverlaySprite.height = overlayHeight
+          idleOverlaySprite.alpha = 1
+          diceGroup.addChild(idleOverlaySprite)
+        }
+
+        const landingShadowScale =
+          1 +
+          options.dice.diceLandingSquash * 0.45 +
+          (options.dice.isRolling ? 0.06 : 0)
+        const landingShadowOffset =
+          fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08)
+        const shadowAlpha =
+          0.16 +
+          (options.dice.isRolling ? 0.08 : 0.02) +
+          options.dice.diceLandingSquash * 0.14
+        const diceShadow = new PIXI.Graphics()
+          .ellipse(
+            0,
+            landingShadowOffset,
+            fittedWidth * 0.24 * landingShadowScale,
+            fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
+          )
+          .fill({ color: 0x020617, alpha: shadowAlpha })
+        diceGroup.addChildAt(diceShadow, 0)
+
+        if (!options.dice.isRolling && isIdleDiceState) {
+          const promptGlow = new PIXI.Graphics()
+            .roundRect(
+              -faceSize * 0.18,
+              faceSize * 0.09,
+              faceSize * 0.36,
+              faceSize * 0.2,
+              faceSize * 0.08,
+            )
+            .fill({
+              color: 0xffffff,
+              alpha: 0.14 + options.dice.diceIdlePulse * 0.08,
+            })
+          diceGroup.addChild(promptGlow)
+        }
+
+        const settleFlashAlpha =
+          !options.dice.isRolling && !isIdleDiceState
+            ? Math.max(
+                0,
+                Math.min(
+                  0.18,
+                  options.dice.diceLandingSquash * 0.32 +
+                    options.dice.diceLandingLift * 0.004,
+                ),
+              )
+            : 0
+        if (settleFlashAlpha > 0.001) {
+          const settleFlash = new PIXI.Graphics()
+            .roundRect(
+              -fittedWidth * 0.33,
+              -fittedHeight * 0.33,
+              fittedWidth * 0.66,
+              fittedHeight * 0.24,
+              fittedWidth * 0.08,
+            )
+            .fill({ color: 0xffffff, alpha: settleFlashAlpha })
+          diceGroup.addChild(settleFlash)
+        }
+
+        const diceScaleBoost =
+          1 +
+          options.dice.diceIdlePulse * 0.05 +
+          (options.dice.isRolling ? 0.05 : 0)
+        const shakeX =
+          options.dice.diceIdleShake * (options.dice.isRolling ? 4.5 : 3)
+        const shakeY =
+          Math.sin(options.dice.diceIdleShake * Math.PI * 0.5) * 2.2
+        const landingScaleX =
+          1 +
+          options.dice.diceLandingSquash * 0.34 +
+          options.dice.diceResultPop * 0.08
+        const landingScaleY =
+          1 -
+          options.dice.diceLandingSquash * 0.24 +
+          options.dice.diceResultPop * 0.04
+        const landingSettleNudge =
+          !options.dice.isRolling && !isIdleDiceState
+            ? Math.max(0, options.dice.diceLandingSquash * 0.1)
+            : 0
+        const spinScaleX =
+          options.dice.diceSpinScale *
+          diceScaleBoost *
+          (options.dice.isRolling ? options.dice.diceSpinFlip : 1) *
+          landingScaleX
+        const spinScaleY =
+          options.dice.diceSpinScale *
+          diceScaleBoost *
+          (options.dice.isRolling
+            ? 1 + (1 - options.dice.diceSpinFlip) * 0.22
+            : 1) *
+          landingScaleY
+        diceGroup.position.set(
+          shakeX,
+          shakeY -
+            options.dice.diceIdleLift -
+            options.dice.diceLandingLift +
+            landingSettleNudge * fittedHeight * 0.08,
+        )
+        diceGroup.rotation = options.dice.diceSpinRotation
+        diceGroup.scale.set(spinScaleX, spinScaleY)
+      }
+    }
+  }
+
+  if (options.winner) {
+    const banner = new PIXI.Graphics()
+      .roundRect(
+        originX + safeBoardSize * 0.18,
+        originY + safeBoardSize * 0.36,
+        safeBoardSize * 0.64,
+        safeBoardSize * 0.16,
+        24,
+      )
+      .fill({ color: 0x020617, alpha: 0.9 })
+      .stroke({ color: options.winner.color, width: 3, alpha: 0.9 })
+    board.addChild(banner)
+  }
+
+  if (options.move.landingPoint) {
+    const pulse = new PIXI.Graphics()
+      .circle(
+        options.move.landingPoint.x,
+        options.move.landingPoint.y,
+        pieceRadius * 1.25,
+      )
+      .stroke({
+        color: hexToNumber(options.move.landingPoint.color),
+        width: 3,
+        alpha: 0.35,
+      })
+    board.addChild(pulse)
+  }
+
+  if (options.move.replayingPieceId && options.move.movePath.length > 0) {
+    const player = getPlayerByPieceId(
+      options.game,
+      options.move.replayingPieceId,
+    )
+    const piece = player?.pieces.find(
+      (item) => item.id === options.move.replayingPieceId,
+    )
+    if (player && piece) {
+      const startP =
+        options.move.replayingStartProgress != null
+          ? options.move.replayingStartProgress
+          : piece.progress
+      const pathPoints = [
+        resolvePiecePoint(layout, options.boardPreset, player, {
+          progress: startP,
+        }),
+        ...options.move.movePath.map((progress) =>
+          resolvePiecePoint(layout, options.boardPreset, player, { progress }),
+        ),
+      ]
+
+      const trail = new PIXI.Graphics()
+      trail.moveTo(pathPoints[0].x, pathPoints[0].y)
+      for (const point of pathPoints.slice(1)) {
+        trail.lineTo(point.x, point.y)
+      }
+      trail.stroke({ color: player.color, width: 5, alpha: 0.45 })
+      board.addChild(trail)
+
+      const arcLift = Math.max(4, pieceRadius * 0.75)
+      for (let index = 1; index < pathPoints.length; index += 1) {
+        const point = pathPoints[index]
+        const prev = pathPoints[index - 1]
+        const midX = (prev.x + point.x) / 2
+        const midY = (prev.y + point.y) / 2 - arcLift
+        const arcTrail = new PIXI.Graphics()
+        arcTrail.moveTo(prev.x, prev.y)
+        arcTrail.quadraticCurveTo(midX, midY, point.x, point.y)
+        arcTrail.stroke({ color: player.color, width: 4, alpha: 0.28 })
+        board.addChild(arcTrail)
+
+        const marker = new PIXI.Graphics()
+          .circle(point.x, point.y, 8)
+          .fill({ color: 0xffffff, alpha: 0.14 })
+          .stroke({ color: player.color, width: 2, alpha: 0.6 })
+        board.addChild(marker)
+      }
+    }
+  }
+
+  const pieces = options.game.players.flatMap((player) =>
+    player.pieces.map((piece, pieceIndex) => {
+      const location = getPieceLocation(player, piece)
+      let x = originX + safeBoardSize / 2
+      let y = originY + safeBoardSize / 2
+
+      if (location === 'base') {
+        const slot =
+          baseSlots[player.index][pieceIndex] ?? baseSlots[player.index][0]
+        x = slot.x
+        y = slot.y
+      } else if (location === 'track') {
+        const trackIndex = getTrackCellIndex(player, piece)
+        if (trackIndex !== null) {
+          const point = trackPoints[trackIndex]
+          x = point.x
+          y = point.y
+        }
+      } else {
+        const slot =
+          finishSlots[player.index][pieceIndex] ?? finishSlots[player.index][0]
+        x = slot.x
+        y = slot.y
+      }
+
+      if (
+        options.move.landingPoint &&
+        options.move.landingPoint.color === player.color &&
+        piece.progress >= 0
+      ) {
+        const dx = x - options.move.landingPoint.x
+        const dy = y - options.move.landingPoint.y
+        if (Math.hypot(dx, dy) < pieceRadius * 4) {
+          x += dx * 0.08
+          y += dy * 0.08
+        }
+      }
+
+      return { player, piece, pieceIndex, x, y, location }
+    }),
+  )
+
+  for (const pieceInfo of pieces) {
+    const isLegal =
+      options.game.winnerIndex === null &&
+      options.legalPieces.includes(pieceInfo.piece.id)
+    const isMoving =
+      options.move.replayingPieceId === pieceInfo.piece.id &&
+      options.move.movingPoint !== null
+    const movingPosition = options.move.movingPoint
+    const pieceGroup = new PIXI.Container()
+    pieceGroup.position.set(
+      isMoving && movingPosition ? movingPosition.x : pieceInfo.x,
+      isMoving && movingPosition ? movingPosition.y : pieceInfo.y,
+    )
+    pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
+    pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
+
+    if (isLegal && !isMoving) {
+      pieceGroup.on('pointerdown', () => options.onMove(pieceInfo.piece.id))
+    }
+
+    if (isLegal && !isMoving) {
+      const legalGlow = new PIXI.Graphics()
+        .circle(0, 0, pieceRadius + 6)
+        .stroke({
+          color: hexToNumber(pieceInfo.player.color),
+          width: 2,
+          alpha: 0.12 + options.turn.legalPulse * 0.16,
+        })
+      pieceGroup.addChildAt(legalGlow, 0)
+    }
+
+    const tint = hexToNumber(pieceInfo.player.color)
+    const texture = options.getPlayerPieceTexture(pieceInfo.player.index)
+    const trackPieceBodyScale =
+      options.boardPreset.stepsPerSide <= 4
+        ? 5.6
+        : options.boardPreset.stepsPerSide <= 6
+          ? 5.15
+          : 4.85
+    const pieceBodyScale =
+      pieceInfo.location === 'base'
+        ? trackPieceBodyScale + 1.15
+        : trackPieceBodyScale
+    if (texture) {
+      const body = new PIXI.Sprite(texture)
+      body.anchor.set(0.5)
+      body.position.set(0, pieceInfo.location === 'base' ? -3 : -1.5)
+      body.width = pieceRadius * pieceBodyScale
+      body.height = pieceRadius * pieceBodyScale
+      pieceGroup.addChild(body)
+    } else {
+      const body = new PIXI.Graphics()
+        .circle(0, 0, pieceRadius + 5)
+        .fill({ color: tint, alpha: 1 })
+        .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
+      pieceGroup.addChild(body)
+    }
+
+    board.addChild(pieceGroup)
+  }
+
+  return layout
+}
