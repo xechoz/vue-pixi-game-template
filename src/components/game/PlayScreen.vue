@@ -207,7 +207,7 @@ const emit = defineEmits<{
   gap: 10px;
   width: min(100%, 92vw, 88vh);
   padding: 0 4px;
-  margin-top: -136px;
+  margin-top: -236px;
 }
 
 .play-canvas-shell {
@@ -231,8 +231,8 @@ const emit = defineEmits<{
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
-  width: 100%;
-  height: 150vw;
+  width: min(100%, 92vw, 88vh);
+  height: calc(min(100%, 92vw, 88vh) * 1.5);
   max-height: none;
   overflow: visible;
 }
@@ -248,15 +248,15 @@ const emit = defineEmits<{
   }
 
   .canvas-shell {
-    width: min(calc(100dvw - 16px), calc(100dvh - 172px));
-    height: min(calc(100dvw - 16px), calc(100dvh - 172px));
+    width: min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5));
+    height: calc(min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5)) * 1.5);
     min-height: unset;
     max-height: none;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: auto;
   }
 
   .play-actions-bar {
-    margin-top: -40px;
+    margin-top: -140px;
   }
 
   .play-floating-actions {
