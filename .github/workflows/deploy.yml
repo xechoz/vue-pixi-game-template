@@ -37,6 +37,17 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Use workflow Pages source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl --fail --request PUT \
+            --url "https://api.github.com/repos/${{ github.repository }}/pages" \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            --data '{"build_type":"workflow"}'
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
