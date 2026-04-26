@@ -73,6 +73,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let scene: PIXI.Container | null = null
   let pieceTexture: PIXI.Texture | null = null
   let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
+  let diceFaceTextures: Partial<Record<number, PIXI.Texture>> = {}
+  let diceRollTextures: PIXI.Texture[] = []
   let currentLayout: BoardLayout | null = null
 
   const replayingPieceId = ref<string | null>(null)
@@ -80,6 +82,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const movingPoint = ref<{ x: number; y: number } | null>(null)
   const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
   const rollingFace = ref<number>(1)
+  const diceRollFrame = ref(0)
   const diceOrientation = ref<DiceOrientation>({ top: 1, bottom: 6, front: 2, back: 5, right: 3, left: 4 })
   const diceSpinScale = ref(1)
   const diceSpinRotation = ref(0)
@@ -216,6 +219,91 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const g = ((base >> 8) & 0xff) * (1 - clamped) + ((target >> 8) & 0xff) * clamped
     const b = (base & 0xff) * (1 - clamped) + (target & 0xff) * clamped
     return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b)
+  }
+
+  async function loadFirstAvailableTexture(paths: string[]) {
+    for (const path of paths) {
+      try {
+        const loaded = await PIXI.Assets.load(path)
+        if (loaded instanceof PIXI.Texture) return loaded
+        return PIXI.Texture.from(path)
+      } catch {
+        // Try next candidate path.
+      }
+    }
+    return null
+  }
+
+  async function loadDiceFaceAssets() {
+    const textures: Partial<Record<number, PIXI.Texture>> = {}
+    const extensions = ['webp', 'png', 'jpg', 'jpeg', 'svg']
+
+    for (let value = 1; value <= 6; value += 1) {
+      const texture = await loadFirstAvailableTexture(
+        extensions.map((extension) => assetUrl(`dice/faces/${value}.${extension}`)),
+      )
+      if (texture) {
+        textures[value] = texture
+      }
+    }
+
+    return textures
+  }
+
+  async function loadDiceRollManifestFrames() {
+    try {
+      const response = await fetch(assetUrl('dice/roll/manifest.json'))
+      if (!response.ok) return []
+      const manifest = await response.json()
+      const frames = Array.isArray(manifest)
+        ? manifest
+        : Array.isArray(manifest?.frames)
+          ? manifest.frames
+          : []
+      return frames.filter((frame: unknown): frame is string => typeof frame === 'string' && frame.length > 0)
+    } catch {
+      return []
+    }
+  }
+
+  async function loadDiceRollAssets() {
+    const manifestFrames = await loadDiceRollManifestFrames()
+    if (manifestFrames.length > 0) {
+      const textures = await Promise.all(
+        manifestFrames.map(async (frame: string) => loadFirstAvailableTexture([assetUrl(`dice/roll/${frame}`)])),
+      )
+      return textures.filter((texture): texture is PIXI.Texture => texture instanceof PIXI.Texture)
+    }
+
+    for (const extension of ['webp', 'png', 'jpg', 'jpeg']) {
+      const firstFrame = await loadFirstAvailableTexture([assetUrl(`dice/roll/frame-001.${extension}`)])
+      if (!firstFrame) continue
+
+      const textures: PIXI.Texture[] = [firstFrame]
+      for (let index = 2; index <= 48; index += 1) {
+        const frameName = `frame-${String(index).padStart(3, '0')}.${extension}`
+        const texture = await loadFirstAvailableTexture([assetUrl(`dice/roll/${frameName}`)])
+        if (!texture) break
+        textures.push(texture)
+      }
+      return textures
+    }
+
+    return []
+  }
+
+  function getDiceFaceAssetTexture(value: number | null) {
+    if (value === null) return null
+    return diceFaceTextures[value] ?? null
+  }
+
+  function getRollingDiceAssetTexture() {
+    if (!isRolling.value || diceRollTextures.length === 0) return null
+    return diceRollTextures[diceRollFrame.value] ?? diceRollTextures[diceRollTextures.length - 1] ?? null
+  }
+
+  function getIdleDiceAssetTexture() {
+    return getDiceFaceAssetTexture(game.value.dice ?? rollingFace.value ?? 1) ?? getDiceFaceAssetTexture(1)
   }
 
   function getDicePipLayout(value: number) {
@@ -569,6 +657,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
       }
       pieceTexture = playerPieceTextures[0] ?? playerPieceTextures[1] ?? playerPieceTextures[2] ?? playerPieceTextures[3] ?? null
+      const [loadedDiceFaces, loadedDiceRoll] = await Promise.all([loadDiceFaceAssets(), loadDiceRollAssets()])
+      diceFaceTextures = loadedDiceFaces
+      diceRollTextures = loadedDiceRoll
     })()
 
     try {
@@ -862,6 +953,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const diceSize = safeBoardSize * 0.18
     const diceValue = getDiceDisplayValue()
     const orientation = isRolling.value ? diceOrientation.value : createOrientationForFront(diceValue ?? rollingFace.value)
+    const rollingDiceAssetTexture = getRollingDiceAssetTexture()
+    const settledDiceAssetTexture = getDiceFaceAssetTexture(diceValue)
+    const idleDiceAssetTexture = getIdleDiceAssetTexture()
+    const useDiceAssetRender = rollingDiceAssetTexture !== null || settledDiceAssetTexture !== null || idleDiceAssetTexture !== null
 
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
@@ -873,19 +968,57 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     center.addChild(diceGroup)
 
     const faceSize = diceSize * 0.72
-    const depth = diceSize * 0.22
-    const perspectiveYaw = Math.max(0.28, Math.min(1.22, 0.76 + diceSpinYaw.value))
-    const perspectivePitch = Math.max(0.24, Math.min(1.08, 0.58 + diceSpinPitch.value))
-    const skew = depth * (0.52 + perspectiveYaw * 0.78)
-    const liftDepth = depth * (0.52 + perspectivePitch * 0.92)
-    const baseFaceColor = createDiceBackdropTint(orientation.front)
-    const enamelTone = mixHexColor(baseFaceColor, 0xffffff, 0.12)
-    const frontColor = mixHexColor(enamelTone, 0xffffff, 0.1 + perspectivePitch * 0.05)
-    const topColor = mixHexColor(createDiceBackdropTint(orientation.top), 0xffffff, 0.3 + perspectivePitch * 0.1)
-    const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.1 + perspectiveYaw * 0.035)
-    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.22)
-    const pipColor = 0x102033
-    const seamOverlap = faceSize * 0.028
+
+    if (useDiceAssetRender) {
+      const assetTexture = rollingDiceAssetTexture ?? settledDiceAssetTexture ?? idleDiceAssetTexture
+      if (assetTexture) {
+        const diceSprite = new PIXI.Sprite(assetTexture)
+        diceSprite.anchor.set(0.5)
+        const textureWidth = assetTexture.width || 1
+        const textureHeight = assetTexture.height || 1
+        const fittedHeight = diceSize * 0.98
+        const fittedWidth = Math.max(diceSize * 0.8, (fittedHeight * textureWidth) / textureHeight)
+        diceSprite.width = fittedWidth
+        diceSprite.height = fittedHeight
+        diceGroup.addChild(diceSprite)
+
+        const diceShadow = new PIXI.Graphics()
+          .ellipse(0, fittedHeight * 0.36, fittedWidth * 0.28, fittedHeight * 0.1)
+          .fill({ color: 0x020617, alpha: 0.18 + (isRolling.value ? 0.08 : 0) + diceLandingSquash.value * 0.08 })
+        diceGroup.addChildAt(diceShadow, 0)
+
+        if (!isRolling.value && diceValue === null) {
+          const promptGlow = new PIXI.Graphics()
+            .roundRect(-faceSize * 0.16, faceSize * 0.08, faceSize * 0.32, faceSize * 0.22, faceSize * 0.08)
+            .fill({ color: 0xffffff, alpha: 0.18 + diceIdlePulse.value * 0.1 })
+          diceGroup.addChild(promptGlow)
+        }
+
+        const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.05 : 0)
+        const shakeX = diceIdleShake.value * (isRolling.value ? 4.5 : 3)
+        const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
+        const landingScaleX = 1 + diceLandingSquash.value * 0.22
+        const landingScaleY = 1 - diceLandingSquash.value * 0.16
+        const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1) * landingScaleX
+        const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1) * landingScaleY
+        diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value)
+        diceGroup.rotation = diceSpinRotation.value
+        diceGroup.scale.set(spinScaleX, spinScaleY)
+      }
+    } else {
+      const depth = diceSize * 0.22
+      const perspectiveYaw = Math.max(0.28, Math.min(1.22, 0.76 + diceSpinYaw.value))
+      const perspectivePitch = Math.max(0.24, Math.min(1.08, 0.58 + diceSpinPitch.value))
+      const skew = depth * (0.52 + perspectiveYaw * 0.78)
+      const liftDepth = depth * (0.52 + perspectivePitch * 0.92)
+      const baseFaceColor = createDiceBackdropTint(orientation.front)
+      const enamelTone = mixHexColor(baseFaceColor, 0xffffff, 0.12)
+      const frontColor = mixHexColor(enamelTone, 0xffffff, 0.1 + perspectivePitch * 0.05)
+      const topColor = mixHexColor(createDiceBackdropTint(orientation.top), 0xffffff, 0.3 + perspectivePitch * 0.1)
+      const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.1 + perspectiveYaw * 0.035)
+      const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.22)
+      const pipColor = 0x102033
+      const seamOverlap = faceSize * 0.028
 
     const shadowWidth = faceSize * (0.44 + perspectiveYaw * 0.1 + diceLandingSquash.value * 0.12)
     const shadowHeight = faceSize * (0.14 + (1.12 - perspectivePitch) * 0.04 + (isRolling.value ? 0.05 : 0.02))
@@ -1193,6 +1326,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value)
     diceGroup.rotation = diceSpinRotation.value
     diceGroup.scale.set(spinScaleX, spinScaleY)
+    }
 
     if (winner.value) {
       const banner = new PIXI.Graphics()
@@ -1441,6 +1575,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       diceSpinFlip.value = 0.46 + Math.abs(Math.cos(progress * Math.PI * 6.8)) * 0.54
       diceSpinPitch.value = pitchWave * 0.28 * wobbleDecay + 0.08
       diceSpinYaw.value = yawWave * 0.24 * wobbleDecay + 0.04
+      if (diceRollTextures.length > 0) {
+        diceRollFrame.value = Math.min(diceRollTextures.length - 1, Math.floor(progress * diceRollTextures.length))
+      }
       renderScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
@@ -1451,6 +1588,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceSpinFlip.value = 1
         diceSpinPitch.value = 0
         diceSpinYaw.value = 0
+        if (diceRollTextures.length > 0) {
+          diceRollFrame.value = Math.max(0, diceRollTextures.length - 1)
+        }
         diceOrientation.value = createOrientationForFront(rollingFace.value)
         renderScene()
       }
@@ -1503,6 +1643,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     clearTimers()
     isRolling.value = true
     rollingFace.value = Math.floor(Math.random() * 6) + 1
+    diceRollFrame.value = 0
     diceSpinScale.value = 1
     diceSpinPitch.value = 0
     diceSpinYaw.value = 0
