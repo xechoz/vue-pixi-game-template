@@ -94,6 +94,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const diceSpinYaw = ref(0)
   const diceLandingLift = ref(0)
   const diceLandingSquash = ref(0)
+  const diceResultPop = ref(0)
   const diceIdlePulse = ref(0)
   const diceIdleShake = ref(0)
   const diceIdleLift = ref(0)
@@ -148,6 +149,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceSpinYaw.value = 0
     diceLandingLift.value = 0
     diceLandingSquash.value = 0
+    diceResultPop.value = 0
     diceIdlePulse.value = 0
     diceIdleShake.value = 0
     diceIdleLift.value = 0
@@ -1049,8 +1051,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.05 : 0)
         const shakeX = diceIdleShake.value * (isRolling.value ? 4.5 : 3)
         const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
-        const landingScaleX = 1 + diceLandingSquash.value * 0.34
-        const landingScaleY = 1 - diceLandingSquash.value * 0.24
+        const landingScaleX = 1 + diceLandingSquash.value * 0.34 + diceResultPop.value * 0.08
+        const landingScaleY = 1 - diceLandingSquash.value * 0.24 + diceResultPop.value * 0.04
         const landingSettleNudge = !isRolling.value && diceValue !== null ? Math.max(0, diceLandingSquash.value * 0.1) : 0
         const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1) * landingScaleX
         const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1) * landingScaleY
@@ -1582,6 +1584,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const rebound = Math.sin(progress * Math.PI * 2.6) * (1 - progress) * 0.28
       diceLandingLift.value = Math.max(0, bounce * 20 + rebound * 8)
       diceLandingSquash.value = Math.max(0, Math.sin(progress * Math.PI * 1.2) * (1 - progress * 0.58))
+      diceResultPop.value = Math.max(0, Math.sin(progress * Math.PI * 1.35) * (1 - progress * 0.42))
       renderScene()
 
       if (progress < 1) {
@@ -1590,6 +1593,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceLandingFrameId = null
         diceLandingLift.value = 0
         diceLandingSquash.value = 0
+        diceResultPop.value = 0
         renderScene()
       }
     }
