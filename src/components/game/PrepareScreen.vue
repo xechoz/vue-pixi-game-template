@@ -1,12 +1,16 @@
 <script setup lang="ts">
+import { getBoardPreset, type BoardPresetId } from '../../game'
+
 const props = defineProps<{
   mode: 1 | 2 | 3 | 4
   piecesPerPlayer: number
+  boardPresetId: BoardPresetId
 }>()
 
 const emit = defineEmits<{
   (event: 'update:mode', value: 1 | 2 | 3 | 4): void
   (event: 'update:piecesPerPlayer', value: number): void
+  (event: 'update:board-preset-id', value: BoardPresetId): void
   (event: 'start'): void
   (event: 'reset'): void
 }>()
@@ -14,10 +18,10 @@ const emit = defineEmits<{
 const assetBase = import.meta.env.BASE_URL
 
 const playerAvatars = [
-  { src: `${assetBase}player-red.jpg`, alt: '红色玩家头像' },
-  { src: `${assetBase}player-blue.jpg`, alt: '蓝色玩家头像' },
-  { src: `${assetBase}player-green.jpg`, alt: '绿色玩家头像' },
-  { src: `${assetBase}player-yellow.jpg`, alt: '黄色玩家头像' },
+  { src: `${assetBase}player-red.png`, alt: '红色玩家头像' },
+  { src: `${assetBase}player-blue.png`, alt: '蓝色玩家头像' },
+  { src: `${assetBase}player-green.png`, alt: '绿色玩家头像' },
+  { src: `${assetBase}player-yellow.png`, alt: '黄色玩家头像' },
 ]
 
 const modeOptions = [
@@ -50,6 +54,21 @@ const modeOptions = [
     accent: '#f56f7f',
   },
 ]
+
+const boardOptions = [
+  {
+    value: 'tiny-4' as const,
+    title: '极简短局',
+    hint: `${getBoardPreset('tiny-4').stepsPerSide}步/边`,
+    accent: '#ffb347',
+  },
+  {
+    value: 'normal-6' as const,
+    title: '标准路径',
+    hint: `${getBoardPreset('normal-6').stepsPerSide}步/边`,
+    accent: '#5f9cff',
+  },
+]
 </script>
 
 <template>
@@ -75,6 +94,20 @@ const modeOptions = [
       <span class="bg-dot bg-dot-b"></span>
     </div>
     <div class="mode-shell">
+      <div class="board-preset-row">
+        <button
+          v-for="option in boardOptions"
+          :key="option.value"
+          type="button"
+          class="preset-pill"
+          :class="{ active: props.boardPresetId === option.value }"
+          :style="{ '--accent': option.accent }"
+          @click="emit('update:board-preset-id', option.value)"
+        >
+          <strong>{{ option.title }}</strong>
+          <small>{{ option.hint }}</small>
+        </button>
+      </div>
       <div class="mode-grid">
         <button
           v-for="option in modeOptions"
@@ -311,6 +344,49 @@ const modeOptions = [
     0 26px 72px rgba(0, 49, 104, 0.14),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
   backdrop-filter: blur(8px);
+}
+
+.board-preset-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.preset-pill {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 18px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+  text-align: left;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.12)),
+    rgba(255, 255, 255, 0.08);
+  color: #123;
+  box-shadow:
+    0 10px 24px rgba(0, 31, 61, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.46);
+}
+
+.preset-pill strong {
+  font-size: 15px;
+  line-height: 1.1;
+}
+
+.preset-pill small {
+  font-size: 12px;
+  line-height: 1;
+  color: rgba(18, 38, 62, 0.72);
+}
+
+.preset-pill.active {
+  border-color: color-mix(in srgb, var(--accent) 62%, white);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15) inset,
+    0 18px 28px color-mix(in srgb, var(--accent) 16%, rgba(0, 117, 222, 0.1));
+  transform: translateY(-1px);
 }
 
 .mode-grid {
@@ -564,9 +640,9 @@ const modeOptions = [
   height: 72px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid rgba(255, 255, 255, 0.98);
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.16);
-  background: #fff;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
   transform: translate(-50%, -50%);
 }
 
@@ -629,6 +705,11 @@ const modeOptions = [
   .mode-grid {
     grid-template-columns: 1fr 1fr;
     gap: 12px;
+  }
+
+  .board-preset-row {
+    gap: 10px;
+    margin-bottom: 14px;
   }
 
   .mode-shell {

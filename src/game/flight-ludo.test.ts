@@ -28,3 +28,9 @@ test('createGame still marks the first n seats as human-controlled in tiny-4 mod
     [true, true, false, false],
   )
 })
+
+test('createGame accepts a non-default board preset id and stores it in the game state', () => {
+  const game = createGame({ mode: 2, piecesPerPlayer: 2, boardPresetId: 'normal-6' })
+
+  assert.equal(game.boardPresetId, 'normal-6')
+})

@@ -1,4 +1,4 @@
-import { getBoardPreset } from './board-presets.ts'
+import { getBoardPreset, type BoardPresetId } from './board-presets.ts'
 
 const activeBoardPreset = getBoardPreset()
 
@@ -14,6 +14,7 @@ export type PieceLocation = 'base' | 'track' | 'home' | 'finished'
 export interface GameSettings {
   mode: GameMode
   piecesPerPlayer: number
+  boardPresetId?: BoardPresetId
 }
 
 export interface PieceState {
@@ -27,6 +28,7 @@ export interface PlayerMeta {
   color: string
   startIndex: number
   corner: string
+  boardPresetId: BoardPresetId
 }
 
 export interface PlayerState extends PlayerMeta {
@@ -38,6 +40,7 @@ export interface PlayerState extends PlayerMeta {
 export interface GameState {
   mode: GameMode
   piecesPerPlayer: number
+  boardPresetId: BoardPresetId
   players: PlayerState[]
   turnOrder: number[]
   turnPointer: number
@@ -49,10 +52,10 @@ export interface GameState {
 }
 
 export const PLAYER_DEFS: PlayerMeta[] = [
-  { index: 0, name: '红方', color: '#ef4444', startIndex: activeBoardPreset.startIndices[0], corner: '左上' },
-  { index: 1, name: '黄方', color: '#f59e0b', startIndex: activeBoardPreset.startIndices[1], corner: '右上' },
-  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: activeBoardPreset.startIndices[2], corner: '右下' },
-  { index: 3, name: '绿方', color: '#22c55e', startIndex: activeBoardPreset.startIndices[3], corner: '左下' },
+  { index: 0, name: '红方', color: '#ef4444', startIndex: activeBoardPreset.startIndices[0], corner: '左上', boardPresetId: activeBoardPreset.id },
+  { index: 1, name: '黄方', color: '#f59e0b', startIndex: activeBoardPreset.startIndices[1], corner: '右上', boardPresetId: activeBoardPreset.id },
+  { index: 2, name: '蓝方', color: '#3b82f6', startIndex: activeBoardPreset.startIndices[2], corner: '右下', boardPresetId: activeBoardPreset.id },
+  { index: 3, name: '绿方', color: '#22c55e', startIndex: activeBoardPreset.startIndices[3], corner: '左下', boardPresetId: activeBoardPreset.id },
 ]
 
 export const SAFE_CELLS = new Set(activeBoardPreset.safeCells)
@@ -79,10 +82,14 @@ export function getWeightedDiceRoll(trackPieceCount: number, randomValue = Math.
 export function createGame(settings: GameSettings): GameState {
   const mode = settings.mode
   const piecesPerPlayer = clampPiecesPerPlayer(settings.piecesPerPlayer)
+  const boardPresetId = settings.boardPresetId ?? activeBoardPreset.id
+  const boardPreset = getBoardPreset(boardPresetId)
   const turnOrder = getTurnOrder(mode)
 
-  const players = PLAYER_DEFS.map((player) => ({
+  const players = PLAYER_DEFS.map((player, playerIndex) => ({
     ...player,
+    startIndex: boardPreset.startIndices[playerIndex],
+    boardPresetId,
     active: true,
     humanControlled: player.index < mode,
     pieces: Array.from({ length: piecesPerPlayer }, (_, pieceIndex) => ({
@@ -94,6 +101,7 @@ export function createGame(settings: GameSettings): GameState {
   return {
     mode,
     piecesPerPlayer,
+    boardPresetId,
     players,
     turnOrder,
     turnPointer: 0,

@@ -5,10 +5,11 @@ import PrepareScreen from './components/game/PrepareScreen.vue'
 import ResultScreen from './components/game/ResultScreen.vue'
 import PlayScreen from './components/game/PlayScreen.vue'
 import { type AppPage, useFlightLudoPlayScene } from './composables/useFlightLudoPlayScene'
-import { type GameMode } from './game'
+import { type BoardPresetId, type GameMode } from './game'
 
 const mode = ref<GameMode>(1)
 const piecesPerPlayer = ref(4)
+const boardPresetId = ref<BoardPresetId>('tiny-4')
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
 const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
@@ -21,10 +22,12 @@ const {
   goToPrepare,
   setMode,
   setPiecesPerPlayer,
+  setBoardPresetId,
 } = useFlightLudoPlayScene({
   page,
   mode,
   piecesPerPlayer,
+  boardPresetId,
   autoPlayMode,
   playScreenRef,
 })
@@ -36,8 +39,10 @@ const {
       v-if="page === 'prepare'"
       :mode="mode"
       :pieces-per-player="piecesPerPlayer"
+      :board-preset-id="boardPresetId"
       @update:mode="setMode"
       @update:pieces-per-player="setPiecesPerPlayer"
+      @update:board-preset-id="setBoardPresetId"
       @start="startGame"
       @reset="restartGame"
     />

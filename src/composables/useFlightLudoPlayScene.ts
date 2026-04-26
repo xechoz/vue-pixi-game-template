@@ -2,6 +2,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type Ref } 
 import * as PIXI from 'pixi.js'
 
 import {
+  type BoardPresetId,
   type BoardRenderLayout,
   type GameMode,
   type GameState,
@@ -36,6 +37,7 @@ interface UseFlightLudoPlaySceneOptions {
   page: Ref<AppPage>
   mode: Ref<GameMode>
   piecesPerPlayer: Ref<number>
+  boardPresetId: Ref<BoardPresetId>
   autoPlayMode: Ref<boolean>
   playScreenRef: Ref<PlayScreenHost | null>
 }
@@ -72,6 +74,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     createGame({
       mode: options.mode.value,
       piecesPerPlayer: options.piecesPerPlayer.value,
+      boardPresetId: options.boardPresetId.value,
     }),
   )
   const boardRenderLayout: BoardRenderLayout = getBoardRenderLayout()
@@ -1871,6 +1874,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     game.value = createGame({
       mode: options.mode.value,
       piecesPerPlayer: clampPiecesPerPlayer(options.piecesPerPlayer.value),
+      boardPresetId: options.boardPresetId.value,
     })
     clearMovePreview()
     clearTimers()
@@ -1916,6 +1920,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     options.piecesPerPlayer.value = nextCount
   }
 
+  function setBoardPresetId(nextBoardPresetId: BoardPresetId) {
+    options.boardPresetId.value = nextBoardPresetId
+  }
+
   function cleanupPixi() {
     clearTimers()
     stopBackgroundMusic()
@@ -1928,7 +1936,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     audioCtx = null
   }
 
-  watch([options.mode, options.piecesPerPlayer], restartGame)
+  watch([options.mode, options.piecesPerPlayer, options.boardPresetId], restartGame)
 
   watch(
     () => [game.value.currentPlayerIndex, game.value.dice, game.value.winnerIndex, options.autoPlayMode.value] as const,
@@ -1984,5 +1992,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     goToPrepare,
     setMode,
     setPiecesPerPlayer,
+    setBoardPresetId,
   }
 }
