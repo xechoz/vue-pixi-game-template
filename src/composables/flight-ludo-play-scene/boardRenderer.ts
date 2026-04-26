@@ -131,6 +131,44 @@ function getPaddedPointBounds(points: Point[], padding: number) {
   }
 }
 
+function drawDottedPolyline(
+  graphics: PIXI.Graphics,
+  points: Point[],
+  options: {
+    color: number
+    alpha: number
+    dotRadius: number
+    dotSpacing: number
+    closed?: boolean
+  },
+) {
+  if (points.length === 0) return
+
+  const drawDot = (x: number, y: number) => {
+    graphics.circle(x, y, options.dotRadius).fill({
+      color: options.color,
+      alpha: options.alpha,
+    })
+  }
+
+  drawDot(points[0].x, points[0].y)
+
+  const segmentCount = options.closed ? points.length : points.length - 1
+  for (let index = 0; index < segmentCount; index += 1) {
+    const from = points[index]
+    const to = points[(index + 1) % points.length]
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    const distance = Math.hypot(dx, dy)
+    const steps = Math.max(1, Math.floor(distance / options.dotSpacing))
+
+    for (let step = 1; step <= steps; step += 1) {
+      const t = step / steps
+      drawDot(from.x + dx * t, from.y + dy * t)
+    }
+  }
+}
+
 export function renderPlayScene(options: RenderPlaySceneOptions) {
   const removable = options.scene.removeChildren()
   for (const child of removable) {
@@ -203,6 +241,22 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     board.addChild(cell)
   }
 
+  for (const player of options.game.players) {
+    const trackGuide = new PIXI.Graphics()
+    const sideStart = player.index * options.boardPreset.stepsPerSide
+    const sidePoints = trackPoints.slice(
+      sideStart,
+      sideStart + options.boardPreset.stepsPerSide,
+    )
+    drawDottedPolyline(trackGuide, sidePoints, {
+      color: hexToNumber(player.color),
+      alpha: 0.32,
+      dotRadius: Math.max(2, trackSize * 0.08),
+      dotSpacing: trackSize * 0.7,
+    })
+    board.addChild(trackGuide)
+  }
+
   const canRoll =
     options.game.winnerIndex === null &&
     options.game.dice === null &&
@@ -263,6 +317,15 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }
 
     const finish = finishSlots[player.index]
+    const finishGuide = new PIXI.Graphics()
+    drawDottedPolyline(finishGuide, finish, {
+      color: hexToNumber(player.color),
+      alpha: 0.35,
+      dotRadius: Math.max(2, trackSize * 0.09),
+      dotSpacing: trackSize * 0.65,
+    })
+    board.addChild(finishGuide)
+
     const finishBoxRadius =
       safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
     const finishBox = new PIXI.Graphics()
