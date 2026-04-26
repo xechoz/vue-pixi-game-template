@@ -1072,17 +1072,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceGroup.addChild(frontGlazeTail)
 
 
-    const topFrontSeam = new PIXI.Graphics()
-      .roundRect(
-        -faceSize / 2 + faceSize * 0.036,
-        -faceSize / 2 + frontFaceInset - seamOverlap * 0.82,
-        faceSize * 0.95,
-        faceSize * 0.056,
-        faceSize * 0.032,
-      )
-      .fill({ color: 0xffffff, alpha: 0.032 })
-    diceGroup.addChild(topFrontSeam)
-
     const frontRightSeam = new PIXI.Graphics()
       .roundRect(
         faceSize / 2 - seamOverlap,
