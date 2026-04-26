@@ -14,7 +14,6 @@ defineExpose({ canvasEl })
 
 const emit = defineEmits<{
   (event: 'back'): void
-  (event: 'restart'): void
   (event: 'update:board-preset-id', value: BoardPresetId): void
 }>()
 
@@ -67,26 +66,25 @@ const difficultyOptions = [
     </div>
     <div class="grid play-grid">
       <div class="play-topbar">
-        <div class="play-actions-bar">
+        <div class="play-actions-stack">
           <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
-          <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
-        </div>
-        <div class="board-preset-row" aria-label="难度模式">
-          <button
-            v-for="option in difficultyOptions"
-            :key="option.value"
-            type="button"
-            class="preset-pill"
-            :class="{ active: props.boardPresetId === option.value }"
-            :style="{
-              '--accent': option.accent,
-              '--preset-image': `url(${option.image})`,
-            }"
-            :aria-label="option.title"
-            @click="emit('update:board-preset-id', option.value)"
-          >
-            <span class="sr-only">{{ option.title }}</span>
-          </button>
+          <div class="board-preset-row" aria-label="难度模式">
+            <button
+              v-for="option in difficultyOptions"
+              :key="option.value"
+              type="button"
+              class="preset-pill"
+              :class="{ active: props.boardPresetId === option.value }"
+              :style="{
+                '--accent': option.accent,
+                '--preset-image': `url(${option.image})`,
+              }"
+              :aria-label="option.title"
+              @click="emit('update:board-preset-id', option.value)"
+            >
+              <span class="sr-only">{{ option.title }}</span>
+            </button>
+          </div>
         </div>
       </div>
       <div class="play-stage">
@@ -125,15 +123,22 @@ const difficultyOptions = [
 }
 
 .play-topbar {
-  position: fixed;
-  top: 100px;
+  position: absolute;
   left: 50%;
+  top: calc(50% - (var(--play-canvas-width) * 0.75) - 118px);
+  width: var(--play-canvas-width);
   transform: translateX(-50%);
-  display: grid;
-  gap: 12px;
-  width: min(100%, 92vw, 88vh);
-  padding: 0 4px;
   z-index: 3;
+  pointer-events: none;
+}
+
+.play-actions-stack {
+  display: grid;
+  justify-items: start;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  pointer-events: auto;
 }
 
 .play-stage {
@@ -273,41 +278,46 @@ const difficultyOptions = [
   bottom: 24%;
 }
 
-.play-actions-bar {
-  display: flex;
-  justify-content: space-between;
+.play-actions-stack {
+  display: grid;
+  justify-items: start;
+  align-items: flex-start;
   gap: 10px;
   width: 100%;
+  pointer-events: auto;
 }
 
 .board-preset-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, 50px);
+  grid-auto-rows: 50px;
+  gap: 8px;
 }
 
 .preset-pill {
   position: relative;
-  min-height: 92px;
+  width: 50px;
+  height: 50px;
+  min-height: 50px;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 22px;
+  border-radius: 14px;
   padding: 0;
   overflow: hidden;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04)),
     rgba(255, 255, 255, 0.08);
   box-shadow:
-    0 12px 28px rgba(0, 31, 61, 0.12),
+    0 8px 18px rgba(0, 31, 61, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
 .preset-pill::before {
   content: '';
   position: absolute;
-  inset: 8px;
-  border-radius: 18px;
+  inset: 4px;
+  border-radius: 10px;
   background:
-    linear-gradient(180deg, rgba(6, 18, 36, 0.1), rgba(6, 18, 36, 0.18)),
+    linear-gradient(180deg, rgba(6, 18, 36, 0.08), rgba(6, 18, 36, 0.16)),
     var(--preset-image) center center / cover no-repeat;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
@@ -315,10 +325,10 @@ const difficultyOptions = [
 .preset-pill::after {
   content: '';
   position: absolute;
-  inset: 8px;
-  border-radius: 18px;
+  inset: 4px;
+  border-radius: 10px;
   background:
-    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.28), transparent 30%),
+    radial-gradient(circle at 50% 22%, rgba(255, 255, 255, 0.24), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 55%);
   pointer-events: none;
 }
@@ -327,7 +337,7 @@ const difficultyOptions = [
   border-color: color-mix(in srgb, var(--accent) 62%, white);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.15) inset,
-    0 18px 28px color-mix(in srgb, var(--accent) 16%, rgba(0, 117, 222, 0.1));
+    0 10px 18px color-mix(in srgb, var(--accent) 16%, rgba(0, 117, 222, 0.1));
   transform: translateY(-1px);
 }
 
@@ -390,29 +400,31 @@ const difficultyOptions = [
     --play-canvas-width: min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5));
   }
 
+  .play-topbar {
+    top: calc(50% - (var(--play-canvas-width) * 0.75) - 94px);
+  }
+
   .canvas-shell {
     min-height: unset;
     max-height: none;
     aspect-ratio: auto;
   }
 
-  .play-actions-bar {
-    width: 100%;
-  }
-
   .board-preset-row {
-    gap: 10px;
+    gap: 6px;
   }
 
   .preset-pill {
-    min-height: 78px;
-    border-radius: 18px;
+    width: 50px;
+    height: 50px;
+    min-height: 50px;
+    border-radius: 14px;
   }
 
   .preset-pill::before,
   .preset-pill::after {
-    inset: 6px;
-    border-radius: 14px;
+    inset: 4px;
+    border-radius: 10px;
   }
 
   .play-floating-actions {

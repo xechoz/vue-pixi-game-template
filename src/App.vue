@@ -16,7 +16,6 @@ const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
 
 const {
   winner,
-  restartGame,
   startGame,
   replayGame,
   goToPrepare,
@@ -42,7 +41,6 @@ const {
       @update:mode="setMode"
       @update:pieces-per-player="setPiecesPerPlayer"
       @start="startGame"
-      @reset="restartGame"
     />
 
     <PlayScreen
@@ -50,7 +48,6 @@ const {
       ref="playScreenRef"
       :board-preset-id="boardPresetId"
       @back="goToPrepare"
-      @restart="restartGame"
       @update:board-preset-id="setBoardPresetId"
     />
 
