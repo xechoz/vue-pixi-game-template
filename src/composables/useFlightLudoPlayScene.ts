@@ -825,13 +825,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       .stroke({ color: hexToNumber(currentPlayer.value.color), width: 5, alpha: isRolling.value ? 0.42 : 0.22 })
     board.addChild(currentPlayerGlow)
 
-    if (isRolling.value) {
-      const pulse = new PIXI.Graphics()
-        .circle(centerX, centerY, safeBoardSize * 0.26)
-        .stroke({ color: hexToNumber(currentPlayer.value.color), width: 4, alpha: 0.22 })
-      board.addChild(pulse)
-    }
-
 
     const homes = new PIXI.Graphics()
     homes
