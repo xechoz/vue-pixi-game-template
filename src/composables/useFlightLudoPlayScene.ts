@@ -6,16 +6,12 @@ import {
   type BoardRenderLayout,
   type GameMode,
   type GameState,
-  FINISH_STEP,
-  HOME_STEPS,
-  PLAYER_DEFS,
-  TRACK_LENGTH,
-  TRACK_STEPS_PER_SIDE,
   advanceTurn,
   buildMoveTrajectory,
   chooseAutoMovePieceId,
   clampPiecesPerPlayer,
   createGame,
+  getBoardPreset,
   getBoardRenderLayout,
   getCurrentPlayer,
   getLegalPieceIds,
@@ -77,7 +73,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       boardPresetId: options.boardPresetId.value,
     }),
   )
-  const boardRenderLayout: BoardRenderLayout = getBoardRenderLayout()
+  const boardPreset = computed(() => getBoardPreset(game.value.boardPresetId))
+  const boardRenderLayout = computed<BoardRenderLayout>(() => getBoardRenderLayout(game.value.boardPresetId))
 
   let app: PIXI.Application | null = null
   let scene: PIXI.Container | null = null
@@ -583,6 +580,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     player: { index: number; startIndex: number },
     piece: { progress: number },
   ) {
+    const activeBoardPreset = boardPreset.value
+    const finishStep = activeBoardPreset.trackLength + activeBoardPreset.homeSteps
+
     const centerX = layout.trackPoints[0]?.x ?? 0
     const centerY = layout.trackPoints[0]?.y ?? 0
 
@@ -590,17 +590,17 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
     }
 
-    if (piece.progress < TRACK_LENGTH) {
-      const trackIndex = (player.startIndex + piece.progress) % TRACK_LENGTH
+    if (piece.progress < activeBoardPreset.trackLength) {
+      const trackIndex = (player.startIndex + piece.progress) % activeBoardPreset.trackLength
       return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
     }
 
-    if (piece.progress < FINISH_STEP) {
-      const laneIndex = piece.progress - TRACK_LENGTH
+    if (piece.progress < finishStep) {
+      const laneIndex = piece.progress - activeBoardPreset.trackLength
       return layout.finishSlots[player.index]?.[laneIndex] ?? { x: centerX, y: centerY }
     }
 
-    return layout.finishSlots[player.index]?.[HOME_STEPS - 1] ?? { x: centerX, y: centerY }
+    return layout.finishSlots[player.index]?.[activeBoardPreset.homeSteps - 1] ?? { x: centerX, y: centerY }
   }
 
   function buildPiecePath(
@@ -609,6 +609,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     piece: { progress: number },
     dice: number,
   ) {
+    const activeBoardPreset = boardPreset.value
+    const finishStep = activeBoardPreset.trackLength + activeBoardPreset.homeSteps
     const path: Array<{ x: number; y: number }> = []
     let progress = piece.progress
 
@@ -618,7 +620,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return path
     }
 
-    const target = Math.min(progress + dice, FINISH_STEP)
+    const target = Math.min(progress + dice, finishStep)
     while (progress < target) {
       progress += 1
       path.push(resolvePiecePoint(layout, player, { progress }))
@@ -822,7 +824,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const board = new PIXI.Container()
     scene.addChild(board)
 
-    const boardInset = safeBoardSize * boardRenderLayout.trackInsetRatio
+    const activeBoardPreset = boardPreset.value
+    const activeBoardRenderLayout = boardRenderLayout.value
+    const boardInset = safeBoardSize * activeBoardRenderLayout.trackInsetRatio
     const innerLeft = originX + boardInset
     const innerTop = originY + boardInset
     const innerRight = originX + safeBoardSize - boardInset
@@ -846,15 +850,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     board.addChild(homes)
 
     const buildTrackPoints = (originXValue: number, originYValue: number, size: number) => {
-      const left = originXValue + size * boardRenderLayout.trackInsetRatio
-      const right = originXValue + size * (1 - boardRenderLayout.trackInsetRatio)
-      const top = originYValue + size * boardRenderLayout.trackInsetRatio
-      const bottom = originYValue + size * (1 - boardRenderLayout.trackInsetRatio)
+      const left = originXValue + size * activeBoardRenderLayout.trackInsetRatio
+      const right = originXValue + size * (1 - activeBoardRenderLayout.trackInsetRatio)
+      const top = originYValue + size * activeBoardRenderLayout.trackInsetRatio
+      const bottom = originYValue + size * (1 - activeBoardRenderLayout.trackInsetRatio)
 
-      return Array.from({ length: TRACK_LENGTH }, (_, index) => {
-        const side = Math.floor(index / TRACK_STEPS_PER_SIDE)
-        const localIndex = index % TRACK_STEPS_PER_SIDE
-        const local = TRACK_STEPS_PER_SIDE <= 1 ? 0 : localIndex / (TRACK_STEPS_PER_SIDE - 1)
+      return Array.from({ length: activeBoardPreset.trackLength }, (_, index) => {
+        const side = Math.floor(index / activeBoardPreset.stepsPerSide)
+        const localIndex = index % activeBoardPreset.stepsPerSide
+        const local = activeBoardPreset.stepsPerSide <= 1 ? 0 : localIndex / (activeBoardPreset.stepsPerSide - 1)
 
         if (side === 0) return { x: lerp(left, right, local), y: top }
         if (side === 1) return { x: right, y: lerp(top, bottom, local) }
@@ -864,8 +868,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     const buildBaseSlots = (originXValue: number, originYValue: number, size: number) => {
-      const zoneSize = size * boardRenderLayout.baseZoneSizeRatio
-      const spread = zoneSize * boardRenderLayout.baseSlotSpreadRatio
+      const zoneSize = size * activeBoardRenderLayout.baseZoneSizeRatio
+      const spread = zoneSize * activeBoardRenderLayout.baseSlotSpreadRatio
 
       const zones = [
         { x: originXValue - zoneSize * 0.66, y: originYValue - zoneSize * 0.66 },
@@ -889,8 +893,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const buildFinishSlots = (originXValue: number, originYValue: number, size: number) => {
       const centerXValue = originXValue + size / 2
       const centerYValue = originYValue + size / 2
-      const offset = size * boardRenderLayout.finishOffsetRatio
-      const gap = size * boardRenderLayout.finishGapRatio
+      const offset = size * activeBoardRenderLayout.finishOffsetRatio
+      const gap = size * activeBoardRenderLayout.finishGapRatio
 
       const corners = [
         { x: centerXValue - offset, y: centerYValue - offset },
@@ -902,7 +906,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       return corners.map((corner, index) => {
         const xDir = index === 0 || index === 3 ? -1 : 1
         const yDir = index === 0 || index === 1 ? -1 : 1
-        return Array.from({ length: HOME_STEPS }, (_, laneIndex) => ({
+        return Array.from({ length: activeBoardPreset.homeSteps }, (_, laneIndex) => ({
           x: corner.x + xDir * gap * laneIndex,
           y: corner.y + yDir * gap * laneIndex,
         }))
@@ -919,10 +923,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     for (let index = 0; index < trackPoints.length; index += 1) {
       const point = trackPoints[index]
       const cell = new PIXI.Graphics()
-      const playerIndex = Math.floor(index / TRACK_STEPS_PER_SIDE) % PLAYER_DEFS.length
+      const playerIndex = Math.floor(index / activeBoardPreset.stepsPerSide) % game.value.players.length
       const activeColor = game.value.players[playerIndex].color
-      const isStartCell = index % TRACK_STEPS_PER_SIDE === 0
-      const isSafeTrackCell = isSafeCell(index)
+      const isStartCell = index % activeBoardPreset.stepsPerSide === 0
+      const isSafeTrackCell = isSafeCell(index, game.value.boardPresetId)
       cell
         .roundRect(point.x - trackSize / 2, point.y - trackSize / 2, trackSize, trackSize, 9)
         .fill({ color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0, alpha: isSafeTrackCell ? 0.16 : 0.07 })
@@ -934,8 +938,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     for (const player of game.value.players) {
       const playerBase = new PIXI.Graphics()
-      const zoneSize = safeBoardSize * boardRenderLayout.baseZoneSizeRatio
-      const zonePadding = safeBoardSize * boardRenderLayout.baseZonePaddingRatio
+      const zoneSize = safeBoardSize * activeBoardRenderLayout.baseZoneSizeRatio
+      const zonePadding = safeBoardSize * activeBoardRenderLayout.baseZonePaddingRatio
       const zoneX = player.index === 0 || player.index === 3 ? originX + zonePadding : originX + safeBoardSize - zonePadding - zoneSize
       const zoneY = player.index === 0 || player.index === 1 ? originY + zonePadding : originY + safeBoardSize - zonePadding - zoneSize
 
@@ -970,7 +974,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       }
 
       const finish = finishSlots[player.index]
-      const finishBoxRadius = safeBoardSize * boardRenderLayout.finishBoxSizeRatio
+      const finishBoxRadius = safeBoardSize * activeBoardRenderLayout.finishBoxSizeRatio
       const finishBox = new PIXI.Graphics()
       finishBox
         .roundRect(

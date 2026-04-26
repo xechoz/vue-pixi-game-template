@@ -8,6 +8,8 @@ import {
   SAFE_CELLS,
   TRACK_LENGTH,
   createGame,
+  getPieceLabel,
+  getTrackCellIndex,
 } from './flight-ludo.ts'
 
 test('tiny-4 board preset uses a 16-cell track with 2 home steps and no flight jumps', () => {
@@ -33,4 +35,19 @@ test('createGame accepts a non-default board preset id and stores it in the game
   const game = createGame({ mode: 2, piecesPerPlayer: 2, boardPresetId: 'normal-6' })
 
   assert.equal(game.boardPresetId, 'normal-6')
+})
+
+test('normal-6 game logic uses the selected difficulty mode instead of tiny-4 defaults', () => {
+  const game = createGame({ mode: 2, piecesPerPlayer: 2, boardPresetId: 'normal-6' })
+  const player = game.players[0]!
+  const piece = player.pieces[0]!
+
+  piece.progress = 17
+  assert.equal(getTrackCellIndex(player, piece), 17)
+
+  piece.progress = 23
+  assert.equal(getTrackCellIndex(player, piece), 23)
+
+  piece.progress = 24
+  assert.equal(getPieceLabel(piece, game.boardPresetId), '内圈 1/4')
 })

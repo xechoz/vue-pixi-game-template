@@ -55,16 +55,16 @@ const modeOptions = [
   },
 ]
 
-const boardOptions = [
+const difficultyOptions = [
   {
     value: 'tiny-4' as const,
-    title: '极简短局',
+    title: '快速模式',
     hint: `${getBoardPreset('tiny-4').stepsPerSide}步/边`,
     accent: '#ffb347',
   },
   {
     value: 'normal-6' as const,
-    title: '标准路径',
+    title: '标准模式',
     hint: `${getBoardPreset('normal-6').stepsPerSide}步/边`,
     accent: '#5f9cff',
   },
@@ -94,9 +94,9 @@ const boardOptions = [
       <span class="bg-dot bg-dot-b"></span>
     </div>
     <div class="mode-shell">
-      <div class="board-preset-row">
+      <div class="board-preset-row" aria-label="难度模式">
         <button
-          v-for="option in boardOptions"
+          v-for="option in difficultyOptions"
           :key="option.value"
           type="button"
           class="preset-pill"
