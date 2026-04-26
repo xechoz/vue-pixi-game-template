@@ -1507,26 +1507,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         pieceGroup.on('pointerdown', () => handleMove(pieceInfo.piece.id))
       }
 
-      const legalRing = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 11)
-        .stroke({ color: 0xffffff, width: 2, alpha: isLegal ? 0.22 + legalPulse.value * 0.3 : 0.04 })
-      pieceGroup.addChildAt(legalRing, 0)
-
       if (isLegal && !isMoving) {
         const legalGlow = new PIXI.Graphics()
-          .circle(0, 0, pieceRadius + 15)
-          .stroke({ color: hexToNumber(pieceInfo.player.color), width: 4, alpha: 0.15 + legalPulse.value * 0.35 })
+          .circle(0, 0, pieceRadius + 8)
+          .stroke({ color: hexToNumber(pieceInfo.player.color), width: 2.5, alpha: 0.18 + legalPulse.value * 0.22 })
         pieceGroup.addChildAt(legalGlow, 0)
       }
 
-      const shadow = new PIXI.Graphics()
-        .ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)
-        .fill({ color: 0x020617, alpha: 0.26 })
-      pieceGroup.addChild(shadow)
-
       const tint = hexToNumber(pieceInfo.player.color)
       const texture = getPlayerPieceTexture(pieceInfo.player.index)
-      const pieceBodyScale = pieceInfo.location === 'base' ? 6.1 : 4.9
+      const pieceBodyScale = pieceInfo.location === 'base' ? 6.5 : 4.5
       if (texture) {
         const body = new PIXI.Sprite(texture)
         body.anchor.set(0.5)
