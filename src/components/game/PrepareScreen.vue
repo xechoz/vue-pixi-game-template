@@ -387,7 +387,7 @@ const difficultyOptions = [
   border-radius: 18px;
   background:
     linear-gradient(180deg, rgba(6, 18, 36, 0.1), rgba(6, 18, 36, 0.18)),
-    var(--preset-image) center/contain no-repeat;
+    var(--preset-image) center center / cover no-repeat;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
