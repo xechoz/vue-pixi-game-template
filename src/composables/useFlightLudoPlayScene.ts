@@ -84,6 +84,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const diceSpinScale = ref(1)
   const diceSpinRotation = ref(0)
   const diceSpinFlip = ref(1)
+  const diceLandingLift = ref(0)
+  const diceLandingSquash = ref(0)
   const diceIdlePulse = ref(0)
   const diceIdleShake = ref(0)
   const diceIdleLift = ref(0)
@@ -93,6 +95,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
   let rollTimer: number | null = null
   let rollFrameId: number | null = null
+  let diceLandingFrameId: number | null = null
   let diceIdleFrameId: number | null = null
   let diceIdleLastRender = 0
   let turnAccentFrameId: number | null = null
@@ -126,9 +129,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       window.cancelAnimationFrame(diceIdleFrameId)
       diceIdleFrameId = null
     }
+    if (diceLandingFrameId !== null) {
+      window.cancelAnimationFrame(diceLandingFrameId)
+      diceLandingFrameId = null
+    }
     diceIdleLastRender = 0
     diceSpinRotation.value = 0
     diceSpinFlip.value = 1
+    diceLandingLift.value = 0
+    diceLandingSquash.value = 0
     diceIdlePulse.value = 0
     diceIdleShake.value = 0
     diceIdleLift.value = 0
@@ -147,6 +156,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (diceIdleFrameId !== null) {
       window.cancelAnimationFrame(diceIdleFrameId)
       diceIdleFrameId = null
+    }
+    if (diceLandingFrameId !== null) {
+      window.cancelAnimationFrame(diceLandingFrameId)
+      diceLandingFrameId = null
     }
     if (autoTimer !== null) {
       window.clearTimeout(autoTimer)
@@ -266,8 +279,55 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
     graphic.lineTo(points[0] ?? 0, points[1] ?? 0)
     graphic.fill({ color: fillColor, alpha })
-    graphic.stroke({ color: strokeColor, width: 1, alpha: 0.14 })
+    graphic.stroke({ color: strokeColor, width: 0.8, alpha: 0.1 })
     return graphic
+  }
+
+  function projectFacePoint(
+    corners: Array<{ x: number; y: number }>,
+    u: number,
+    v: number,
+  ) {
+    const topLeft = corners[0]
+    const topRight = corners[1]
+    const bottomLeft = corners[2]
+    const bottomRight = corners[3]
+
+    const topX = topLeft.x + (topRight.x - topLeft.x) * u
+    const topY = topLeft.y + (topRight.y - topLeft.y) * u
+    const bottomX = bottomLeft.x + (bottomRight.x - bottomLeft.x) * u
+    const bottomY = bottomLeft.y + (bottomRight.y - bottomLeft.y) * u
+
+    return {
+      x: topX + (bottomX - topX) * v,
+      y: topY + (bottomY - topY) * v,
+    }
+  }
+
+  function drawProjectedPips(
+    container: PIXI.Container,
+    corners: Array<{ x: number; y: number }>,
+    value: number,
+    radius: number,
+    color: number,
+    alpha: number,
+    highlightAlpha = 0,
+  ) {
+    const pipLayout = getDicePipLayout(value)
+    for (const [u, v] of pipLayout) {
+      const point = projectFacePoint(corners, u, v)
+      if (highlightAlpha > 0) {
+        const pipHighlight = new PIXI.Graphics()
+          .circle(point.x + radius * 0.24, point.y - radius * 0.24, radius * 1.04)
+          .fill({ color: 0xffffff, alpha: highlightAlpha })
+        container.addChild(pipHighlight)
+      }
+
+      const pip = new PIXI.Graphics()
+        .circle(point.x, point.y, radius)
+        .fill({ color, alpha })
+      container.addChild(pip)
+    }
   }
 
   function ensureAudioContext() {
@@ -773,79 +833,108 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       .fill({ color: 0x020617, alpha: 0.18 + (isRolling.value ? 0.08 : 0) })
     diceGroup.addChild(shadow)
 
-    const topFace = createPolygon(
-      [
-        -faceSize / 2,
-        -faceSize / 2,
-        faceSize / 2,
-        -faceSize / 2,
-        faceSize / 2 + skew,
-        -faceSize / 2 - depth,
-        -faceSize / 2 + skew,
-        -faceSize / 2 - depth,
-      ],
-      topColor,
-      strokeColor,
-      0.98,
-    )
+    const topFacePoints = [
+      -faceSize / 2,
+      -faceSize / 2,
+      faceSize / 2,
+      -faceSize / 2,
+      faceSize / 2 + skew,
+      -faceSize / 2 - depth,
+      -faceSize / 2 + skew,
+      -faceSize / 2 - depth,
+    ]
+    const topFace = createPolygon(topFacePoints, topColor, strokeColor, 0.98)
     diceGroup.addChild(topFace)
 
-    const sideFace = createPolygon(
-      [
-        faceSize / 2,
-        -faceSize / 2,
-        faceSize / 2,
-        faceSize / 2,
-        faceSize / 2 + skew,
-        faceSize / 2 - depth,
-        faceSize / 2 + skew,
-        -faceSize / 2 - depth,
-      ],
-      sideColor,
-      strokeColor,
-      0.98,
-    )
+    const sideFacePoints = [
+      faceSize / 2,
+      -faceSize / 2,
+      faceSize / 2,
+      faceSize / 2,
+      faceSize / 2 + skew,
+      faceSize / 2 - depth,
+      faceSize / 2 + skew,
+      -faceSize / 2 - depth,
+    ]
+    const sideFace = createPolygon(sideFacePoints, sideColor, strokeColor, 0.98)
     diceGroup.addChild(sideFace)
 
     const frontFace = new PIXI.Graphics()
       .roundRect(-faceSize / 2, -faceSize / 2, faceSize, faceSize, faceSize * 0.16)
       .fill({ color: frontColor, alpha: 0.98 })
-      .stroke({ color: strokeColor, width: 2.5, alpha: 0.95 })
+      .stroke({ color: strokeColor, width: 1.15, alpha: 0.22 })
     diceGroup.addChild(frontFace)
+
+    const topFaceHighlight = createPolygon(
+      [
+        -faceSize / 2 + faceSize * 0.1,
+        -faceSize / 2 - depth * 0.04,
+        faceSize / 2 - faceSize * 0.22,
+        -faceSize / 2 - depth * 0.04,
+        faceSize / 2 + skew * 0.48,
+        -faceSize / 2 - depth * 0.62,
+        -faceSize / 2 + skew * 0.42,
+        -faceSize / 2 - depth * 0.62,
+      ],
+      0xffffff,
+      0xffffff,
+      0.08,
+    )
+    diceGroup.addChild(topFaceHighlight)
 
     const faceHighlight = new PIXI.Graphics()
       .roundRect(-faceSize / 2 + 4, -faceSize / 2 + 4, faceSize * 0.72, faceSize * 0.18, faceSize * 0.09)
       .fill({ color: 0xffffff, alpha: 0.16 })
     diceGroup.addChild(faceHighlight)
 
-    const topPipLayout = getDicePipLayout(orientation.top)
-    for (const [x, y] of topPipLayout.slice(0, 4)) {
-      const pip = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.72 + skew * 0.28, (y - 0.5) * faceSize * 0.34 - depth * 0.86, faceSize * 0.04)
-        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.24), alpha: 0.34 })
-      diceGroup.addChild(pip)
-    }
+    const topCorners = [
+      { x: -faceSize / 2, y: -faceSize / 2 },
+      { x: faceSize / 2, y: -faceSize / 2 },
+      { x: -faceSize / 2 + skew, y: -faceSize / 2 - depth },
+      { x: faceSize / 2 + skew, y: -faceSize / 2 - depth },
+    ]
+    const rightCorners = [
+      { x: faceSize / 2, y: -faceSize / 2 },
+      { x: faceSize / 2 + skew, y: -faceSize / 2 - depth },
+      { x: faceSize / 2, y: faceSize / 2 },
+      { x: faceSize / 2 + skew, y: faceSize / 2 - depth },
+    ]
+    const frontCorners = [
+      { x: -faceSize / 2, y: -faceSize / 2 },
+      { x: faceSize / 2, y: -faceSize / 2 },
+      { x: -faceSize / 2, y: faceSize / 2 },
+      { x: faceSize / 2, y: faceSize / 2 },
+    ]
 
-    const rightPipLayout = getDicePipLayout(orientation.right)
-    for (const [x, y] of rightPipLayout.slice(0, 4)) {
-      const pip = new PIXI.Graphics()
-        .circle(faceSize / 2 + skew * 0.42, (y - 0.5) * faceSize * 0.58 - depth * 0.36 + (x - 0.5) * faceSize * 0.08, faceSize * 0.032)
-        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.12), alpha: 0.2 })
-      diceGroup.addChild(pip)
-    }
+    drawProjectedPips(
+      diceGroup,
+      topCorners,
+      orientation.top,
+      faceSize * 0.044,
+      mixHexColor(pipColor, 0xffffff, 0.26),
+      0.52,
+      0.1,
+    )
 
-    const frontPipLayout = getDicePipLayout(orientation.front)
-    for (const [x, y] of frontPipLayout) {
-      const pipShadow = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.7 + faceSize * 0.018, (y - 0.5) * faceSize * 0.7 + faceSize * 0.02, faceSize * 0.078)
-        .fill({ color: 0xffffff, alpha: 0.08 })
-      diceGroup.addChild(pipShadow)
+    drawProjectedPips(
+      diceGroup,
+      rightCorners,
+      orientation.right,
+      faceSize * 0.038,
+      mixHexColor(pipColor, 0xffffff, 0.16),
+      0.42,
+      0.06,
+    )
 
-      const pip = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.7, (y - 0.5) * faceSize * 0.7, faceSize * 0.078)
-        .fill({ color: pipColor, alpha: 0.95 })
-      diceGroup.addChild(pip)
-    }
+    drawProjectedPips(
+      diceGroup,
+      frontCorners,
+      orientation.front,
+      faceSize * 0.078,
+      pipColor,
+      0.95,
+      0.08,
+    )
 
     const diceGlow = new PIXI.Graphics()
       .roundRect(-faceSize * 0.58, -faceSize * 0.58, faceSize * 1.16, faceSize * 1.16, faceSize * 0.18)
@@ -867,9 +956,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.05 : 0)
     const shakeX = diceIdleShake.value * (isRolling.value ? 4.5 : 3)
     const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
-    const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1)
-    const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1)
-    diceGroup.position.set(shakeX, shakeY - diceIdleLift.value)
+    const landingScaleX = 1 + diceLandingSquash.value * 0.22
+    const landingScaleY = 1 - diceLandingSquash.value * 0.16
+    const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1) * landingScaleX
+    const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1) * landingScaleY
+    diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value)
     diceGroup.rotation = diceSpinRotation.value
     diceGroup.scale.set(spinScaleX, spinScaleY)
 
@@ -1068,6 +1159,35 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }, delay)
   }
 
+  function startDiceLandingAnimation() {
+    if (diceLandingFrameId !== null) {
+      window.cancelAnimationFrame(diceLandingFrameId)
+      diceLandingFrameId = null
+    }
+
+    const startTime = performance.now()
+    const animate = (now: number) => {
+      const progress = Math.min(1, (now - startTime) / 420)
+      const bounce = Math.sin(progress * Math.PI) * (1 - progress)
+      const rebound = Math.sin(progress * Math.PI * 2.4) * Math.pow(1 - progress, 1.4)
+
+      diceLandingLift.value = Math.max(0, bounce * 18 + rebound * 6)
+      diceLandingSquash.value = Math.max(0, Math.sin(progress * Math.PI * 1.15) * (1 - progress * 0.7))
+      renderScene()
+
+      if (progress < 1) {
+        diceLandingFrameId = window.requestAnimationFrame(animate)
+      } else {
+        diceLandingFrameId = null
+        diceLandingLift.value = 0
+        diceLandingSquash.value = 0
+        renderScene()
+      }
+    }
+
+    diceLandingFrameId = window.requestAnimationFrame(animate)
+  }
+
   function startDiceSpin() {
     const startTime = performance.now()
     let lastTick = 0
@@ -1156,6 +1276,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     isRolling.value = true
     rollingFace.value = Math.floor(Math.random() * 6) + 1
     diceSpinScale.value = 1
+    diceLandingLift.value = 0
+    diceLandingSquash.value = 0
     startDiceSpin()
 
     let ticks = 0
@@ -1173,6 +1295,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const result = rollDice(game.value)
       if (!result.rolled) return
 
+      startDiceLandingAnimation()
       playRollSound()
       refreshGameView()
 
