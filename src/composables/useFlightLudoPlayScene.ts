@@ -40,6 +40,15 @@ type BoardLayout = {
   finishSlots: Array<Array<{ x: number; y: number }>>
 }
 
+type DiceOrientation = {
+  top: number
+  bottom: number
+  front: number
+  back: number
+  right: number
+  left: number
+}
+
 export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const currentPlayer = computed(() => getCurrentPlayer(game.value))
   const legalPieces = computed(() => getLegalPieceIds(game.value))
@@ -71,6 +80,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const movingPoint = ref<{ x: number; y: number } | null>(null)
   const landingPoint = ref<{ x: number; y: number; color: string } | null>(null)
   const rollingFace = ref<number>(1)
+  const diceOrientation = ref<DiceOrientation>({ top: 1, bottom: 6, front: 2, back: 5, right: 3, left: 4 })
   const diceSpinScale = ref(1)
   const diceSpinRotation = ref(0)
   const diceSpinFlip = ref(1)
@@ -203,6 +213,51 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     return layouts[value] ?? layouts[1]
   }
 
+  function createOrientationForFront(front: number): DiceOrientation {
+    const orientations: Record<number, DiceOrientation> = {
+      1: { top: 2, bottom: 5, front: 1, back: 6, right: 4, left: 3 },
+      2: { top: 1, bottom: 6, front: 2, back: 5, right: 3, left: 4 },
+      3: { top: 1, bottom: 6, front: 3, back: 4, right: 5, left: 2 },
+      4: { top: 1, bottom: 6, front: 4, back: 3, right: 2, left: 5 },
+      5: { top: 1, bottom: 6, front: 5, back: 2, right: 4, left: 3 },
+      6: { top: 2, bottom: 5, front: 6, back: 1, right: 3, left: 4 },
+    }
+    return orientations[front] ?? orientations[2]
+  }
+
+  function rotateDiceForward(orientation: DiceOrientation): DiceOrientation {
+    return {
+      top: orientation.front,
+      bottom: orientation.back,
+      front: orientation.bottom,
+      back: orientation.top,
+      right: orientation.right,
+      left: orientation.left,
+    }
+  }
+
+  function rotateDiceRight(orientation: DiceOrientation): DiceOrientation {
+    return {
+      top: orientation.left,
+      bottom: orientation.right,
+      front: orientation.front,
+      back: orientation.back,
+      right: orientation.top,
+      left: orientation.bottom,
+    }
+  }
+
+  function spinDiceClockwise(orientation: DiceOrientation): DiceOrientation {
+    return {
+      top: orientation.top,
+      bottom: orientation.bottom,
+      front: orientation.left,
+      back: orientation.right,
+      right: orientation.front,
+      left: orientation.back,
+    }
+  }
+
   function createPolygon(points: number[], fillColor: number, strokeColor: number, alpha = 1) {
     const graphic = new PIXI.Graphics()
     graphic.moveTo(points[0] ?? 0, points[1] ?? 0)
@@ -211,7 +266,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
     graphic.lineTo(points[0] ?? 0, points[1] ?? 0)
     graphic.fill({ color: fillColor, alpha })
-    graphic.stroke({ color: strokeColor, width: 2, alpha: Math.min(1, alpha + 0.06) })
+    graphic.stroke({ color: strokeColor, width: 1, alpha: 0.14 })
     return graphic
   }
 
@@ -693,7 +748,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const currentDiceColor = game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
     const currentDiceTint = hexToNumber(currentDiceColor)
     const diceValue = getDiceDisplayValue()
-    const diceFaceValue = diceValue ?? rollingFace.value
+    const orientation = isRolling.value ? diceOrientation.value : createOrientationForFront(diceValue ?? rollingFace.value)
 
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
@@ -707,10 +762,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const faceSize = diceSize * 0.72
     const depth = diceSize * 0.22
     const skew = depth * 0.9
-    const frontColor = createDiceBackdropTint(diceFaceValue)
-    const topColor = mixHexColor(frontColor, 0xffffff, 0.36)
-    const sideColor = mixHexColor(frontColor, 0x0f172a, 0.22)
-    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.48)
+    const frontColor = createDiceBackdropTint(orientation.front)
+    const topColor = mixHexColor(createDiceBackdropTint(orientation.top), 0xffffff, 0.3)
+    const sideColor = mixHexColor(createDiceBackdropTint(orientation.right), 0x0f172a, 0.12)
+    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.34)
     const pipColor = 0x102033
 
     const shadow = new PIXI.Graphics()
@@ -763,24 +818,32 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       .fill({ color: 0xffffff, alpha: 0.16 })
     diceGroup.addChild(faceHighlight)
 
-    const topPipLayout = getDicePipLayout(((diceFaceValue + 1) % 6) + 1)
+    const topPipLayout = getDicePipLayout(orientation.top)
     for (const [x, y] of topPipLayout.slice(0, 4)) {
       const pip = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.72 + skew * 0.28, (y - 0.5) * faceSize * 0.34 - depth * 0.86, faceSize * 0.045)
-        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.2), alpha: 0.42 })
+        .circle((x - 0.5) * faceSize * 0.72 + skew * 0.28, (y - 0.5) * faceSize * 0.34 - depth * 0.86, faceSize * 0.04)
+        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.24), alpha: 0.34 })
       diceGroup.addChild(pip)
     }
 
-    const frontPipLayout = getDicePipLayout(diceFaceValue)
+    const rightPipLayout = getDicePipLayout(orientation.right)
+    for (const [x, y] of rightPipLayout.slice(0, 4)) {
+      const pip = new PIXI.Graphics()
+        .circle(faceSize / 2 + skew * 0.42, (y - 0.5) * faceSize * 0.58 - depth * 0.36 + (x - 0.5) * faceSize * 0.08, faceSize * 0.032)
+        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.12), alpha: 0.2 })
+      diceGroup.addChild(pip)
+    }
+
+    const frontPipLayout = getDicePipLayout(orientation.front)
     for (const [x, y] of frontPipLayout) {
       const pipShadow = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.7 + faceSize * 0.022, (y - 0.5) * faceSize * 0.7 + faceSize * 0.026, faceSize * 0.085)
-        .fill({ color: 0xffffff, alpha: 0.12 })
+        .circle((x - 0.5) * faceSize * 0.7 + faceSize * 0.018, (y - 0.5) * faceSize * 0.7 + faceSize * 0.02, faceSize * 0.078)
+        .fill({ color: 0xffffff, alpha: 0.08 })
       diceGroup.addChild(pipShadow)
 
       const pip = new PIXI.Graphics()
-        .circle((x - 0.5) * faceSize * 0.7, (y - 0.5) * faceSize * 0.7, faceSize * 0.085)
-        .fill({ color: pipColor, alpha: 0.96 })
+        .circle((x - 0.5) * faceSize * 0.7, (y - 0.5) * faceSize * 0.7, faceSize * 0.078)
+        .fill({ color: pipColor, alpha: 0.95 })
       diceGroup.addChild(pip)
     }
 
@@ -1008,6 +1071,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   function startDiceSpin() {
     const startTime = performance.now()
     let lastTick = 0
+    let orientation = createOrientationForFront(rollingFace.value)
+    diceOrientation.value = orientation
+
+    const tumbleOps = [rotateDiceForward, spinDiceClockwise, rotateDiceRight, rotateDiceForward, spinDiceClockwise, rotateDiceRight]
 
     const spin = (now: number) => {
       const elapsed = now - startTime
@@ -1015,7 +1082,12 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const interval = Math.max(60, 170 - progress * 90)
       const tick = Math.floor(elapsed / interval)
       if (tick > lastTick) {
-        rollingFace.value = Math.floor(Math.random() * 6) + 1
+        const nextFront = Math.floor(Math.random() * 6) + 1
+        rollingFace.value = nextFront
+        const tumble = tumbleOps[tick % tumbleOps.length]
+        orientation = tumble(orientation)
+        orientation = createOrientationForFront(nextFront)
+        diceOrientation.value = orientation
         lastTick = tick
       }
       const wobbleDecay = 1 - progress * 0.22
@@ -1031,6 +1103,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceSpinScale.value = 1
         diceSpinRotation.value = 0
         diceSpinFlip.value = 1
+        diceOrientation.value = createOrientationForFront(rollingFace.value)
         renderScene()
       }
     }
