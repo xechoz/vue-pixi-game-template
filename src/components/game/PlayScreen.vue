@@ -35,11 +35,13 @@ const emit = defineEmits<{
       <span class="bg-dot bg-dot-b"></span>
     </div>
     <div class="grid play-grid">
-      <div class="play-actions-bar">
-        <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
-        <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
+      <div class="play-stage">
+        <div class="play-actions-bar">
+          <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
+          <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
+        </div>
+        <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
       </div>
-      <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
     </div>
   </section>
 </template>
@@ -58,8 +60,23 @@ const emit = defineEmits<{
   align-content: center;
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
   background: none;
+}
+
+.play-grid {
+  --play-canvas-width: min(100%, 92vw, 88vh);
+  grid-template-columns: 1fr;
+  position: relative;
+  justify-items: center;
+  width: 100%;
+  z-index: 1;
+}
+
+.play-stage {
+  position: relative;
+  width: var(--play-canvas-width);
+  height: calc(var(--play-canvas-width) * 1.5);
 }
 
 .bg-decor {
@@ -193,25 +210,20 @@ const emit = defineEmits<{
   bottom: 24%;
 }
 
-.play-grid {
-  grid-template-columns: 1fr;
-  position: relative;
-  justify-items: center;
-  width: 100%;
-  z-index: 1;
-}
-
 .play-actions-bar {
+  position: absolute;
+  top: -200px;
+  left: 4px;
   display: flex;
   justify-content: flex-start;
   gap: 10px;
-  width: min(100%, 92vw, 88vh);
-  padding: 0 4px;
-  margin-top: -236px;
+  width: auto;
+  padding: 0;
+  z-index: 2;
 }
 
 .play-canvas-shell {
-  min-height: min(96vh, 1080px);
+  min-height: 0;
 }
 
 .circle-action {
@@ -231,8 +243,8 @@ const emit = defineEmits<{
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
-  width: min(100%, 92vw, 88vh);
-  height: calc(min(100%, 92vw, 88vh) * 1.5);
+  width: 100%;
+  height: 100%;
   max-height: none;
   overflow: visible;
 }
@@ -247,16 +259,19 @@ const emit = defineEmits<{
     min-height: 100dvh;
   }
 
+  .play-grid {
+    --play-canvas-width: min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5));
+  }
+
   .canvas-shell {
-    width: min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5));
-    height: calc(min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5)) * 1.5);
     min-height: unset;
     max-height: none;
     aspect-ratio: auto;
   }
 
   .play-actions-bar {
-    margin-top: -140px;
+    top: -200px;
+    left: 0;
   }
 
   .play-floating-actions {
