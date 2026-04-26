@@ -64,7 +64,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let scene: PIXI.Container | null = null
   let pieceTexture: PIXI.Texture | null = null
   let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
-  const diceTextures: Partial<Record<number, PIXI.Texture>> = {}
   let currentLayout: BoardLayout | null = null
 
   const replayingPieceId = ref<string | null>(null)
@@ -184,14 +183,16 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     return palette[value] ?? 0xf8fafc
   }
 
-  function createDiceFaceTexture(value: number) {
-    const canvas = document.createElement('canvas')
-    canvas.width = 128
-    canvas.height = 128
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return PIXI.Texture.WHITE
+  function mixHexColor(base: number, target: number, amount: number) {
+    const clamped = Math.max(0, Math.min(1, amount))
+    const r = ((base >> 16) & 0xff) * (1 - clamped) + ((target >> 16) & 0xff) * clamped
+    const g = ((base >> 8) & 0xff) * (1 - clamped) + ((target >> 8) & 0xff) * clamped
+    const b = (base & 0xff) * (1 - clamped) + (target & 0xff) * clamped
+    return (Math.round(r) << 16) | (Math.round(g) << 8) | Math.round(b)
+  }
 
-    const pipLayouts: Record<number, Array<[number, number]>> = {
+  function getDicePipLayout(value: number) {
+    const layouts: Record<number, Array<[number, number]>> = {
       1: [[0.5, 0.5]],
       2: [[0.3, 0.3], [0.7, 0.7]],
       3: [[0.3, 0.3], [0.5, 0.5], [0.7, 0.7]],
@@ -199,16 +200,19 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       5: [[0.3, 0.3], [0.7, 0.3], [0.5, 0.5], [0.3, 0.7], [0.7, 0.7]],
       6: [[0.3, 0.25], [0.7, 0.25], [0.3, 0.5], [0.7, 0.5], [0.3, 0.75], [0.7, 0.75]],
     }
+    return layouts[value] ?? layouts[1]
+  }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = '#0f172a'
-    for (const [x, y] of pipLayouts[value] ?? pipLayouts[1]) {
-      ctx.beginPath()
-      ctx.arc(canvas.width * x, canvas.height * y, 11, 0, Math.PI * 2)
-      ctx.fill()
+  function createPolygon(points: number[], fillColor: number, strokeColor: number, alpha = 1) {
+    const graphic = new PIXI.Graphics()
+    graphic.moveTo(points[0] ?? 0, points[1] ?? 0)
+    for (let index = 2; index < points.length; index += 2) {
+      graphic.lineTo(points[index] ?? 0, points[index + 1] ?? 0)
     }
-
-    return PIXI.Texture.from(canvas)
+    graphic.lineTo(points[0] ?? 0, points[1] ?? 0)
+    graphic.fill({ color: fillColor, alpha })
+    graphic.stroke({ color: strokeColor, width: 2, alpha: Math.min(1, alpha + 0.06) })
+    return graphic
   }
 
   function ensureAudioContext() {
@@ -395,9 +399,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
       }
       pieceTexture = playerPieceTextures[0] ?? playerPieceTextures[1] ?? playerPieceTextures[2] ?? playerPieceTextures[3] ?? null
-      for (let value = 1; value <= 6; value += 1) {
-        diceTextures[value] = createDiceFaceTexture(value)
-      }
     })()
 
     try {
@@ -492,10 +493,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     }
 
     turnAccentFrameId = window.requestAnimationFrame(tick)
-  }
-
-  function getDiceTexture(value: number) {
-    return diceTextures[value] ?? null
   }
 
   function getPlayerPieceTexture(playerIndex: number) {
@@ -696,84 +693,127 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const currentDiceColor = game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
     const currentDiceTint = hexToNumber(currentDiceColor)
     const diceValue = getDiceDisplayValue()
-    const diceFaceTexture = diceValue === null ? null : getDiceTexture(diceValue)
+    const diceFaceValue = diceValue ?? rollingFace.value
 
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
     diceGroup.cursor = canRoll ? 'pointer' : 'default'
-    diceGroup.hitArea = new PIXI.Rectangle(-diceSize * 0.7, -diceSize * 0.7, diceSize * 1.4, diceSize * 1.4)
+    diceGroup.hitArea = new PIXI.Rectangle(-diceSize * 0.95, -diceSize * 0.95, diceSize * 1.9, diceSize * 1.9)
     if (canRoll) {
       diceGroup.on('pointerdown', () => handleRoll(false))
     }
-    diceGroup.scale.set(diceSpinScale.value)
     center.addChild(diceGroup)
 
-    const diceBackPlate = new PIXI.Graphics()
-      .roundRect(-diceSize / 2 + 6, -diceSize / 2 + 8, diceSize, diceSize, 24)
-      .fill({ color: 0x020617, alpha: 0.0 })
-      .stroke({ color: 0x000000, width: 0, alpha: 0 })
-    diceGroup.addChildAt(diceBackPlate, 0)
+    const faceSize = diceSize * 0.72
+    const depth = diceSize * 0.22
+    const skew = depth * 0.9
+    const frontColor = createDiceBackdropTint(diceFaceValue)
+    const topColor = mixHexColor(frontColor, 0xffffff, 0.36)
+    const sideColor = mixHexColor(frontColor, 0x0f172a, 0.22)
+    const strokeColor = mixHexColor(frontColor, 0x0f172a, 0.48)
+    const pipColor = 0x102033
 
-    const diceBody = new PIXI.Graphics()
-      .roundRect(-diceSize / 2, -diceSize / 2, diceSize, diceSize, 22)
-      .fill({ color: createDiceBackdropTint(diceValue ?? rollingFace.value), alpha: 0.88 })
-      .stroke({ color: 0xffffff, width: 0, alpha: 0 })
-    diceGroup.addChild(diceBody)
+    const shadow = new PIXI.Graphics()
+      .ellipse(depth * 0.12, faceSize * 0.62, faceSize * 0.48, faceSize * 0.18)
+      .fill({ color: 0x020617, alpha: 0.18 + (isRolling.value ? 0.08 : 0) })
+    diceGroup.addChild(shadow)
+
+    const topFace = createPolygon(
+      [
+        -faceSize / 2,
+        -faceSize / 2,
+        faceSize / 2,
+        -faceSize / 2,
+        faceSize / 2 + skew,
+        -faceSize / 2 - depth,
+        -faceSize / 2 + skew,
+        -faceSize / 2 - depth,
+      ],
+      topColor,
+      strokeColor,
+      0.98,
+    )
+    diceGroup.addChild(topFace)
+
+    const sideFace = createPolygon(
+      [
+        faceSize / 2,
+        -faceSize / 2,
+        faceSize / 2,
+        faceSize / 2,
+        faceSize / 2 + skew,
+        faceSize / 2 - depth,
+        faceSize / 2 + skew,
+        -faceSize / 2 - depth,
+      ],
+      sideColor,
+      strokeColor,
+      0.98,
+    )
+    diceGroup.addChild(sideFace)
+
+    const frontFace = new PIXI.Graphics()
+      .roundRect(-faceSize / 2, -faceSize / 2, faceSize, faceSize, faceSize * 0.16)
+      .fill({ color: frontColor, alpha: 0.98 })
+      .stroke({ color: strokeColor, width: 2.5, alpha: 0.95 })
+    diceGroup.addChild(frontFace)
+
+    const faceHighlight = new PIXI.Graphics()
+      .roundRect(-faceSize / 2 + 4, -faceSize / 2 + 4, faceSize * 0.72, faceSize * 0.18, faceSize * 0.09)
+      .fill({ color: 0xffffff, alpha: 0.16 })
+    diceGroup.addChild(faceHighlight)
+
+    const topPipLayout = getDicePipLayout(((diceFaceValue + 1) % 6) + 1)
+    for (const [x, y] of topPipLayout.slice(0, 4)) {
+      const pip = new PIXI.Graphics()
+        .circle((x - 0.5) * faceSize * 0.72 + skew * 0.28, (y - 0.5) * faceSize * 0.34 - depth * 0.86, faceSize * 0.045)
+        .fill({ color: mixHexColor(pipColor, 0xffffff, 0.2), alpha: 0.42 })
+      diceGroup.addChild(pip)
+    }
+
+    const frontPipLayout = getDicePipLayout(diceFaceValue)
+    for (const [x, y] of frontPipLayout) {
+      const pipShadow = new PIXI.Graphics()
+        .circle((x - 0.5) * faceSize * 0.7 + faceSize * 0.022, (y - 0.5) * faceSize * 0.7 + faceSize * 0.026, faceSize * 0.085)
+        .fill({ color: 0xffffff, alpha: 0.12 })
+      diceGroup.addChild(pipShadow)
+
+      const pip = new PIXI.Graphics()
+        .circle((x - 0.5) * faceSize * 0.7, (y - 0.5) * faceSize * 0.7, faceSize * 0.085)
+        .fill({ color: pipColor, alpha: 0.96 })
+      diceGroup.addChild(pip)
+    }
 
     const diceGlow = new PIXI.Graphics()
-      .roundRect(-diceSize * 0.62 / 2, -diceSize * 0.62 / 2, diceSize * 0.62, diceSize * 0.62, 18)
-      .stroke({ color: currentDiceTint, width: 3, alpha: 0.18 })
+      .roundRect(-faceSize * 0.58, -faceSize * 0.58, faceSize * 1.16, faceSize * 1.16, faceSize * 0.18)
+      .stroke({ color: currentDiceTint, width: 3, alpha: isRolling.value ? 0.28 : 0.18 })
     diceGroup.addChildAt(diceGlow, 0)
-
-    const edgeShadow = new PIXI.Graphics()
-      .roundRect(-diceSize / 2 + 2, -diceSize / 2 + 3, diceSize - 4, diceSize - 4, 20)
-      .stroke({ color: 0x0f172a, width: 0, alpha: 0 })
-    diceGroup.addChild(edgeShadow)
-
-    if (diceFaceTexture) {
-      const face = new PIXI.Sprite(diceFaceTexture)
-      face.anchor.set(0.5)
-      face.width = diceSize * 0.94
-      face.height = diceSize * 0.94
-      diceGroup.addChild(face)
-    }
 
     if (diceValue === null) {
       const idleMark = new PIXI.Graphics()
-        .circle(0, 0, diceSize * 0.26)
-        .stroke({ color: currentDiceTint, width: 4, alpha: 0.16 + diceIdlePulse.value * 0.18 })
+        .circle(skew * 0.2, -depth * 0.35, diceSize * 0.28)
+        .stroke({ color: currentDiceTint, width: 4, alpha: 0.14 + diceIdlePulse.value * 0.18 })
       diceGroup.addChild(idleMark)
 
-      const promptIcon = new PIXI.Graphics()
-        .roundRect(-diceSize * 0.14, -diceSize * 0.18, diceSize * 0.28, diceSize * 0.36, diceSize * 0.08)
-        .fill({ color: 0xffffff, alpha: 0.34 + diceIdlePulse.value * 0.18 })
-      diceGroup.addChild(promptIcon)
-
-      const promptStem = new PIXI.Graphics()
-        .moveTo(0, diceSize * 0.1)
-        .lineTo(0, diceSize * 0.18)
-        .stroke({ color: 0xffffff, width: 3, alpha: 0.34 + diceIdlePulse.value * 0.18 })
-      diceGroup.addChild(promptStem)
-
-      const promptDot = new PIXI.Graphics()
-        .circle(0, diceSize * 0.27, diceSize * 0.045)
-        .fill({ color: 0xffffff, alpha: 0.75 })
-      diceGroup.addChild(promptDot)
+      const promptGlow = new PIXI.Graphics()
+        .roundRect(-faceSize * 0.16, faceSize * 0.08, faceSize * 0.32, faceSize * 0.22, faceSize * 0.08)
+        .fill({ color: 0xffffff, alpha: 0.18 + diceIdlePulse.value * 0.1 })
+      diceGroup.addChild(promptGlow)
     }
 
-    const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.06 : 0)
-    const shakeX = diceIdleShake.value * (isRolling.value ? 4 : 3)
-    const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2
+    const diceScaleBoost = 1 + diceIdlePulse.value * 0.05 + (isRolling.value ? 0.05 : 0)
+    const shakeX = diceIdleShake.value * (isRolling.value ? 4.5 : 3)
+    const shakeY = Math.sin(diceIdleShake.value * Math.PI * 0.5) * 2.2
     const spinScaleX = diceSpinScale.value * diceScaleBoost * (isRolling.value ? diceSpinFlip.value : 1)
-    const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.16 : 1)
+    const spinScaleY = diceSpinScale.value * diceScaleBoost * (isRolling.value ? 1 + (1 - diceSpinFlip.value) * 0.22 : 1)
     diceGroup.position.set(shakeX, shakeY - diceIdleLift.value)
     diceGroup.rotation = diceSpinRotation.value
     diceGroup.scale.set(spinScaleX, spinScaleY)
 
     if (isRolling.value) {
       const spinRing = new PIXI.Graphics()
-        .circle(0, 0, diceSize * 0.74)
-        .stroke({ color: currentDiceTint, width: 4, alpha: 0.25 })
+        .circle(skew * 0.12, -depth * 0.08, diceSize * 0.82)
+        .stroke({ color: currentDiceTint, width: 4, alpha: 0.24 })
       diceGroup.addChildAt(spinRing, 0)
     }
 
@@ -978,10 +1018,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         rollingFace.value = Math.floor(Math.random() * 6) + 1
         lastTick = tick
       }
-      const wobbleDecay = 1 - progress * 0.28
-      diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.08
-      diceSpinRotation.value = Math.sin(progress * Math.PI * 5.2) * 0.22 * wobbleDecay
-      diceSpinFlip.value = 0.58 + Math.abs(Math.cos(progress * Math.PI * 8.4)) * 0.42
+      const wobbleDecay = 1 - progress * 0.22
+      const turnProgress = 1 - (1 - progress) * (1 - progress)
+      diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.06
+      diceSpinRotation.value = Math.sin(progress * Math.PI * 4.8) * 0.26 * wobbleDecay + turnProgress * Math.PI * 0.1
+      diceSpinFlip.value = 0.46 + Math.abs(Math.cos(progress * Math.PI * 6.8)) * 0.54
       renderScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
