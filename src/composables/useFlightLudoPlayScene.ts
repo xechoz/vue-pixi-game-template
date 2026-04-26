@@ -1011,29 +1011,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         const fittedHeight = diceSize * 0.98
         const fittedWidth = Math.max(diceSize * 0.8, (fittedHeight * textureWidth) / textureHeight)
 
-        const previousTexture = previousRollingDiceAssetTexture
-        if (previousTexture) {
-          const previousSprite = new PIXI.Sprite(previousTexture)
-          previousSprite.anchor.set(0.5)
-          previousSprite.width = fittedWidth
-          previousSprite.height = fittedHeight
-          previousSprite.alpha = Math.max(0, Math.min(0.45, diceFaceTransitionAlpha.value * 0.5))
-          previousSprite.tint = 0xe2e8f0
-          diceGroup.addChild(previousSprite)
-        }
-
-        if (isRolling.value && diceRollTextures.length === 0 && diceRollTrailAlpha.value > 0.001) {
-          const trailSprite = new PIXI.Sprite(assetTexture)
-          trailSprite.anchor.set(0.5)
-          trailSprite.width = fittedWidth
-          trailSprite.height = fittedHeight
-          trailSprite.alpha = Math.max(0, Math.min(0.16, diceRollTrailAlpha.value))
-          trailSprite.tint = 0xdbeafe
-          trailSprite.position.set(-diceSpinRotation.value * fittedWidth * 0.55, diceSpinFlip.value < 0.72 ? fittedHeight * 0.035 : -fittedHeight * 0.012)
-          trailSprite.scale.set(1 + Math.abs(diceSpinRotation.value) * 0.16, 1)
-          diceGroup.addChild(trailSprite)
-        }
-
         const diceSprite = new PIXI.Sprite(assetTexture)
         diceSprite.anchor.set(0.5)
         diceSprite.width = fittedWidth
