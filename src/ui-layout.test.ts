@@ -99,11 +99,13 @@ test('back button is a rounded rectangle instead of a circle', () => {
   assert.ok(!backActionBlock.includes('border-radius: 999px;'))
 })
 
-test('player plane sprites use stronger base-vs-track sizing, no shadow, and only clickable glow remains', () => {
+test('player plane sprites use board-step-aware sizing with softer clickable glow and no shadow', () => {
   const playScene = read('composables/useFlightLudoPlayScene.ts')
   const pieceRenderBlock = sliceSceneBlock(playScene, "if (isLegal && !isMoving) {", 'board.addChild(pieceGroup)')
 
-  assert.ok(pieceRenderBlock.includes("const pieceBodyScale = pieceInfo.location === 'base' ? 6.5 : 4.5"))
+  assert.ok(pieceRenderBlock.includes("const trackPieceBodyScale = activeBoardPreset.stepsPerSide <= 4 ? 5.6 : activeBoardPreset.stepsPerSide <= 6 ? 5.15 : 4.85"))
+  assert.ok(pieceRenderBlock.includes('const pieceBodyScale = pieceInfo.location === \'base\' ? trackPieceBodyScale + 1.15 : trackPieceBodyScale'))
+  assert.ok(pieceRenderBlock.includes('body.position.set(0, pieceInfo.location === \'base\' ? -3 : -1.5)'))
   assert.ok(pieceRenderBlock.includes('body.width = pieceRadius * pieceBodyScale'))
   assert.ok(pieceRenderBlock.includes('body.height = pieceRadius * pieceBodyScale'))
 
@@ -111,7 +113,18 @@ test('player plane sprites use stronger base-vs-track sizing, no shadow, and onl
   assert.ok(!pieceRenderBlock.includes('.ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)'))
 
   assert.ok(pieceRenderBlock.includes('const legalGlow = new PIXI.Graphics()'))
-  assert.ok(pieceRenderBlock.includes('.circle(0, 0, pieceRadius + 8)'))
-  assert.ok(pieceRenderBlock.includes('.stroke({ color: hexToNumber(pieceInfo.player.color), width: 2.5, alpha: 0.18 + legalPulse.value * 0.22 })'))
-  assert.ok(!pieceRenderBlock.includes('const legalRing = new PIXI.Graphics()'))
+  assert.ok(pieceRenderBlock.includes('.circle(0, 0, pieceRadius + 6)'))
+  assert.ok(pieceRenderBlock.includes('.stroke({ color: hexToNumber(pieceInfo.player.color), width: 2, alpha: 0.12 + legalPulse.value * 0.16 })'))
+})
+
+test('idle dice prompt overlay uses the refreshed icon with larger centered sizing', () => {
+  const playScene = read('composables/useFlightLudoPlayScene.ts')
+  const idleOverlayBlock = sliceSceneBlock(playScene, 'if (!isRolling.value && isIdleDiceState && diceIdleTexture) {', 'const landingShadowScale =')
+
+  assert.ok(idleOverlayBlock.includes('const overlayWidth = fittedWidth * 0.5'))
+  assert.ok(idleOverlayBlock.includes('const overlayHeight = fittedHeight * 0.5'))
+  assert.ok(idleOverlayBlock.includes('const overlayCenterY = -overlayHeight * 0.04'))
+  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.position.set(0, overlayCenterY)'))
+  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.width = overlayWidth'))
+  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.height = overlayHeight'))
 })

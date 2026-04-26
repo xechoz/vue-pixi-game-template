@@ -1031,9 +1031,9 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceGroup.addChild(diceSprite)
 
         if (!isRolling.value && isIdleDiceState && diceIdleTexture) {
-          const overlayWidth = fittedWidth * 0.43
-          const overlayHeight = fittedHeight * 0.43
-          const overlayCenterY = -overlayHeight * 0.015
+          const overlayWidth = fittedWidth * 0.5
+          const overlayHeight = fittedHeight * 0.5
+          const overlayCenterY = -overlayHeight * 0.04
 
           const idleOverlaySprite = new PIXI.Sprite(diceIdleTexture)
           idleOverlaySprite.anchor.set(0.5)
@@ -1509,18 +1509,19 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       if (isLegal && !isMoving) {
         const legalGlow = new PIXI.Graphics()
-          .circle(0, 0, pieceRadius + 8)
-          .stroke({ color: hexToNumber(pieceInfo.player.color), width: 2.5, alpha: 0.18 + legalPulse.value * 0.22 })
+          .circle(0, 0, pieceRadius + 6)
+          .stroke({ color: hexToNumber(pieceInfo.player.color), width: 2, alpha: 0.12 + legalPulse.value * 0.16 })
         pieceGroup.addChildAt(legalGlow, 0)
       }
 
       const tint = hexToNumber(pieceInfo.player.color)
       const texture = getPlayerPieceTexture(pieceInfo.player.index)
-      const pieceBodyScale = pieceInfo.location === 'base' ? 6.5 : 4.5
+      const trackPieceBodyScale = activeBoardPreset.stepsPerSide <= 4 ? 5.6 : activeBoardPreset.stepsPerSide <= 6 ? 5.15 : 4.85
+      const pieceBodyScale = pieceInfo.location === 'base' ? trackPieceBodyScale + 1.15 : trackPieceBodyScale
       if (texture) {
         const body = new PIXI.Sprite(texture)
         body.anchor.set(0.5)
-        body.position.set(0, -2)
+        body.position.set(0, pieceInfo.location === 'base' ? -3 : -1.5)
         body.width = pieceRadius * pieceBodyScale
         body.height = pieceRadius * pieceBodyScale
         pieceGroup.addChild(body)
