@@ -809,8 +809,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     board.addChild(center)
 
     const diceSize = safeBoardSize * 0.18
-    const currentDiceColor = game.value.winnerIndex === null ? currentPlayer.value.color : '#64748b'
-    const currentDiceTint = hexToNumber(currentDiceColor)
     const diceValue = getDiceDisplayValue()
     const orientation = isRolling.value ? diceOrientation.value : createOrientationForFront(diceValue ?? rollingFace.value)
 
@@ -958,17 +956,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       0.08,
     )
 
-    const diceGlow = new PIXI.Graphics()
-      .roundRect(-faceSize * 0.58, -faceSize * 0.58, faceSize * 1.16, faceSize * 1.16, faceSize * 0.18)
-      .stroke({ color: currentDiceTint, width: 3, alpha: isRolling.value ? 0.28 : 0.18 })
-    diceGroup.addChildAt(diceGlow, 0)
-
     if (diceValue === null) {
-      const idleMark = new PIXI.Graphics()
-        .circle(skew * 0.2, -depth * 0.35, diceSize * 0.28)
-        .stroke({ color: currentDiceTint, width: 4, alpha: 0.14 + diceIdlePulse.value * 0.18 })
-      diceGroup.addChild(idleMark)
-
       const promptGlow = new PIXI.Graphics()
         .roundRect(-faceSize * 0.16, faceSize * 0.08, faceSize * 0.32, faceSize * 0.22, faceSize * 0.08)
         .fill({ color: 0xffffff, alpha: 0.18 + diceIdlePulse.value * 0.1 })
@@ -985,13 +973,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceGroup.position.set(shakeX, shakeY - diceIdleLift.value - diceLandingLift.value)
     diceGroup.rotation = diceSpinRotation.value
     diceGroup.scale.set(spinScaleX, spinScaleY)
-
-    if (isRolling.value) {
-      const spinRing = new PIXI.Graphics()
-        .circle(skew * 0.12, -depth * 0.08, diceSize * 0.82)
-        .stroke({ color: currentDiceTint, width: 4, alpha: 0.24 })
-      diceGroup.addChildAt(spinRing, 0)
-    }
 
     if (winner.value) {
       const banner = new PIXI.Graphics()
@@ -1216,21 +1197,20 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     let orientation = createOrientationForFront(rollingFace.value)
     diceOrientation.value = orientation
 
-    const tumbleOps = [rotateDiceForward, spinDiceClockwise, rotateDiceRight, rotateDiceForward, spinDiceClockwise, rotateDiceRight]
+    const tumbleOps = [rotateDiceForward, rotateDiceRight, spinDiceClockwise, rotateDiceForward, rotateDiceRight]
+    const tumbleSequence = Array.from({ length: 18 }, (_, index) => tumbleOps[(index + Math.floor(Math.random() * tumbleOps.length)) % tumbleOps.length])
 
     const spin = (now: number) => {
       const elapsed = now - startTime
       const progress = Math.min(1, elapsed / 1100)
-      const interval = Math.max(60, 170 - progress * 90)
+      const interval = Math.max(55, 165 - progress * 88)
       const tick = Math.floor(elapsed / interval)
-      if (tick > lastTick) {
-        const nextFront = Math.floor(Math.random() * 6) + 1
-        rollingFace.value = nextFront
-        const tumble = tumbleOps[tick % tumbleOps.length]
+      while (lastTick < tick) {
+        const tumble = tumbleSequence[lastTick % tumbleSequence.length] ?? rotateDiceForward
         orientation = tumble(orientation)
-        orientation = createOrientationForFront(nextFront)
         diceOrientation.value = orientation
-        lastTick = tick
+        rollingFace.value = orientation.front
+        lastTick += 1
       }
       const wobbleDecay = 1 - progress * 0.22
       const turnProgress = 1 - (1 - progress) * (1 - progress)
