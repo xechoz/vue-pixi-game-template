@@ -1028,7 +1028,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         -faceSize / 2 + frontFaceInset - seamOverlap * 0.9,
         faceSize + seamOverlap * 0.92,
         faceSize - frontFaceInset + seamOverlap * 0.94,
-        faceSize * 0.176,
+        faceSize * 0.152,
       )
       .fill({ color: frontColor, alpha: 0.995 })
       .stroke({ color: strokeColor, width: 0.8, alpha: 0.09 })
@@ -1040,7 +1040,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         -faceSize / 2 + frontFaceInset + faceSize * 0.02 - seamOverlap * 0.5,
         faceSize * 0.95,
         faceSize - frontFaceInset - faceSize * 0.042 + seamOverlap * 0.42,
-        faceSize * 0.15,
+        faceSize * 0.132,
       )
       .stroke({ color: 0xffffff, width: faceSize * 0.03, alpha: 0.06 })
     diceGroup.addChild(frontBevel)
