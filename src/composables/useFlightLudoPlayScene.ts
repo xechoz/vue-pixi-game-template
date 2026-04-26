@@ -1045,11 +1045,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
           const overlayHeight = fittedHeight * 0.43
           const overlayCenterY = -overlayHeight * 0.015
 
-          const idleOverlayShadow = new PIXI.Graphics()
-            .ellipse(0, overlayCenterY + overlayHeight * 0.055, overlayWidth * 0.34, overlayHeight * 0.13)
-            .fill({ color: 0xf59e0b, alpha: 0.035 + diceIdlePulse.value * 0.008 })
-          diceGroup.addChild(idleOverlayShadow)
-
           const idleOverlaySprite = new PIXI.Sprite(diceIdleTexture)
           idleOverlaySprite.anchor.set(0.5)
           idleOverlaySprite.position.set(0, overlayCenterY)
