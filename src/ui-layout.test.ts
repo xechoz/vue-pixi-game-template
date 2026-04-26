@@ -99,15 +99,16 @@ test('back button is a rounded rectangle instead of a circle', () => {
   assert.ok(!backActionBlock.includes('border-radius: 999px;'))
 })
 
-test('player plane sprites are split by location with lighter rings and softer legal highlight', () => {
+test('player plane sprites drop outer rings and use a stronger base-vs-track size split', () => {
   const playScene = read('composables/useFlightLudoPlayScene.ts')
   const pieceRenderBlock = sliceSceneBlock(playScene, 'const shadow = new PIXI.Graphics()', 'board.addChild(pieceGroup)')
 
-  assert.ok(pieceRenderBlock.includes("const pieceBodyScale = pieceInfo.location === 'base' ? 5.8 : 5.2"))
+  assert.ok(pieceRenderBlock.includes("const pieceBodyScale = pieceInfo.location === 'base' ? 6.1 : 4.9"))
   assert.ok(pieceRenderBlock.includes('body.width = pieceRadius * pieceBodyScale'))
   assert.ok(pieceRenderBlock.includes('body.height = pieceRadius * pieceBodyScale'))
-  assert.ok(pieceRenderBlock.includes('.circle(0, 0, pieceRadius + 5)'))
-  assert.ok(pieceRenderBlock.includes('.stroke({ color: tint, width: 1.5, alpha: 0.38 })'))
-  assert.ok(pieceRenderBlock.includes('.stroke({ color: 0xffffff, width: 1.25, alpha: isLegal ? 0.26 : 0.08 })'))
-  assert.ok(pieceRenderBlock.includes('.stroke({ color: 0xf8fafc, width: 1.25, alpha: 0.12 })'))
+
+  assert.ok(!pieceRenderBlock.includes('const badgeRing = new PIXI.Graphics()'))
+  assert.ok(!pieceRenderBlock.includes('const badgeGlow = new PIXI.Graphics()'))
+  assert.ok(!pieceRenderBlock.includes('const halo = new PIXI.Graphics()'))
+  assert.ok(!pieceRenderBlock.includes('const ring = new PIXI.Graphics()'))
 })

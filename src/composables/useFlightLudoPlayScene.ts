@@ -1526,7 +1526,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
       const tint = hexToNumber(pieceInfo.player.color)
       const texture = getPlayerPieceTexture(pieceInfo.player.index)
-      const pieceBodyScale = pieceInfo.location === 'base' ? 5.8 : 5.2
+      const pieceBodyScale = pieceInfo.location === 'base' ? 6.1 : 4.9
       if (texture) {
         const body = new PIXI.Sprite(texture)
         body.anchor.set(0.5)
@@ -1540,30 +1540,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
           .fill({ color: tint, alpha: 1 })
           .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
         pieceGroup.addChild(body)
-      }
-
-      const badgeRing = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 5)
-        .stroke({ color: tint, width: 1.5, alpha: 0.38 })
-      pieceGroup.addChildAt(badgeRing, 0)
-
-      const badgeGlow = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 2)
-        .stroke({ color: 0xffffff, width: 1.25, alpha: isLegal ? 0.26 : 0.08 })
-      pieceGroup.addChild(badgeGlow)
-
-      if (game.value.currentPlayerIndex === pieceInfo.player.index && pieceInfo.location === 'base') {
-        const halo = new PIXI.Graphics()
-          .circle(0, 0, pieceRadius + 5)
-          .stroke({ color: 0xf8fafc, width: 1.25, alpha: 0.12 })
-        pieceGroup.addChildAt(halo, 0)
-      }
-
-      if (isLegal) {
-        const ring = new PIXI.Graphics()
-          .circle(0, 0, pieceRadius + 4)
-          .stroke({ color: 0xf8fafc, width: 1.25, alpha: 0.12 })
-        pieceGroup.addChildAt(ring, 0)
       }
 
       board.addChild(pieceGroup)
