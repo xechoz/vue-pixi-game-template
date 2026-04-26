@@ -83,6 +83,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let rollTimer: number | null = null
   let rollFrameId: number | null = null
   let diceIdleFrameId: number | null = null
+  let diceIdleLastRender = 0
   let turnAccentFrameId: number | null = null
   let diceIdleStart = 0
   let autoTimer: number | null = null
@@ -114,6 +115,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       window.cancelAnimationFrame(diceIdleFrameId)
       diceIdleFrameId = null
     }
+    diceIdleLastRender = 0
     diceIdlePulse.value = 0
     diceIdleShake.value = 0
     diceIdleLift.value = 0
@@ -176,6 +178,33 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       6: 0xd8b4fe,
     }
     return palette[value] ?? 0xf8fafc
+  }
+
+  function createDiceFaceTexture(value: number) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 128
+    canvas.height = 128
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return PIXI.Texture.WHITE
+
+    const pipLayouts: Record<number, Array<[number, number]>> = {
+      1: [[0.5, 0.5]],
+      2: [[0.3, 0.3], [0.7, 0.7]],
+      3: [[0.3, 0.3], [0.5, 0.5], [0.7, 0.7]],
+      4: [[0.3, 0.3], [0.7, 0.3], [0.3, 0.7], [0.7, 0.7]],
+      5: [[0.3, 0.3], [0.7, 0.3], [0.5, 0.5], [0.3, 0.7], [0.7, 0.7]],
+      6: [[0.3, 0.25], [0.7, 0.25], [0.3, 0.5], [0.7, 0.5], [0.3, 0.75], [0.7, 0.75]],
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#0f172a'
+    for (const [x, y] of pipLayouts[value] ?? pipLayouts[1]) {
+      ctx.beginPath()
+      ctx.arc(canvas.width * x, canvas.height * y, 11, 0, Math.PI * 2)
+      ctx.fill()
+    }
+
+    return PIXI.Texture.from(canvas)
   }
 
   function ensureAudioContext() {
@@ -349,32 +378,22 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       scene = new PIXI.Container()
       app.stage.addChild(scene)
 
-      const [loadedPiece, redPiece, yellowPiece, bluePiece, greenPiece, ...diceFaces] = await Promise.all([
-        PIXI.Assets.load(assetUrl('flight-ludo-plane.svg')),
+      const [redPiece, yellowPiece, bluePiece, greenPiece] = await Promise.all([
         PIXI.Assets.load(assetUrl('player-red.png')),
         PIXI.Assets.load(assetUrl('player-yellow.png')),
         PIXI.Assets.load(assetUrl('player-blue.png')),
         PIXI.Assets.load(assetUrl('player-green.png')),
-        PIXI.Assets.load(assetUrl('dice-1.svg')),
-        PIXI.Assets.load(assetUrl('dice-2.svg')),
-        PIXI.Assets.load(assetUrl('dice-3.svg')),
-        PIXI.Assets.load(assetUrl('dice-4.svg')),
-        PIXI.Assets.load(assetUrl('dice-5.svg')),
-        PIXI.Assets.load(assetUrl('dice-6.svg')),
       ])
-      pieceTexture = loadedPiece instanceof PIXI.Texture ? loadedPiece : PIXI.Texture.from(assetUrl('flight-ludo-plane.svg'))
       playerPieceTextures = {
         0: redPiece instanceof PIXI.Texture ? redPiece : PIXI.Texture.from(assetUrl('player-red.png')),
         1: yellowPiece instanceof PIXI.Texture ? yellowPiece : PIXI.Texture.from(assetUrl('player-yellow.png')),
         2: bluePiece instanceof PIXI.Texture ? bluePiece : PIXI.Texture.from(assetUrl('player-blue.png')),
         3: greenPiece instanceof PIXI.Texture ? greenPiece : PIXI.Texture.from(assetUrl('player-green.png')),
       }
-      diceTextures[1] = diceFaces[0] instanceof PIXI.Texture ? diceFaces[0] : PIXI.Texture.from(assetUrl('dice-1.svg'))
-      diceTextures[2] = diceFaces[1] instanceof PIXI.Texture ? diceFaces[1] : PIXI.Texture.from(assetUrl('dice-2.svg'))
-      diceTextures[3] = diceFaces[2] instanceof PIXI.Texture ? diceFaces[2] : PIXI.Texture.from(assetUrl('dice-3.svg'))
-      diceTextures[4] = diceFaces[3] instanceof PIXI.Texture ? diceFaces[3] : PIXI.Texture.from(assetUrl('dice-4.svg'))
-      diceTextures[5] = diceFaces[4] instanceof PIXI.Texture ? diceFaces[4] : PIXI.Texture.from(assetUrl('dice-5.svg'))
-      diceTextures[6] = diceFaces[5] instanceof PIXI.Texture ? diceFaces[5] : PIXI.Texture.from(assetUrl('dice-6.svg'))
+      pieceTexture = playerPieceTextures[0] ?? playerPieceTextures[1] ?? playerPieceTextures[2] ?? playerPieceTextures[3] ?? null
+      for (let value = 1; value <= 6; value += 1) {
+        diceTextures[value] = createDiceFaceTexture(value)
+      }
     })()
 
     try {
@@ -398,14 +417,34 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     if (!shouldAnimate) return
 
-    // 之前这里用 RAF 持续整页重绘来做骰子呼吸动画，
-    // 但会反复创建/销毁整张棋盘与所有棋子，容易在多回合后造成卡死或崩溃。
-    // 现在只做一次轻量刷新，避免无限重绘循环。
     diceIdleStart = performance.now()
-    diceIdleShake.value = Math.sin(diceIdleStart / 120)
-    diceIdleLift.value = Math.sin(diceIdleStart / 420) * 2
-    diceIdlePulse.value = 0.5 + 0.5 * Math.sin(diceIdleStart / 260)
-    renderScene()
+
+    const tick = (now: number) => {
+      if (
+        options.page.value !== 'play' ||
+        game.value.winnerIndex !== null ||
+        game.value.dice !== null ||
+        isRolling.value ||
+        movingPoint.value !== null
+      ) {
+        stopDiceIdleAnimation()
+        renderScene()
+        return
+      }
+
+      if (diceIdleLastRender === 0 || now - diceIdleLastRender >= 80) {
+        const elapsed = now - diceIdleStart
+        diceIdleShake.value = Math.sin(elapsed / 140)
+        diceIdleLift.value = Math.sin(elapsed / 320) * 2.6
+        diceIdlePulse.value = 0.5 + 0.5 * Math.sin(elapsed / 240)
+        diceIdleLastRender = now
+        renderScene()
+      }
+
+      diceIdleFrameId = window.requestAnimationFrame(tick)
+    }
+
+    diceIdleFrameId = window.requestAnimationFrame(tick)
   }
 
   function stopTurnAccentAnimation() {
@@ -594,6 +633,8 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       board.addChild(cell)
     }
 
+    const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value && (isHumanTurn() || !options.autoPlayMode.value)
+
     for (const player of game.value.players) {
       const playerBase = new PIXI.Graphics()
       const zoneSize = safeBoardSize * 0.105
@@ -607,6 +648,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         .fill({ color: player.color, alpha: isActivePlayer ? 0.1 : 0.07 })
         .stroke({ color: player.color, width: isActivePlayer ? 3 : 2, alpha: isActivePlayer ? 0.3 : 0.2 })
       board.addChild(playerBase)
+
+      if (isActivePlayer && canRoll) {
+        playerBase.eventMode = 'static'
+        playerBase.cursor = 'pointer'
+        playerBase.hitArea = new PIXI.Rectangle(zoneX, zoneY, zoneSize, zoneSize)
+        playerBase.on('pointerdown', () => handleRoll(false))
+      }
 
       if (isActivePlayer) {
         const diceHalf = safeBoardSize * 0.09
@@ -633,8 +681,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         .stroke({ color: player.color, width: 1, alpha: 0.24 })
       board.addChild(finishBox)
     }
-
-    const canRoll = game.value.winnerIndex === null && game.value.dice === null && !isTurnTransitioning.value && (isHumanTurn() || !options.autoPlayMode.value)
 
     const center = new PIXI.Container()
     center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
@@ -695,7 +741,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       diceGroup.addChild(idleMark)
 
       const promptIcon = new PIXI.Graphics()
-        .roundedRect(-diceSize * 0.14, -diceSize * 0.18, diceSize * 0.28, diceSize * 0.36, diceSize * 0.08)
+        .roundRect(-diceSize * 0.14, -diceSize * 0.18, diceSize * 0.28, diceSize * 0.36, diceSize * 0.08)
         .fill({ color: 0xffffff, alpha: 0.34 + diceIdlePulse.value * 0.18 })
       diceGroup.addChild(promptIcon)
 
@@ -918,14 +964,14 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
 
     const spin = (now: number) => {
       const elapsed = now - startTime
-      const progress = Math.min(1, elapsed / 760)
-      const interval = Math.max(38, 120 - progress * 72)
+      const progress = Math.min(1, elapsed / 1100)
+      const interval = Math.max(60, 170 - progress * 90)
       const tick = Math.floor(elapsed / interval)
       if (tick > lastTick) {
         rollingFace.value = Math.floor(Math.random() * 6) + 1
         lastTick = tick
       }
-      diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.1
+      diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.08
       renderScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
@@ -946,15 +992,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     if (legalIds.length === 1) return legalIds[0] ?? null
     if (getPlayerTrackCount(currentPlayer.value) === 0 && game.value.dice === 6) return legalIds[0] ?? null
     return null
-  }
-
-  function setDicePromptState(active: boolean) {
-    void active
-  }
-
-  function getHighlightedPieceIds() {
-    if (game.value.dice === null || game.value.winnerIndex !== null) return []
-    return [...legalPieces.value]
   }
 
   function playAutoTurn() {
@@ -1060,10 +1097,15 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       resolvePiecePoint(currentLayout, player, piece),
       ...buildPiecePath(currentLayout, player, piece, game.value.dice),
     ]
-
-    const totalDuration = Math.max(420, (pathPoints.length - 1) * 130)
+    const hopLift = Math.max(8, pathPoints.length * 2)
+    const totalDuration = Math.max(420, (pathPoints.length - 1) * 120)
     const startTime = performance.now()
-    const stepDelay = 110
+    const stepDelay = 100
+
+    if (moveFrameId !== null) {
+      window.cancelAnimationFrame(moveFrameId)
+      moveFrameId = null
+    }
 
     const frame = (now: number) => {
       const elapsed = now - startTime
@@ -1073,10 +1115,11 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       const currentStep = Math.min(totalSteps - 1, rawStep)
       const start = pathPoints[currentStep]
       const end = pathPoints[currentStep + 1] ?? start
+      const lift = Math.sin(segmentProgress * Math.PI) * hopLift
 
       movingPoint.value = {
         x: lerp(start.x, end.x, segmentProgress),
-        y: lerp(start.y, end.y, segmentProgress) - Math.sin(segmentProgress * Math.PI) * (safeBoardSize * 0.018),
+        y: lerp(start.y, end.y, segmentProgress) - lift,
       }
       renderScene()
 
@@ -1088,23 +1131,30 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       moveFrameId = null
       movingPoint.value = null
       const result = movePiece(game.value, pieceId)
-      if (result.moved) {
-        playMoveSound()
-        if (result.message.includes('吃子')) playFailSound()
-        if (result.message.includes('胜利')) playWinSound()
-        refreshGameView()
+      if (!result.moved) {
         clearMovePreview()
-        if (result.advancePending) {
-          scheduleTurnAdvance(2000)
-        } else if (!isHumanTurn() && options.autoPlayMode.value) {
-          scheduleAutoTurn(220)
-        }
+        refreshGameView()
+        return
+      }
+
+      playMoveSound()
+      if (result.message.includes('吃子')) playFailSound()
+      if (result.message.includes('胜利')) playWinSound()
+      clearMovePreview()
+      landingPoint.value = { x: end.x, y: end.y, color: player.color }
+      if (landingTimer !== null) window.clearTimeout(landingTimer)
+      landingTimer = window.setTimeout(() => {
+        landingTimer = null
+        landingPoint.value = null
+      }, 260)
+      refreshGameView()
+      if (result.advancePending) {
+        scheduleTurnAdvance(2000)
+      } else if (!isHumanTurn() && options.autoPlayMode.value) {
+        scheduleAutoTurn(220)
       }
     }
 
-    if (moveFrameId !== null) {
-      window.cancelAnimationFrame(moveFrameId)
-    }
     moveFrameId = window.requestAnimationFrame(frame)
   }
 
