@@ -1,4 +1,4 @@
-export type BoardPresetId = 'tiny-4' | 'normal-6'
+export type BoardPresetId = 'tiny-4' | 'normal-6' | 'hell-8'
 
 export interface BoardPreset {
   id: BoardPresetId
@@ -49,6 +49,22 @@ const normal6Preset: BoardPreset = {
   ],
 }
 
+const hell8Preset: BoardPreset = {
+  id: 'hell-8',
+  label: '地狱 8 步',
+  stepsPerSide: 8,
+  trackLength: 32,
+  homeSteps: 5,
+  startIndices: [0, 8, 16, 24],
+  safeCells: [0, 8, 16, 24],
+  flightJumps: [
+    [3, 6],
+    [11, 14],
+    [19, 22],
+    [27, 30],
+  ],
+}
+
 const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
   'tiny-4': {
     trackInsetRatio: 0.18,
@@ -70,6 +86,16 @@ const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
     finishGapRatio: 0.055,
     finishBoxSizeRatio: 0.03,
   },
+  'hell-8': {
+    trackInsetRatio: 0.1,
+    trackSizeRatio: 0.058,
+    baseZoneSizeRatio: 0.1,
+    baseZonePaddingRatio: 0.012,
+    baseSlotSpreadRatio: 0.2,
+    finishOffsetRatio: 0.105,
+    finishGapRatio: 0.046,
+    finishBoxSizeRatio: 0.026,
+  },
 }
 
 export const DEFAULT_BOARD_PRESET_ID: BoardPresetId = 'tiny-4'
@@ -77,6 +103,7 @@ export const DEFAULT_BOARD_PRESET_ID: BoardPresetId = 'tiny-4'
 export const BOARD_PRESETS: Record<BoardPresetId, BoardPreset> = {
   'tiny-4': tiny4Preset,
   'normal-6': normal6Preset,
+  'hell-8': hell8Preset,
 }
 
 export function getBoardPreset(boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): BoardPreset {

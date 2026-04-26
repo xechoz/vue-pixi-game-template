@@ -70,6 +70,13 @@ const difficultyOptions = [
     accent: '#5f9cff',
     image: `${assetBase}difficulty/normal-mode.png`,
   },
+  {
+    value: 'hell-8' as const,
+    title: '地狱模式',
+    hint: `${getBoardPreset('hell-8').stepsPerSide}步/边`,
+    accent: '#ef4444',
+    image: `${assetBase}difficulty/hell-mode.png`,
+  },
 ]
 </script>
 
@@ -353,7 +360,7 @@ const difficultyOptions = [
 
 .board-preset-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }

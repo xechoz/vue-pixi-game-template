@@ -51,3 +51,15 @@ test('normal-6 game logic uses the selected difficulty mode instead of tiny-4 de
   piece.progress = 24
   assert.equal(getPieceLabel(piece, game.boardPresetId), '内圈 1/4')
 })
+
+test('hell-8 game logic uses the selected third difficulty mode at runtime', () => {
+  const game = createGame({ mode: 2, piecesPerPlayer: 2, boardPresetId: 'hell-8' })
+  const player = game.players[0]!
+  const piece = player.pieces[0]!
+
+  piece.progress = 31
+  assert.equal(getTrackCellIndex(player, piece), 31)
+
+  piece.progress = 32
+  assert.equal(getPieceLabel(piece, game.boardPresetId), '内圈 1/5')
+})

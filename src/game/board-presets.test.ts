@@ -53,14 +53,32 @@ test('board presets also expose a normal-6 preset without changing the default b
   ])
 })
 
-test('normal-6 render layout expands the path and center spacing for a longer board', () => {
-  const layout = getBoardRenderLayout('normal-6')
+test('board presets also expose a hell preset for the third difficulty mode', () => {
+  assert.ok(BOARD_PRESETS['hell-8'])
 
-  assert.equal(layout.trackInsetRatio, 0.14)
-  assert.equal(layout.trackSizeRatio, 0.068)
-  assert.equal(layout.baseZoneSizeRatio, 0.11)
-  assert.equal(layout.baseSlotSpreadRatio, 0.22)
-  assert.equal(layout.finishOffsetRatio, 0.12)
-  assert.equal(layout.finishGapRatio, 0.055)
-  assert.equal(layout.finishBoxSizeRatio, 0.03)
+  const preset = getBoardPreset('hell-8')
+  assert.equal(preset.id, 'hell-8')
+  assert.equal(preset.stepsPerSide, 8)
+  assert.equal(preset.trackLength, 32)
+  assert.equal(preset.homeSteps, 5)
+  assert.deepEqual(preset.startIndices, [0, 8, 16, 24])
+  assert.deepEqual(preset.safeCells, [0, 8, 16, 24])
+  assert.deepEqual(preset.flightJumps, [
+    [3, 6],
+    [11, 14],
+    [19, 22],
+    [27, 30],
+  ])
+})
+
+test('hell-8 render layout tightens the board for the longest route', () => {
+  const layout = getBoardRenderLayout('hell-8')
+
+  assert.equal(layout.trackInsetRatio, 0.1)
+  assert.equal(layout.trackSizeRatio, 0.058)
+  assert.equal(layout.baseZoneSizeRatio, 0.1)
+  assert.equal(layout.baseSlotSpreadRatio, 0.2)
+  assert.equal(layout.finishOffsetRatio, 0.105)
+  assert.equal(layout.finishGapRatio, 0.046)
+  assert.equal(layout.finishBoxSizeRatio, 0.026)
 })
