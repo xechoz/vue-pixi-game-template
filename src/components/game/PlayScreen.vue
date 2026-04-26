@@ -35,11 +35,11 @@ const emit = defineEmits<{
       <span class="bg-dot bg-dot-b"></span>
     </div>
     <div class="grid play-grid">
+      <div class="play-actions-bar">
+        <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
+        <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
+      </div>
       <div class="play-stage">
-        <div class="play-actions-bar">
-          <button class="circle-action secondary" type="button" aria-label="返回准备" @click="emit('back')">↩</button>
-          <button class="circle-action primary" type="button" aria-label="重开本局" @click="emit('restart')">↻</button>
-        </div>
         <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
       </div>
     </div>
@@ -69,7 +69,9 @@ const emit = defineEmits<{
   grid-template-columns: 1fr;
   position: relative;
   justify-items: center;
+  align-items: center;
   width: 100%;
+  min-height: 100dvh;
   z-index: 1;
 }
 
@@ -212,8 +214,8 @@ const emit = defineEmits<{
 
 .play-actions-bar {
   position: absolute;
-  top: -200px;
-  left: 4px;
+  top: max(12px, calc(50% - (var(--play-canvas-width) * 0.75) - 200px));
+  left: max(4px, calc(50% - (var(--play-canvas-width) / 2) + 4px));
   display: flex;
   justify-content: flex-start;
   gap: 10px;
@@ -270,8 +272,8 @@ const emit = defineEmits<{
   }
 
   .play-actions-bar {
-    top: -200px;
-    left: 0;
+    top: max(8px, calc(50% - (var(--play-canvas-width) * 0.75) - 200px));
+    left: max(8px, calc(50% - (var(--play-canvas-width) / 2)));
   }
 
   .play-floating-actions {
