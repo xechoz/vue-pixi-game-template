@@ -350,10 +350,17 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     color: number,
     alpha: number,
     highlightAlpha = 0,
+    indentAlpha = 0,
   ) {
     const pipLayout = getDicePipLayout(value)
     for (const [u, v] of pipLayout) {
       const point = projectFacePoint(corners, u, v)
+      if (indentAlpha > 0) {
+        const pipIndent = new PIXI.Graphics()
+          .circle(point.x, point.y, radius * 1.28)
+          .fill({ color: 0x0f172a, alpha: indentAlpha })
+        container.addChild(pipIndent)
+      }
       if (highlightAlpha > 0) {
         const pipHighlight = new PIXI.Graphics()
           .circle(point.x + radius * 0.24, point.y - radius * 0.24, radius * 1.04)
@@ -898,14 +905,55 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     const topFace = createRoundedQuad(toClockwiseQuad(topCorners), faceSize * 0.08, topColor, strokeColor, 0.99, 0.06)
     diceGroup.addChild(topFace)
 
+    const topBevel = createRoundedQuad(
+      toClockwiseQuad([
+        { x: -faceSize / 2 + faceSize * 0.015, y: -faceSize / 2 - liftDepth * 0.02 },
+        { x: faceSize / 2 - faceSize * 0.015, y: -faceSize / 2 - liftDepth * 0.02 },
+        { x: -faceSize / 2 + skew * 0.96, y: -faceSize / 2 - liftDepth * 0.97 },
+        { x: faceSize / 2 + skew * 0.96, y: -faceSize / 2 - liftDepth * 0.97 },
+      ]),
+      faceSize * 0.045,
+      0xffffff,
+      0xffffff,
+      0.035,
+      0,
+    )
+    diceGroup.addChild(topBevel)
+
     const sideFace = createRoundedQuad(toClockwiseQuad(rightCorners), faceSize * 0.07, sideColor, strokeColor, 0.99, 0.06)
     diceGroup.addChild(sideFace)
+
+    const sideBevel = createRoundedQuad(
+      toClockwiseQuad([
+        { x: faceSize / 2 + skew * 0.02, y: -faceSize / 2 - liftDepth * 0.01 },
+        { x: faceSize / 2 + skew * 0.98, y: -faceSize / 2 - liftDepth * 0.2 },
+        { x: faceSize / 2 + skew * 0.02, y: faceSize / 2 - liftDepth * 0.01 },
+        { x: faceSize / 2 + skew * 0.98, y: faceSize / 2 - liftDepth * 0.2 },
+      ]),
+      faceSize * 0.04,
+      0x0f172a,
+      0x0f172a,
+      0.05,
+      0,
+    )
+    diceGroup.addChild(sideBevel)
 
     const frontFace = new PIXI.Graphics()
       .roundRect(-faceSize / 2, -faceSize / 2 + frontFaceInset, faceSize, faceSize - frontFaceInset, faceSize * 0.17)
       .fill({ color: frontColor, alpha: 0.99 })
       .stroke({ color: strokeColor, width: 0.9, alpha: 0.14 })
     diceGroup.addChild(frontFace)
+
+    const frontBevel = new PIXI.Graphics()
+      .roundRect(
+        -faceSize / 2 + faceSize * 0.028,
+        -faceSize / 2 + frontFaceInset + faceSize * 0.028,
+        faceSize * 0.944,
+        faceSize - frontFaceInset - faceSize * 0.056,
+        faceSize * 0.145,
+      )
+      .stroke({ color: 0xffffff, width: faceSize * 0.038, alpha: 0.05 })
+    diceGroup.addChild(frontBevel)
 
     const topFaceHighlight = createRoundedQuad(
       toClockwiseQuad([
@@ -957,9 +1005,10 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       topCorners,
       orientation.top,
       faceSize * 0.044,
-      mixHexColor(pipColor, 0xffffff, 0.26),
-      0.52,
-      0.1,
+      mixHexColor(pipColor, 0xffffff, 0.18),
+      0.44,
+      0.08,
+      0.12,
     )
 
     drawProjectedPips(
@@ -967,19 +1016,21 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
       rightCorners,
       orientation.right,
       faceSize * 0.038,
-      mixHexColor(pipColor, 0xffffff, 0.16),
-      0.42,
-      0.06,
+      mixHexColor(pipColor, 0xffffff, 0.1),
+      0.36,
+      0.04,
+      0.1,
     )
 
     drawProjectedPips(
       diceGroup,
       frontCorners,
       orientation.front,
-      faceSize * 0.078,
+      faceSize * 0.074,
       pipColor,
       0.95,
-      0.08,
+      0.06,
+      0.16,
     )
 
     if (diceValue === null) {
