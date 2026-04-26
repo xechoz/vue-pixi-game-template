@@ -84,6 +84,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const rollingFace = ref<number>(1)
   const previousRollingFace = ref<number>(1)
   const diceFaceTransitionAlpha = ref(0)
+  const diceRollTrailAlpha = ref(0)
   const diceRollFrame = ref(0)
   const diceOrientation = ref<DiceOrientation>({ top: 1, bottom: 6, front: 2, back: 5, right: 3, left: 4 })
   const diceSpinScale = ref(1)
@@ -151,6 +152,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     diceIdleShake.value = 0
     diceIdleLift.value = 0
     diceFaceTransitionAlpha.value = 0
+    diceRollTrailAlpha.value = 0
     legalPulse.value = 0
   }
 
@@ -1001,6 +1003,18 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
           diceGroup.addChild(previousSprite)
         }
 
+        if (isRolling.value && diceRollTextures.length === 0 && diceRollTrailAlpha.value > 0.001) {
+          const trailSprite = new PIXI.Sprite(assetTexture)
+          trailSprite.anchor.set(0.5)
+          trailSprite.width = fittedWidth
+          trailSprite.height = fittedHeight
+          trailSprite.alpha = Math.max(0, Math.min(0.16, diceRollTrailAlpha.value))
+          trailSprite.tint = 0xdbeafe
+          trailSprite.position.set(-diceSpinRotation.value * fittedWidth * 0.55, diceSpinFlip.value < 0.72 ? fittedHeight * 0.035 : -fittedHeight * 0.012)
+          trailSprite.scale.set(1 + Math.abs(diceSpinRotation.value) * 0.16, 1)
+          diceGroup.addChild(trailSprite)
+        }
+
         const diceSprite = new PIXI.Sprite(assetTexture)
         diceSprite.anchor.set(0.5)
         diceSprite.width = fittedWidth
@@ -1616,6 +1630,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         const elapsedSinceFaceChange = now - lastFaceChangeTime
         const fadeProgress = Math.min(1, elapsedSinceFaceChange / 90)
         diceFaceTransitionAlpha.value = Math.max(0, (1 - fadeProgress) * 0.32)
+        diceRollTrailAlpha.value = (0.06 + Math.abs(diceSpinRotation.value) * 0.34 + (1 - diceSpinFlip.value) * 0.08) * (1 - progress * 0.3)
       }
       diceSpinScale.value = 1 + Math.sin(progress * Math.PI) * 0.06
       diceSpinRotation.value = Math.sin(progress * Math.PI * 4.8) * 0.26 * wobbleDecay + turnProgress * Math.PI * 0.1
@@ -1636,6 +1651,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceSpinPitch.value = 0
         diceSpinYaw.value = 0
         diceFaceTransitionAlpha.value = 0
+        diceRollTrailAlpha.value = 0
         if (diceRollTextures.length > 0) {
           diceRollFrame.value = Math.max(0, diceRollTextures.length - 1)
         }
@@ -1693,6 +1709,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     rollingFace.value = Math.floor(Math.random() * 6) + 1
     previousRollingFace.value = rollingFace.value
     diceFaceTransitionAlpha.value = 0
+    diceRollTrailAlpha.value = 0
     diceRollFrame.value = 0
     diceSpinScale.value = 1
     diceSpinPitch.value = 0
