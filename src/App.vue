@@ -1,39 +1,62 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { defineAsyncComponent, ref } from 'vue'
 
 import PrepareScreen from './components/game/PrepareScreen.vue'
-import ResultScreen from './components/game/ResultScreen.vue'
-import PlayScreen from './components/game/PlayScreen.vue'
-import { type AppPage, useFlightLudoPlayScene } from './composables/useFlightLudoPlayScene'
+import { type AppPage } from './composables/useFlightLudoPlayScene'
 import { type BoardPresetId, type GameMode } from './game'
+
+const assetBase = import.meta.env.BASE_URL
+const appBg = `${assetBase}prepare-bg.jpg`
+
+const loadResultScreen = () => import('./components/game/ResultScreen.vue')
+const loadPlayPage = () => import('./components/game/PlayPage.vue')
+
+const ResultScreen = defineAsyncComponent(loadResultScreen)
+const PlayPage = defineAsyncComponent(loadPlayPage)
 
 const mode = ref<GameMode>(1)
 const piecesPerPlayer = ref(4)
 const boardPresetId = ref<BoardPresetId>('tiny-4')
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
-const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
+const winnerName = ref('已结束')
 
-const {
-  winner,
-  startGame,
-  replayGame,
-  goToPrepare,
-  setMode,
-  setPiecesPerPlayer,
-  setBoardPresetId,
-} = useFlightLudoPlayScene({
-  page,
-  mode,
-  piecesPerPlayer,
-  boardPresetId,
-  autoPlayMode,
-  playScreenRef,
-})
+async function startGame() {
+  await loadPlayPage()
+  page.value = 'play'
+}
+
+
+function goToPrepare() {
+  page.value = 'prepare'
+}
+
+function replayGame() {
+  page.value = 'play'
+}
+
+function setMode(nextMode: GameMode) {
+  mode.value = nextMode
+}
+
+function setPiecesPerPlayer(nextCount: number) {
+  piecesPerPlayer.value = nextCount
+}
+
+function setBoardPresetId(nextBoardPresetId: BoardPresetId) {
+  boardPresetId.value = nextBoardPresetId
+}
+
+function handleWinnerChange(nextWinnerName: string) {
+  winnerName.value = nextWinnerName
+  page.value = 'result'
+}
 </script>
 
 <template>
   <main class="shell">
+    <img class="app-bg" :src="appBg" alt="" aria-hidden="true" />
+
     <PrepareScreen
       v-if="page === 'prepare'"
       :mode="mode"
@@ -43,17 +66,20 @@ const {
       @start="startGame"
     />
 
-    <PlayScreen
+    <PlayPage
       v-else-if="page === 'play'"
-      ref="playScreenRef"
+      :mode="mode"
+      :pieces-per-player="piecesPerPlayer"
       :board-preset-id="boardPresetId"
+      :auto-play-mode="autoPlayMode"
       @back="goToPrepare"
+      @winner-change="handleWinnerChange"
       @update:board-preset-id="setBoardPresetId"
     />
 
     <ResultScreen
       v-else
-      :winner-name="winner?.name ?? '已结束'"
+      :winner-name="winnerName"
       @replay="replayGame"
       @prepare="goToPrepare"
     />
@@ -64,5 +90,21 @@ const {
 .shell {
   min-height: 100dvh;
   padding: 0;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: none;
+}
+
+.app-bg {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(14px);
+  transform: scale(1.04);
+  z-index: -2;
+  pointer-events: none;
 }
 </style>

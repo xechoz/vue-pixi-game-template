@@ -55,7 +55,6 @@ const modeOptions = [
 
 <template>
   <section class="page page-prepare">
-    <img class="page-bg" :src="`${assetBase}prepare-bg.jpg`" alt="" aria-hidden="true" />
     <div class="mode-shell">
       <div class="mode-grid">
         <button
