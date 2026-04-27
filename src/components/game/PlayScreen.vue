@@ -63,13 +63,11 @@ const difficultyOptions = [
               type="button"
               class="preset-pill"
               :class="{ active: props.boardPresetId === option.value }"
-              :style="{
-                '--accent': option.accent,
-                '--preset-image': `url(${option.image})`,
-              }"
+              :style="{ '--accent': option.accent }"
               :aria-label="option.title"
               @click="emit('update:board-preset-id', option.value)"
             >
+              <img class="preset-image" :src="option.image" :alt="option.title" />
               <span class="sr-only">{{ option.title }}</span>
             </button>
           </div>
@@ -202,6 +200,18 @@ const difficultyOptions = [
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
 }
 
+.preset-image {
+  position: absolute;
+  inset: 4px;
+  width: calc(100% - 8px);
+  height: calc(100% - 8px);
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  pointer-events: none;
+  z-index: 1;
+}
+
 .preset-pill::before {
   content: '';
   position: absolute;
@@ -209,7 +219,7 @@ const difficultyOptions = [
   border-radius: 10px;
   background:
     linear-gradient(180deg, rgba(6, 18, 36, 0.08), rgba(6, 18, 36, 0.16)),
-    var(--preset-image) center center / cover no-repeat;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 

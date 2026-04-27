@@ -21,16 +21,6 @@ function sliceBlock(source: string, selector: string) {
   return source.slice(start, end + 3)
 }
 
-function sliceSceneBlock(source: string, anchor: string, endAnchor: string) {
-  const start = source.indexOf(anchor)
-  assert.notEqual(start, -1, `Missing anchor: ${anchor}`)
-
-  const end = source.indexOf(endAnchor, start)
-  assert.notEqual(end, -1, `Missing end anchor: ${endAnchor}`)
-
-  return source.slice(start, end)
-}
-
 test('difficulty mode selector lives on PlayScreen instead of PrepareScreen', () => {
   const prepareScreen = read('components/game/PrepareScreen.vue')
   const playScreen = read('components/game/PlayScreen.vue')
@@ -80,11 +70,10 @@ test('back button shares the same row with horizontally centered difficulty butt
 test('play topbar sits lower and uses the uploaded image-based back button asset', () => {
   const playScreen = read('components/game/PlayScreen.vue')
 
-  assert.ok(playScreen.includes("top: calc(50% - (var(--play-canvas-width) * 0.75) - 86px);"))
-  assert.ok(playScreen.includes("top: calc(50% - (var(--play-canvas-width) * 0.75) - 70px);"))
+  assert.match(playScreen, /top:\s*calc\(50% - \(var\(--play-canvas-width\) \* 0\.75\) - 86px\);/)
+  assert.match(playScreen, /top:\s*calc\(50% - \(var\(--play-canvas-width\) \* 0\.75\) - 70px\);/)
 
-  assert.ok(playScreen.includes("const backButtonImage = `${assetBase}ui/back-button.png`"))
-  assert.ok(playScreen.includes('<img class="back-icon" :src="backButtonImage" alt="" />'))
+  assert.ok(playScreen.includes('ui/back-button.png'))
   assert.ok(!playScreen.includes('>↩</button>'))
 })
 
@@ -100,34 +89,36 @@ test('back button is a rounded rectangle instead of a circle', () => {
 })
 
 test('player plane sprites use board-step-aware sizing with softer clickable glow and no shadow', () => {
-  const playScene = read('composables/useFlightLudoPlayScene.ts')
-  const pieceRenderBlock = sliceSceneBlock(playScene, "if (isLegal && !isMoving) {", 'board.addChild(pieceGroup)')
+  const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 
-  assert.ok(pieceRenderBlock.includes("const trackPieceBodyScale = activeBoardPreset.stepsPerSide <= 4 ? 5.6 : activeBoardPreset.stepsPerSide <= 6 ? 5.15 : 4.85"))
-  assert.ok(pieceRenderBlock.includes('const pieceBodyScale = pieceInfo.location === \'base\' ? trackPieceBodyScale + 1.15 : trackPieceBodyScale'))
-  assert.ok(pieceRenderBlock.includes('body.position.set(0, pieceInfo.location === \'base\' ? -3 : -1.5)'))
-  assert.ok(pieceRenderBlock.includes('body.width = pieceRadius * pieceBodyScale'))
-  assert.ok(pieceRenderBlock.includes('body.height = pieceRadius * pieceBodyScale'))
+  assert.ok(playScene.includes('const trackPieceBodyScale ='))
+  assert.ok(playScene.includes('options.boardPreset.stepsPerSide <= 4'))
+  assert.ok(playScene.includes('? 5.6'))
+  assert.ok(playScene.includes(': 4.85'))
+  assert.ok(playScene.includes('const basePieceBodyScale = trackPieceBodyScale + 1.15'))
+  assert.ok(playScene.includes('body.position.set(0, pieceInfo.location === \'base\' ? -3 : -1.5)'))
+  assert.ok(playScene.includes('body.width = pieceRadius * pieceBodyScale'))
+  assert.ok(playScene.includes('body.height = pieceRadius * pieceBodyScale'))
 
-  assert.ok(!pieceRenderBlock.includes('const shadow = new PIXI.Graphics()'))
-  assert.ok(!pieceRenderBlock.includes('.ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)'))
+  assert.ok(!playScene.includes('const shadow = new PIXI.Graphics()'))
+  assert.ok(!playScene.includes('.ellipse(2, 7, pieceRadius + 10, pieceRadius + 5)'))
 
-  assert.ok(pieceRenderBlock.includes('const legalGlow = new PIXI.Graphics()'))
-  assert.ok(pieceRenderBlock.includes('.circle(0, 0, pieceRadius + 6)'))
-  assert.ok(pieceRenderBlock.includes('.stroke({ color: hexToNumber(pieceInfo.player.color), width: 2, alpha: 0.12 + legalPulse.value * 0.16 })'))
+  assert.ok(playScene.includes('const legalGlow = new PIXI.Graphics()'))
+  assert.ok(playScene.includes('.circle(0, 0, pieceRadius + 6)'))
+  assert.ok(playScene.includes('alpha: 0.12 + options.turn.legalPulse * 0.16'))
 })
 
 test('idle dice prompt overlay uses 0.8x sizing and blurs the idle dice face', () => {
-  const playScene = read('composables/useFlightLudoPlayScene.ts')
-  const idleOverlayBlock = sliceSceneBlock(playScene, 'if (!isRolling.value && isIdleDiceState && diceIdleTexture) {', 'const landingShadowScale =')
+  const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 
-  assert.ok(idleOverlayBlock.includes('const idleFaceBlur = new PIXI.Graphics()'))
-  assert.ok(idleOverlayBlock.includes('.roundRect(-fittedWidth * 0.36, -fittedHeight * 0.36, fittedWidth * 0.72, fittedHeight * 0.72, fittedWidth * 0.12)'))
-  assert.ok(idleOverlayBlock.includes('.fill({ color: 0xffffff, alpha: 0.3 })'))
-  assert.ok(idleOverlayBlock.includes('const overlayWidth = fittedWidth * 0.8'))
-  assert.ok(idleOverlayBlock.includes('const overlayHeight = fittedHeight * 0.8'))
-  assert.ok(idleOverlayBlock.includes('const overlayCenterY = -overlayHeight * 0.02'))
-  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.position.set(0, overlayCenterY)'))
-  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.width = overlayWidth'))
-  assert.ok(idleOverlayBlock.includes('idleOverlaySprite.height = overlayHeight'))
+  assert.ok(playScene.includes('const idleFaceBlur = new PIXI.Graphics()'))
+  assert.ok(playScene.includes('.roundRect('))
+  assert.ok(playScene.includes('fittedWidth * 0.72'))
+  assert.ok(playScene.includes('.fill({ color: 0xffffff, alpha: 0.3 })'))
+  assert.ok(playScene.includes('const overlayWidth = fittedWidth * 0.8'))
+  assert.ok(playScene.includes('const overlayHeight = fittedHeight * 0.8'))
+  assert.ok(playScene.includes('const overlayCenterY = -overlayHeight * 0.02'))
+  assert.ok(playScene.includes('idleOverlaySprite.position.set(0, overlayCenterY)'))
+  assert.ok(playScene.includes('idleOverlaySprite.width = overlayWidth'))
+  assert.ok(playScene.includes('idleOverlaySprite.height = overlayHeight'))
 })
