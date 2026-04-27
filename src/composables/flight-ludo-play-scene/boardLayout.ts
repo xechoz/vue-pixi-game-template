@@ -19,10 +19,11 @@ export function buildBoardLayout(
   boardRenderLayout: BoardRenderLayout,
 ): BoardLayout {
   const buildTrackPoints = (originXValue: number, originYValue: number) => {
-    const left = originXValue + size * boardRenderLayout.trackInsetRatio
-    const right = originXValue + size * (1 - boardRenderLayout.trackInsetRatio)
-    const top = originYValue + size * boardRenderLayout.trackInsetRatio
-    const bottom = originYValue + size * (1 - boardRenderLayout.trackInsetRatio)
+    const trackInset = 10
+    const left = originXValue + trackInset
+    const right = originXValue + size - trackInset
+    const top = originYValue + trackInset
+    const bottom = originYValue + size - trackInset
 
     return Array.from({ length: boardPreset.trackLength }, (_, index) => {
       const side = Math.floor(index / boardPreset.stepsPerSide)
@@ -41,22 +42,27 @@ export function buildBoardLayout(
 
   const buildBaseSlots = (originXValue: number, originYValue: number) => {
     const zoneSize = size * boardRenderLayout.baseZoneSizeRatio
-    const zonePadding = size * boardRenderLayout.baseZonePaddingRatio
+    const zonePadding = 10
     const spread = zoneSize * boardRenderLayout.baseSlotSpreadRatio
+    const trackInset = 10
+    const baseOutsideGap = Math.max(24, size * 0.05)
 
     const zones = [
-      { x: originXValue + zonePadding, y: originYValue + zonePadding },
       {
-        x: originXValue + size - zonePadding - zoneSize,
-        y: originYValue + zonePadding,
+        x: originXValue + trackInset,
+        y: originYValue - zonePadding - zoneSize - baseOutsideGap,
       },
       {
-        x: originXValue + size - zonePadding - zoneSize,
-        y: originYValue + size - zonePadding - zoneSize,
+        x: originXValue + size - trackInset - zoneSize,
+        y: originYValue - zonePadding - zoneSize - baseOutsideGap,
       },
       {
-        x: originXValue + zonePadding,
-        y: originYValue + size - zonePadding - zoneSize,
+        x: originXValue + size - trackInset - zoneSize,
+        y: originYValue + size + zonePadding + baseOutsideGap,
+      },
+      {
+        x: originXValue + trackInset,
+        y: originYValue + size + zonePadding + baseOutsideGap,
       },
     ]
 

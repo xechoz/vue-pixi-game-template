@@ -176,7 +176,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   }
 
   const { width, height } = options.app.screen
-  const boardSize = Math.min(width, height) - 72
+  const boardSize = Math.min(width, height) - 20
   const safeBoardSize = Math.max(240, boardSize)
   const originX = (width - safeBoardSize) / 2
   const originY = (height - safeBoardSize) / 2
@@ -303,16 +303,13 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     if (isActivePlayer) {
       const diceHalf = safeBoardSize * 0.09
       const diceGap = safeBoardSize * 0.012
-      const diceYOffset = safeBoardSize * 0.09
+      const diceYOffset = baseBounds.height / 2
       activeDiceAnchor = {
         x:
           player.index === 0 || player.index === 3
             ? baseBounds.x + baseBounds.width + diceHalf + diceGap
             : baseBounds.x - diceHalf - diceGap,
-        y:
-          player.index === 0 || player.index === 1
-            ? baseBounds.y + baseBounds.height / 2 - diceYOffset
-            : baseBounds.y + baseBounds.height / 2 + diceYOffset,
+        y: baseBounds.y + diceYOffset,
       }
     }
 
