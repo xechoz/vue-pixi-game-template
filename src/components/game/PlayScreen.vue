@@ -20,23 +20,23 @@ const emit = defineEmits<{
 
 const difficultyOptions = [
   {
-    value: 'tiny-4' as const,
+    value: 'tiny-3' as const,
     title: '快速模式',
-    hint: `${getBoardPreset('tiny-4').stepsPerSide}步/边`,
+    hint: `${getBoardPreset('tiny-3').stepsPerSide}步/边`,
     accent: '#ffb347',
     image: `${assetBase}difficulty/quick-mode.png`,
   },
   {
-    value: 'normal-6' as const,
+    value: 'normal-5' as const,
     title: '正常模式',
-    hint: `${getBoardPreset('normal-6').stepsPerSide}步/边`,
+    hint: `${getBoardPreset('normal-5').stepsPerSide}步/边`,
     accent: '#5f9cff',
     image: `${assetBase}difficulty/normal-mode.png`,
   },
   {
-    value: 'hell-8' as const,
+    value: 'hell-7' as const,
     title: '地狱模式',
-    hint: `${getBoardPreset('hell-8').stepsPerSide}步/边`,
+    hint: `${getBoardPreset('hell-7').stepsPerSide}步/边`,
     accent: '#ef4444',
     image: `${assetBase}difficulty/hell-mode.png`,
   },

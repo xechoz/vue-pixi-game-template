@@ -81,24 +81,43 @@ export function buildBoardLayout(
   const buildFinishSlots = (originXValue: number, originYValue: number) => {
     const centerXValue = originXValue + size / 2
     const centerYValue = originYValue + size / 2
-    const offset = size * boardRenderLayout.finishOffsetRatio
+    const trackInset = 10
     const gap = size * boardRenderLayout.finishGapRatio
+    const laneStartOffset = Math.max(trackInset + gap, size * boardRenderLayout.finishOffsetRatio)
 
-    const corners = [
-      { x: centerXValue - offset, y: centerYValue - offset },
-      { x: centerXValue + offset, y: centerYValue - offset },
-      { x: centerXValue + offset, y: centerYValue + offset },
-      { x: centerXValue - offset, y: centerYValue + offset },
+    const lanes = [
+      {
+        // 红方：从左边往棋盘中心走
+        x: originXValue + laneStartOffset,
+        y: centerYValue,
+      },
+      {
+        // 黄方：从上边往棋盘中心走
+        x: centerXValue,
+        y: originYValue + laneStartOffset,
+      },
+      {
+        // 蓝方：从右边往棋盘中心走
+        x: originXValue + size - laneStartOffset,
+        y: centerYValue,
+      },
+      {
+        // 绿方：从下边往棋盘中心走
+        x: centerXValue,
+        y: originYValue + size - laneStartOffset,
+      },
     ]
 
-    return corners.map((corner, index) => {
-      const xDir = index === 0 || index === 3 ? -1 : 1
-      const yDir = index === 0 || index === 1 ? -1 : 1
-      return Array.from({ length: boardPreset.homeSteps }, (_, laneIndex) => ({
-        x: corner.x + xDir * gap * laneIndex,
-        y: corner.y + yDir * gap * laneIndex,
-      }))
-    })
+    return lanes.map((lane) =>
+      Array.from({ length: boardPreset.homeSteps }, (_, laneIndex) => {
+        const t =
+          boardPreset.homeSteps <= 1 ? 1 : laneIndex / (boardPreset.homeSteps - 1)
+        return {
+          x: lerp(lane.x, centerXValue, t),
+          y: lerp(lane.y, centerYValue, t),
+        }
+      }),
+    )
   }
 
   return {

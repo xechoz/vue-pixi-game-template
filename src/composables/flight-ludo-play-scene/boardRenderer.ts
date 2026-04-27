@@ -72,7 +72,8 @@ export function resolvePiecePoint(
   player: { index: number; startIndex: number },
   piece: { progress: number },
 ) {
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
   const centerX = layout.trackPoints[0]?.x ?? 0
   const centerY = layout.trackPoints[0]?.y ?? 0
@@ -81,14 +82,14 @@ export function resolvePiecePoint(
     return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
   }
 
-  if (piece.progress < boardPreset.trackLength) {
+  if (piece.progress < homeEntryStep) {
     const trackIndex =
       (player.startIndex + piece.progress) % boardPreset.trackLength
     return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
   }
 
   if (piece.progress < finishStep) {
-    const laneIndex = piece.progress - boardPreset.trackLength
+    const laneIndex = piece.progress - homeEntryStep
     return (
       layout.finishSlots[player.index]?.[laneIndex] ?? {
         x: centerX,
@@ -169,6 +170,48 @@ function drawDottedPolyline(
   }
 }
 
+function drawArrowPolyline(
+  graphics: PIXI.Graphics,
+  points: Point[],
+  options: {
+    color: number
+    alpha: number
+    width: number
+    arrowSize: number
+    arrowEvery: number
+  },
+) {
+  if (points.length === 0) return
+
+  graphics.moveTo(points[0].x, points[0].y)
+  for (const point of points.slice(1)) {
+    graphics.lineTo(point.x, point.y)
+  }
+  graphics.stroke({ color: options.color, width: options.width, alpha: options.alpha })
+
+  for (let index = 1; index < points.length; index += 1) {
+    if (index % options.arrowEvery !== 0 && index !== points.length - 1) continue
+
+    const from = points[index - 1]
+    const to = points[index]
+    const angle = Math.atan2(to.y - from.y, to.x - from.x)
+    const arrowAngle = Math.PI / 7
+    const tipX = to.x
+    const tipY = to.y
+    const leftX = tipX - Math.cos(angle - arrowAngle) * options.arrowSize
+    const leftY = tipY - Math.sin(angle - arrowAngle) * options.arrowSize
+    const rightX = tipX - Math.cos(angle + arrowAngle) * options.arrowSize
+    const rightY = tipY - Math.sin(angle + arrowAngle) * options.arrowSize
+
+    graphics
+      .moveTo(tipX, tipY)
+      .lineTo(leftX, leftY)
+      .lineTo(rightX, rightY)
+      .closePath()
+      .fill({ color: options.color, alpha: options.alpha })
+  }
+}
+
 export function renderPlayScene(options: RenderPlaySceneOptions) {
   const removable = options.scene.removeChildren()
   for (const child of removable) {
@@ -204,6 +247,8 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     options.boardRenderLayout,
   )
   const { trackPoints, baseSlots, finishSlots } = layout
+  const homeEntryStep =
+    options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerSide / 2)
 
   let activeDiceAnchor = { x: centerX, y: centerY }
 
@@ -332,6 +377,22 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       .fill({ color: player.color, alpha: 0.08 })
       .stroke({ color: player.color, width: 1, alpha: 0.24 })
     board.addChild(finishBox)
+
+    if (player.index === 0) {
+      const redRoutePoints = [
+        ...trackPoints.slice(player.startIndex, homeEntryStep),
+        ...finish,
+      ]
+      const redRoute = new PIXI.Graphics()
+      drawArrowPolyline(redRoute, redRoutePoints, {
+        color: 0xffd400,
+        alpha: 0.95,
+        width: 6,
+        arrowSize: Math.max(10, trackSize * 0.55),
+        arrowEvery: Math.max(1, options.boardPreset.stepsPerSide),
+      })
+      board.addChild(redRoute)
+    }
   }
 
   const hideHandoffDice =

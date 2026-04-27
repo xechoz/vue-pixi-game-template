@@ -16,7 +16,7 @@ const PlayPage = defineAsyncComponent(loadPlayPage)
 
 const mode = ref<GameMode>(1)
 const piecesPerPlayer = ref(4)
-const boardPresetId = ref<BoardPresetId>('tiny-4')
+const boardPresetId = ref<BoardPresetId>('tiny-3')
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
 const winnerName = ref('已结束')

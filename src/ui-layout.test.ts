@@ -105,6 +105,16 @@ test('player plane sprites use board-step-aware sizing with softer clickable glo
   assert.ok(playScene.includes('alpha: 0.12 + options.turn.legalPulse * 0.16'))
 })
 
+test('red player route is drawn as a yellow arrowed solid path from start through finish', () => {
+  const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
+
+  assert.ok(playScene.includes("if (player.index === 0) {"))
+  assert.ok(playScene.includes('const redRoutePoints = ['))
+  assert.ok(playScene.includes("color: 0xffd400"))
+  assert.ok(playScene.includes('arrowEvery: Math.max(1, options.boardPreset.stepsPerSide)'))
+  assert.ok(playScene.includes('drawArrowPolyline(redRoute, redRoutePoints, {'))
+})
+
 test('idle dice prompt overlay uses 0.8x sizing and blurs the idle dice face', () => {
   const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 

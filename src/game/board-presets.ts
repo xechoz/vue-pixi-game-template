@@ -1,4 +1,4 @@
-export type BoardPresetId = 'tiny-4' | 'normal-6' | 'hell-8'
+export type BoardPresetId = 'tiny-3' | 'normal-5' | 'hell-7'
 
 export interface BoardPreset {
   id: BoardPresetId
@@ -22,51 +22,51 @@ export interface BoardRenderLayout {
   finishBoxSizeRatio: number
 }
 
-const tiny4Preset: BoardPreset = {
-  id: 'tiny-4',
-  label: '极简 4 步',
-  stepsPerSide: 4,
-  trackLength: 16,
+const tiny3Preset: BoardPreset = {
+  id: 'tiny-3',
+  label: '快速 3 步',
+  stepsPerSide: 3,
+  trackLength: 12,
   homeSteps: 2,
-  startIndices: [0, 4, 8, 12],
-  safeCells: [0, 4, 8, 12],
+  startIndices: [0, 3, 6, 9],
+  safeCells: [0, 3, 6, 9],
   flightJumps: [],
 }
 
-const normal6Preset: BoardPreset = {
-  id: 'normal-6',
-  label: '标准 6 步',
-  stepsPerSide: 6,
-  trackLength: 24,
+const normal5Preset: BoardPreset = {
+  id: 'normal-5',
+  label: '标准 5 步',
+  stepsPerSide: 5,
+  trackLength: 20,
   homeSteps: 4,
-  startIndices: [0, 6, 12, 18],
-  safeCells: [0, 6, 12, 18],
+  startIndices: [0, 5, 10, 15],
+  safeCells: [0, 5, 10, 15],
   flightJumps: [
     [2, 4],
-    [8, 10],
-    [14, 16],
-    [20, 22],
+    [7, 9],
+    [12, 14],
+    [17, 19],
   ],
 }
 
-const hell8Preset: BoardPreset = {
-  id: 'hell-8',
-  label: '地狱 8 步',
-  stepsPerSide: 8,
-  trackLength: 32,
+const hell7Preset: BoardPreset = {
+  id: 'hell-7',
+  label: '地狱 7 步',
+  stepsPerSide: 7,
+  trackLength: 28,
   homeSteps: 5,
-  startIndices: [0, 8, 16, 24],
-  safeCells: [0, 8, 16, 24],
+  startIndices: [0, 7, 14, 21],
+  safeCells: [0, 7, 14, 21],
   flightJumps: [
     [3, 6],
-    [11, 14],
-    [19, 22],
-    [27, 30],
+    [10, 13],
+    [17, 20],
+    [24, 27],
   ],
 }
 
 const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
-  'tiny-4': {
+  'tiny-3': {
     trackInsetRatio: 0.18,
     trackSizeRatio: 0.082,
     baseZoneSizeRatio: 0.125,
@@ -76,7 +76,7 @@ const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
     finishGapRatio: 0.08,
     finishBoxSizeRatio: 0.036,
   },
-  'normal-6': {
+  'normal-5': {
     trackInsetRatio: 0.14,
     trackSizeRatio: 0.068,
     baseZoneSizeRatio: 0.11,
@@ -86,7 +86,7 @@ const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
     finishGapRatio: 0.055,
     finishBoxSizeRatio: 0.03,
   },
-  'hell-8': {
+  'hell-7': {
     trackInsetRatio: 0.1,
     trackSizeRatio: 0.058,
     baseZoneSizeRatio: 0.1,
@@ -98,12 +98,12 @@ const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
   },
 }
 
-export const DEFAULT_BOARD_PRESET_ID: BoardPresetId = 'tiny-4'
+export const DEFAULT_BOARD_PRESET_ID: BoardPresetId = 'tiny-3'
 
 export const BOARD_PRESETS: Record<BoardPresetId, BoardPreset> = {
-  'tiny-4': tiny4Preset,
-  'normal-6': normal6Preset,
-  'hell-8': hell8Preset,
+  'tiny-3': tiny3Preset,
+  'normal-5': normal5Preset,
+  'hell-7': hell7Preset,
 }
 
 export function getBoardPreset(boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): BoardPreset {

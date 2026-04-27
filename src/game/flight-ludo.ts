@@ -5,7 +5,8 @@ const activeBoardPreset = getBoardPreset()
 export const TRACK_STEPS_PER_SIDE = activeBoardPreset.stepsPerSide
 export const TRACK_LENGTH = activeBoardPreset.trackLength
 export const HOME_STEPS = activeBoardPreset.homeSteps
-export const FINISH_STEP = TRACK_LENGTH + HOME_STEPS
+export const HOME_ENTRY_STEP = TRACK_LENGTH - Math.ceil(TRACK_STEPS_PER_SIDE / 2)
+export const FINISH_STEP = HOME_ENTRY_STEP + HOME_STEPS
 
 export type GameMode = 1 | 2 | 3 | 4
 
@@ -138,32 +139,36 @@ export function getCurrentPlayer(state: GameState): PlayerState {
 
 export function getPieceLocation(player: PlayerState, piece: PieceState): PieceLocation {
   const boardPreset = getPresetForPlayer(player)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
   if (piece.progress < 0) return 'base'
-  if (piece.progress < boardPreset.trackLength) return 'track'
+  if (piece.progress < homeEntryStep) return 'track'
   if (piece.progress < finishStep) return 'home'
   return 'finished'
 }
 
 export function getTrackCellIndex(player: PlayerState, piece: PieceState): number | null {
   const boardPreset = getPresetForPlayer(player)
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
 
-  if (piece.progress < 0 || piece.progress >= boardPreset.trackLength) return null
+  if (piece.progress < 0 || piece.progress >= homeEntryStep) return null
   return (player.startIndex + piece.progress) % boardPreset.trackLength
 }
 
 export function getHomeLaneIndex(piece: PieceState, boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): number | null {
   const boardPreset = getPresetForId(boardPresetId)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
-  if (piece.progress < boardPreset.trackLength || piece.progress >= finishStep) return null
-  return piece.progress - boardPreset.trackLength
+  if (piece.progress < homeEntryStep || piece.progress >= finishStep) return null
+  return piece.progress - homeEntryStep
 }
 
 function canPieceMove(state: GameState, piece: PieceState): boolean {
   const boardPreset = getPresetForState(state)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
   if (state.dice === null || state.winnerIndex !== null) return false
   if (piece.progress < 0) return state.dice === 6
@@ -172,7 +177,8 @@ function canPieceMove(state: GameState, piece: PieceState): boolean {
 
 export function buildMoveTrajectory(player: PlayerState, piece: PieceState, dice: number): number[] {
   const boardPreset = getPresetForPlayer(player)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
   const flightJumps = new Map<number, number>(boardPreset.flightJumps)
   const steps: number[] = []
   let progress = piece.progress
@@ -189,7 +195,7 @@ export function buildMoveTrajectory(player: PlayerState, piece: PieceState, dice
     progress += 1
     steps.push(progress)
 
-    while (progress >= 0 && progress < boardPreset.trackLength) {
+    while (progress >= 0 && progress < homeEntryStep) {
       const tempPiece = { id: piece.id, progress }
       const landingCell = getTrackCellIndex(player, tempPiece)
       const jumpTarget = landingCell === null ? undefined : flightJumps.get(landingCell)
@@ -235,11 +241,12 @@ export function getLegalPieceIds(state: GameState): string[] {
 
 export function getPieceLabel(piece: PieceState, boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): string {
   const boardPreset = getPresetForId(boardPresetId)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
   if (piece.progress < 0) return '基地'
-  if (piece.progress < boardPreset.trackLength) return `赛道 ${piece.progress + 1}/${boardPreset.trackLength}`
-  if (piece.progress < finishStep) return `内圈 ${piece.progress - boardPreset.trackLength + 1}/${boardPreset.homeSteps}`
+  if (piece.progress < homeEntryStep) return `赛道 ${piece.progress + 1}/${homeEntryStep}`
+  if (piece.progress < finishStep) return `内圈 ${piece.progress - homeEntryStep + 1}/${boardPreset.homeSteps}`
   return '已完成'
 }
 
@@ -284,7 +291,8 @@ export function movePiece(
   }
 
   const boardPreset = getPresetForState(state)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
   const safeCells = new Set(boardPreset.safeCells)
   const flightJumps = new Map<number, number>(boardPreset.flightJumps)
   const player = getCurrentPlayer(state)
@@ -392,7 +400,8 @@ export function resetGame(settings: GameSettings): GameState {
 
 export function getPlayerFinishedCount(player: PlayerState): number {
   const boardPreset = getPresetForPlayer(player)
-  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const finishStep = homeEntryStep + boardPreset.homeSteps
 
   return player.pieces.filter((piece) => piece.progress >= finishStep).length
 }
