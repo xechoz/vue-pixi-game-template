@@ -54,12 +54,8 @@ const modeOptions = [
 </script>
 
 <template>
-  <section
-    class="page page-prepare"
-    :style="{
-      '--page-bg-image': `url(${assetBase}prepare-bg.jpg)`,
-    }"
-  >
+  <section class="page page-prepare">
+    <img class="page-bg" :src="`${assetBase}prepare-bg.jpg`" alt="" aria-hidden="true" />
     <div class="mode-shell">
       <div class="mode-grid">
         <button
@@ -132,14 +128,16 @@ const modeOptions = [
   overflow: hidden;
 }
 
-.page::before {
-  content: '';
+.page-bg {
   position: absolute;
   inset: -20px;
-  background: var(--page-bg-image) center center / cover no-repeat;
+  width: calc(100% + 40px);
+  height: calc(100% + 40px);
+  object-fit: cover;
   filter: blur(14px);
   transform: scale(1.04);
   z-index: -2;
+  pointer-events: none;
 }
 
 .page::after {

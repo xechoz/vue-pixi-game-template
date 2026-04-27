@@ -44,12 +44,8 @@ const difficultyOptions = [
 </script>
 
 <template>
-  <section
-    class="page page-play"
-    :style="{
-      '--page-bg-image': `url(${assetBase}prepare-bg.jpg)`,
-    }"
-  >
+  <section class="page page-play">
+    <img class="page-bg" :src="`${assetBase}prepare-bg.jpg`" alt="" aria-hidden="true" />
     <div class="grid play-grid">
       <div class="play-topbar">
         <div class="play-controls-row">
@@ -99,14 +95,16 @@ const difficultyOptions = [
   background: none;
 }
 
-.page.page-play::before {
-  content: '';
+.page-bg {
   position: absolute;
   inset: -20px;
-  background: var(--page-bg-image) center center / cover no-repeat;
+  width: calc(100% + 40px);
+  height: calc(100% + 40px);
+  object-fit: cover;
   filter: blur(14px);
   transform: scale(1.04);
   z-index: -1;
+  pointer-events: none;
 }
 
 .play-grid {
