@@ -183,13 +183,8 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   const cellSize = safeBoardSize * 0.06
   const trackSize = cellSize * 0.68
   const pieceRadius = cellSize * 0.28
-  const trackPieceBodyScale =
-    options.boardPreset.stepsPerSide <= 4
-      ? 5.6
-      : options.boardPreset.stepsPerSide <= 6
-        ? 5.15
-        : 4.85
-  const basePieceBodyScale = trackPieceBodyScale + 1.15
+  const trackPieceBodyScale = 7.2
+  const basePieceBodyScale = 8.15
   const basePlaneBoundsPadding = Math.max(
     pieceRadius + 7,
     (pieceRadius * basePieceBodyScale) / 2 + 3,

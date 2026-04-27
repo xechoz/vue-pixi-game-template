@@ -91,11 +91,8 @@ test('back button is a rounded rectangle instead of a circle', () => {
 test('player plane sprites use board-step-aware sizing with softer clickable glow and no shadow', () => {
   const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 
-  assert.ok(playScene.includes('const trackPieceBodyScale ='))
-  assert.ok(playScene.includes('options.boardPreset.stepsPerSide <= 4'))
-  assert.ok(playScene.includes('? 5.6'))
-  assert.ok(playScene.includes(': 4.85'))
-  assert.ok(playScene.includes('const basePieceBodyScale = trackPieceBodyScale + 1.15'))
+  assert.ok(playScene.includes('const trackPieceBodyScale = 7.2'))
+  assert.ok(playScene.includes('const basePieceBodyScale = 8.15'))
   assert.ok(playScene.includes('body.position.set(0, pieceInfo.location === \'base\' ? -3 : -1.5)'))
   assert.ok(playScene.includes('body.width = pieceRadius * pieceBodyScale'))
   assert.ok(playScene.includes('body.height = pieceRadius * pieceBodyScale'))
