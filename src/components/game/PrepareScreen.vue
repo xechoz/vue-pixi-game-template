@@ -384,7 +384,6 @@ const modeOptions = [
 }
 
 .select-card.active {
-  transform: translateY(-3px) scale(1.02);
   border-color: color-mix(in srgb, var(--accent) 62%, white);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.15) inset,
