@@ -41,11 +41,11 @@ export function buildBoardLayout(
   }
 
   const buildBaseSlots = (originXValue: number, originYValue: number) => {
-    const zoneSize = size * boardRenderLayout.baseZoneSizeRatio
-    const zonePadding = 10
-    const spread = zoneSize * boardRenderLayout.baseSlotSpreadRatio
+    const zoneSize = Math.max(64, size * 0.1)
+    const zonePadding = 8
+    const spread = zoneSize * 0.22
     const trackInset = 10
-    const baseOutsideGap = Math.max(24, size * 0.05)
+    const baseOutsideGap = Math.max(14, size * 0.035)
 
     const zones = [
       {
