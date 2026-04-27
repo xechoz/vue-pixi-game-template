@@ -127,17 +127,6 @@ const modeOptions = [
   overflow: hidden;
 }
 
-.page-bg {
-  position: absolute;
-  inset: -20px;
-  width: calc(100% + 40px);
-  height: calc(100% + 40px);
-  object-fit: cover;
-  filter: blur(14px);
-  transform: scale(1.04);
-  z-index: -2;
-  pointer-events: none;
-}
 
 .page::after {
   content: '';

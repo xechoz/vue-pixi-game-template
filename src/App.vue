@@ -26,7 +26,6 @@ async function startGame() {
   page.value = 'play'
 }
 
-
 function goToPrepare() {
   page.value = 'prepare'
 }
