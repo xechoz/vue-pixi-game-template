@@ -63,7 +63,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   const currentPlayer = computed(() => getCurrentPlayer(game.value))
   const legalPieces = computed(() => getLegalPieceIds(game.value))
   const winner = computed(() =>
-    game.value.winnerIndex === null
+    game.value.winnerIndex === -1
       ? null
       : game.value.players[game.value.winnerIndex],
   )
@@ -155,7 +155,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     renderScene()
     diceController.syncDiceIdleAnimation()
     turnController.syncTurnAccentAnimation()
-    if (game.value.winnerIndex !== null && !viewOptions?.deferResultPage) {
+    if (game.value.winnerIndex !== -1 && !viewOptions?.deferResultPage) {
       options.page.value = 'result'
     }
     if (isPlayPageActive()) {
@@ -398,7 +398,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         options.autoPlayMode.value,
       ] as const,
     () => {
-      if (!isPlayPageActive() || game.value.winnerIndex !== null) {
+      if (!isPlayPageActive() || game.value.winnerIndex !== -1) {
         clearTimers()
         return
       }

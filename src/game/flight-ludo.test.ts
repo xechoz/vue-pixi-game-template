@@ -57,10 +57,10 @@ test('red route enters the home lane before the final outer-side midpoint and ce
 
   piece.progress = 16
   assert.equal(getTrackCellIndex(player, piece), 16)
-  assert.equal(getPieceLabel(piece, boardPresetId), '赛道 17/17')
+  assert.equal(getPieceLabel(piece, boardPresetId), '赛道 16/16')
 
   piece.progress = 17
-  assert.equal(getTrackCellIndex(player, piece), null)
+  assert.equal(getTrackCellIndex(player, piece), -1)
   assert.equal(getPieceLabel(piece, boardPresetId), '内圈 1/4')
 })
 
@@ -69,8 +69,8 @@ test('hell-7 game logic uses the selected third difficulty mode at runtime', () 
   const player = game.players[0]!
   const piece = player.pieces[0]!
 
-  piece.progress = 23
-  assert.equal(getTrackCellIndex(player, piece), 23)
+  piece.progress = 22
+  assert.equal(getTrackCellIndex(player, piece), 21)
 
   piece.progress = 24
   assert.equal(getPieceLabel(piece, game.boardPresetId), '内圈 1/5')

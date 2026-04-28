@@ -111,7 +111,7 @@ test('red player route is drawn as a yellow arrowed solid path from start throug
   assert.ok(playScene.includes("if (player.index === 0) {"))
   assert.ok(playScene.includes('const redRoutePoints = ['))
   assert.ok(playScene.includes("color: 0xffd400"))
-  assert.ok(playScene.includes('arrowEvery: Math.max(1, options.boardPreset.stepsPerSide)'))
+  assert.ok(playScene.includes('arrowEvery: Math.max(1, options.boardPreset.stepsPerEdge)'))
   assert.ok(playScene.includes('drawArrowPolyline(redRoute, redRoutePoints, {'))
 })
 

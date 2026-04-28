@@ -18,7 +18,7 @@ type DiceControllerOptions = {
   scheduleAutoTurn: (delay?: number) => void
   scheduleAutoMove: (action: () => void, delay: number) => void
   scheduleTurnAdvance: (delay?: number) => void
-  getHumanAutoMovePieceId: () => string | null
+  getHumanAutoMovePieceId: () => string
   handleMove: (pieceId: string) => void
   playRollSound: () => void
 }
@@ -40,10 +40,10 @@ export function createDiceController(options: DiceControllerOptions) {
   let diceFaceTextures: Partial<Record<number, PIXI.Texture>> = {}
   let diceIdleTexture: PIXI.Texture | null = null
   let diceRollTextures: PIXI.Texture[] = []
-  let rollTimer: number | null = null
-  let rollFrameId: number | null = null
-  let diceLandingFrameId: number | null = null
-  let diceIdleFrameId: number | null = null
+  let rollTimer: number = -1
+  let rollFrameId: number = -1
+  let diceLandingFrameId: number = -1
+  let diceIdleFrameId: number = -1
   let diceIdleLastRender = 0
   let diceIdleStart = 0
 
@@ -62,24 +62,24 @@ export function createDiceController(options: DiceControllerOptions) {
   }
 
   function clearRollTimers() {
-    if (rollTimer !== null) {
+    if (rollTimer !== -1) {
       window.clearTimeout(rollTimer)
-      rollTimer = null
+      rollTimer = -1
     }
-    if (rollFrameId !== null) {
+    if (rollFrameId !== -1) {
       window.cancelAnimationFrame(rollFrameId)
-      rollFrameId = null
+      rollFrameId = -1
     }
   }
 
   function stopDiceIdleAnimation() {
-    if (diceIdleFrameId !== null) {
+    if (diceIdleFrameId !== -1) {
       window.cancelAnimationFrame(diceIdleFrameId)
-      diceIdleFrameId = null
+      diceIdleFrameId = -1
     }
-    if (diceLandingFrameId !== null) {
+    if (diceLandingFrameId !== -1) {
       window.cancelAnimationFrame(diceLandingFrameId)
-      diceLandingFrameId = null
+      diceLandingFrameId = -1
     }
     diceIdleLastRender = 0
     diceSpinRotation.value = 0
@@ -105,8 +105,8 @@ export function createDiceController(options: DiceControllerOptions) {
     return options.game.value.dice
   }
 
-  function getDiceFaceAssetTexture(value: number | null) {
-    if (value === null) return null
+  function getDiceFaceAssetTexture(value: number) {
+    if (value <= 0) return null
     return diceFaceTextures[value] ?? null
   }
 
@@ -125,7 +125,7 @@ export function createDiceController(options: DiceControllerOptions) {
   function getIdleDiceAssetTexture() {
     return (
       getDiceFaceAssetTexture(
-        options.game.value.dice ?? rollingFace.value ?? 1,
+        options.game.value.dice || rollingFace.value || 1,
       ) ?? getDiceFaceAssetTexture(1)
     )
   }
@@ -135,8 +135,8 @@ export function createDiceController(options: DiceControllerOptions) {
 
     const shouldAnimate =
       options.isPlayPageActive() &&
-      options.game.value.winnerIndex === null &&
-      options.game.value.dice === null &&
+      options.game.value.winnerIndex === -1 &&
+      options.game.value.dice === 0 &&
       !isRolling.value &&
       options.movingPoint.value === null &&
       !options.diceHandoffHiding.value &&
@@ -149,8 +149,8 @@ export function createDiceController(options: DiceControllerOptions) {
     const tick = (now: number) => {
       if (
         !options.isPlayPageActive() ||
-        options.game.value.winnerIndex !== null ||
-        options.game.value.dice !== null ||
+        options.game.value.winnerIndex !== -1 ||
+        options.game.value.dice !== 0 ||
         isRolling.value ||
         options.movingPoint.value !== null ||
         options.diceHandoffHiding.value ||
@@ -177,9 +177,9 @@ export function createDiceController(options: DiceControllerOptions) {
   }
 
   function startDiceLandingAnimation() {
-    if (diceLandingFrameId !== null) {
+    if (diceLandingFrameId !== -1) {
       window.cancelAnimationFrame(diceLandingFrameId)
-      diceLandingFrameId = null
+      diceLandingFrameId = -1
     }
 
     const startTime = performance.now()
@@ -201,7 +201,7 @@ export function createDiceController(options: DiceControllerOptions) {
       if (progress < 1) {
         diceLandingFrameId = window.requestAnimationFrame(animate)
       } else {
-        diceLandingFrameId = null
+        diceLandingFrameId = -1
         diceLandingLift.value = 0
         diceLandingSquash.value = 0
         diceResultPop.value = 0
@@ -243,7 +243,7 @@ export function createDiceController(options: DiceControllerOptions) {
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
       } else {
-        rollFrameId = null
+        rollFrameId = -1
         diceSpinScale.value = 1
         diceSpinRotation.value = 0
         diceSpinFlip.value = 1
@@ -259,8 +259,8 @@ export function createDiceController(options: DiceControllerOptions) {
 
   function handleRoll(fromAuto = false) {
     if (
-      options.game.value.winnerIndex !== null ||
-      options.game.value.dice !== null ||
+      options.game.value.winnerIndex !== -1 ||
+      options.game.value.dice !== 0 ||
       isRolling.value ||
       options.isTurnTransitioning.value ||
       options.movingPoint.value !== null
@@ -288,7 +288,7 @@ export function createDiceController(options: DiceControllerOptions) {
       }
 
       isRolling.value = false
-      rollTimer = null
+      rollTimer = -1
       const result = rollDice(options.game.value)
       if (!result.rolled) return
 
@@ -305,7 +305,7 @@ export function createDiceController(options: DiceControllerOptions) {
 
       const humanAutoPieceId = options.isHumanTurn()
         ? options.getHumanAutoMovePieceId()
-        : null
+        : ''
       if (humanAutoPieceId) {
         options.scheduleAutoMove(
           () => options.handleMove(humanAutoPieceId),

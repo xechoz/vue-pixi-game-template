@@ -32,31 +32,31 @@ function lerp(start: number, end: number, t: number) {
 }
 
 export function createMoveController(options: MoveControllerOptions) {
-  const replayingPieceId = ref<string | null>(null)
+  const replayingPieceId = ref<string>('')
   const movePath = ref<number[]>([])
-  const replayingStartProgress = ref<number | null>(null)
+  const replayingStartProgress = ref<number>(-1)
   const movingPoint = ref<Point | null>(null)
   const landingPoint = ref<LandingPoint | null>(null)
 
-  let landingTimer: number | null = null
-  let moveFrameId: number | null = null
+  let landingTimer: number = -1
+  let moveFrameId: number = -1
 
   function clearMovePreview() {
-    replayingPieceId.value = null
+    replayingPieceId.value = ''
     movePath.value = []
-    replayingStartProgress.value = null
+    replayingStartProgress.value = -1
     movingPoint.value = null
     landingPoint.value = null
   }
 
   function clearMoveTimers() {
-    if (landingTimer !== null) {
+    if (landingTimer !== -1) {
       window.clearTimeout(landingTimer)
-      landingTimer = null
+      landingTimer = -1
     }
-    if (moveFrameId !== null) {
+    if (moveFrameId !== -1) {
       window.cancelAnimationFrame(moveFrameId)
-      moveFrameId = null
+      moveFrameId = -1
     }
   }
 
@@ -69,8 +69,8 @@ export function createMoveController(options: MoveControllerOptions) {
     const currentLayout = options.getCurrentLayout()
     if (
       !currentLayout ||
-      options.game.value.dice === null ||
-      options.game.value.winnerIndex !== null ||
+      options.game.value.dice === 0 ||
+      options.game.value.winnerIndex !== -1 ||
       movingPoint.value !== null
     )
       return
@@ -98,7 +98,7 @@ export function createMoveController(options: MoveControllerOptions) {
     replayingStartProgress.value = startProgress
     const result = movePiece(options.game.value, pieceId)
     if (!result.moved) {
-      replayingStartProgress.value = null
+      replayingStartProgress.value = -1
       clearMovePreview()
       options.refreshGameView()
       return
@@ -120,7 +120,7 @@ export function createMoveController(options: MoveControllerOptions) {
     const pathPoints = animPathPoints
 
     const finishMove = () => {
-      moveFrameId = null
+      moveFrameId = -1
       movingPoint.value = null
       options.playMoveSound()
       if (result.message.includes('吃子')) options.playFailSound()
@@ -131,9 +131,9 @@ export function createMoveController(options: MoveControllerOptions) {
         y: endPoint.y,
         color: player.color,
       }
-      if (landingTimer !== null) window.clearTimeout(landingTimer)
+      if (landingTimer !== -1) window.clearTimeout(landingTimer)
       landingTimer = window.setTimeout(() => {
-        landingTimer = null
+        landingTimer = -1
         landingPoint.value = null
       }, 260)
       options.refreshGameView()

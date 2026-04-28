@@ -3,7 +3,7 @@ export type BoardPresetId = 'tiny-3' | 'normal-5' | 'hell-7'
 export interface BoardPreset {
   id: BoardPresetId
   label: string
-  stepsPerSide: number
+  stepsPerEdge: number
   trackLength: number
   homeSteps: number
   startIndices: [number, number, number, number]
@@ -22,48 +22,37 @@ export interface BoardRenderLayout {
   finishBoxSizeRatio: number
 }
 
-const tiny3Preset: BoardPreset = {
-  id: 'tiny-3',
-  label: '快速 3 步',
-  stepsPerSide: 3,
-  trackLength: 12,
-  homeSteps: 2,
-  startIndices: [0, 3, 6, 9],
-  safeCells: [0, 3, 6, 9],
-  flightJumps: [],
+export function deriveOuterLength(stepsPerEdge: number): number {
+  return 3 * stepsPerEdge - 3 + (stepsPerEdge + 1) / 2
 }
 
-const normal5Preset: BoardPreset = {
-  id: 'normal-5',
-  label: '标准 5 步',
-  stepsPerSide: 5,
-  trackLength: 20,
-  homeSteps: 4,
-  startIndices: [0, 5, 10, 15],
-  safeCells: [0, 5, 10, 15],
-  flightJumps: [
-    [2, 4],
-    [7, 9],
-    [12, 14],
-    [17, 19],
-  ],
+function deriveQuarterIndices(trackLength: number): [number, number, number, number] {
+  return [
+    0,
+    Math.floor(trackLength / 4),
+    Math.floor(trackLength / 2),
+    Math.floor((trackLength * 3) / 4),
+  ]
 }
 
-const hell7Preset: BoardPreset = {
-  id: 'hell-7',
-  label: '地狱 7 步',
-  stepsPerSide: 7,
-  trackLength: 28,
-  homeSteps: 5,
-  startIndices: [0, 7, 14, 21],
-  safeCells: [0, 7, 14, 21],
-  flightJumps: [
-    [3, 6],
-    [10, 13],
-    [17, 20],
-    [24, 27],
-  ],
+function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, homeSteps: number): BoardPreset {
+  const trackLength = deriveOuterLength(stepsPerEdge)
+  const startIndices = deriveQuarterIndices(trackLength)
+  return {
+    id,
+    label,
+    stepsPerEdge,
+    trackLength,
+    homeSteps,
+    startIndices,
+    safeCells: [...startIndices],
+    flightJumps: [],
+  }
 }
+
+const tiny3Preset = createPreset('tiny-3', '快速 3 步', 3, 2)
+const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 4)
+const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 5)
 
 const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
   'tiny-3': {

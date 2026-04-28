@@ -24,16 +24,16 @@ type DiceRenderState = {
   diceIdleShake: number
   diceIdleLift: number
   diceIdleTexture: PIXI.Texture | null
-  getDiceDisplayValue: () => number | null
-  getDiceFaceAssetTexture: (value: number | null) => PIXI.Texture | null
+  getDiceDisplayValue: () => number
+  getDiceFaceAssetTexture: (value: number) => PIXI.Texture | null
   getRollingDiceAssetTexture: () => PIXI.Texture | null
   getIdleDiceAssetTexture: () => PIXI.Texture | null
 }
 
 type MoveRenderState = {
-  replayingPieceId: string | null
+  replayingPieceId: string
   movePath: number[]
-  replayingStartProgress: number | null
+  replayingStartProgress: number
   movingPoint: Point | null
   landingPoint: LandingPoint | null
 }
@@ -72,7 +72,7 @@ export function resolvePiecePoint(
   player: { index: number; startIndex: number },
   piece: { progress: number },
 ) {
-  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerSide / 2)
+  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerEdge / 2)
   const finishStep = homeEntryStep + boardPreset.homeSteps
 
   const centerX = layout.trackPoints[0]?.x ?? 0
@@ -170,48 +170,6 @@ function drawDottedPolyline(
   }
 }
 
-function drawArrowPolyline(
-  graphics: PIXI.Graphics,
-  points: Point[],
-  options: {
-    color: number
-    alpha: number
-    width: number
-    arrowSize: number
-    arrowEvery: number
-  },
-) {
-  if (points.length === 0) return
-
-  graphics.moveTo(points[0].x, points[0].y)
-  for (const point of points.slice(1)) {
-    graphics.lineTo(point.x, point.y)
-  }
-  graphics.stroke({ color: options.color, width: options.width, alpha: options.alpha })
-
-  for (let index = 1; index < points.length; index += 1) {
-    if (index % options.arrowEvery !== 0 && index !== points.length - 1) continue
-
-    const from = points[index - 1]
-    const to = points[index]
-    const angle = Math.atan2(to.y - from.y, to.x - from.x)
-    const arrowAngle = Math.PI / 7
-    const tipX = to.x
-    const tipY = to.y
-    const leftX = tipX - Math.cos(angle - arrowAngle) * options.arrowSize
-    const leftY = tipY - Math.sin(angle - arrowAngle) * options.arrowSize
-    const rightX = tipX - Math.cos(angle + arrowAngle) * options.arrowSize
-    const rightY = tipY - Math.sin(angle + arrowAngle) * options.arrowSize
-
-    graphics
-      .moveTo(tipX, tipY)
-      .lineTo(leftX, leftY)
-      .lineTo(rightX, rightY)
-      .closePath()
-      .fill({ color: options.color, alpha: options.alpha })
-  }
-}
-
 export function renderPlayScene(options: RenderPlaySceneOptions) {
   const removable = options.scene.removeChildren()
   for (const child of removable) {
@@ -246,9 +204,9 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     options.boardPreset,
     options.boardRenderLayout,
   )
-  const { trackPoints, baseSlots, finishSlots } = layout
+  const { trackPoints, baseSlots, finishSlots, outerBorderPoints, homeEntryPoints } = layout
   const homeEntryStep =
-    options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerSide / 2)
+    options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerEdge / 2)
 
   let activeDiceAnchor = { x: centerX, y: centerY }
 
@@ -256,10 +214,10 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const point = trackPoints[index]
     const cell = new PIXI.Graphics()
     const playerIndex =
-      Math.floor(index / options.boardPreset.stepsPerSide) %
+      Math.floor(index / options.boardPreset.stepsPerEdge) %
       options.game.players.length
     const activeColor = options.game.players[playerIndex].color
-    const isStartCell = index % options.boardPreset.stepsPerSide === 0
+    const isStartCell = index % options.boardPreset.stepsPerEdge === 0
     const isSafeTrackCell = isSafeCell(index, options.game.boardPresetId)
     cell
       .roundRect(
@@ -281,12 +239,22 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     board.addChild(cell)
   }
 
+  const outerBorderGuide = new PIXI.Graphics()
+  drawDottedPolyline(outerBorderGuide, outerBorderPoints, {
+    color: 0x64748b,
+    alpha: 0.28,
+    dotRadius: Math.max(2, trackSize * 0.07),
+    dotSpacing: trackSize * 0.78,
+    closed: true,
+  })
+  board.addChild(outerBorderGuide)
+
   for (const player of options.game.players) {
     const trackGuide = new PIXI.Graphics()
-    const sideStart = player.index * options.boardPreset.stepsPerSide
+    const sideStart = player.index * options.boardPreset.stepsPerEdge
     const sidePoints = trackPoints.slice(
       sideStart,
-      sideStart + options.boardPreset.stepsPerSide,
+      sideStart + options.boardPreset.stepsPerEdge,
     )
     drawDottedPolyline(trackGuide, sidePoints, {
       color: hexToNumber(player.color),
@@ -298,8 +266,8 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   }
 
   const canRoll =
-    options.game.winnerIndex === null &&
-    options.game.dice === null &&
+    options.game.winnerIndex === -1 &&
+    options.game.dice === 0 &&
     !options.turn.isTurnTransitioning &&
     options.move.movingPoint === null &&
     (options.turn.isHumanTurn() || !options.autoPlayMode)
@@ -365,31 +333,52 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
     const finishBoxRadius =
       safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
-    const finishBox = new PIXI.Graphics()
-    finishBox
-      .roundRect(
-        finish[0].x - finishBoxRadius,
-        finish[0].y - finishBoxRadius,
-        finishBoxRadius * 2,
-        finishBoxRadius * 2,
-        12,
-      )
-      .fill({ color: player.color, alpha: 0.08 })
-      .stroke({ color: player.color, width: 1, alpha: 0.24 })
-    board.addChild(finishBox)
+    for (const [laneIndex, lanePoint] of finish.entries()) {
+      const laneCell = new PIXI.Graphics()
+      laneCell
+        .roundRect(
+          lanePoint.x - finishBoxRadius,
+          lanePoint.y - finishBoxRadius,
+          finishBoxRadius * 2,
+          finishBoxRadius * 2,
+          12,
+        )
+        .fill({
+          color: player.color,
+          alpha: laneIndex === finish.length - 1 ? 0.13 : 0.08,
+        })
+        .stroke({
+          color: player.color,
+          width: laneIndex === finish.length - 1 ? 2 : 1,
+          alpha: laneIndex === finish.length - 1 ? 0.35 : 0.24,
+        })
+      board.addChild(laneCell)
+    }
+
+    const entryPoint = homeEntryPoints[player.index]
+    if (entryPoint && finish.length > 0) {
+      const homeConnector = new PIXI.Graphics()
+      drawDottedPolyline(homeConnector, [entryPoint, finish[0], ...finish.slice(1)], {
+        color: hexToNumber(player.color),
+        alpha: 0.34,
+        dotRadius: Math.max(2, trackSize * 0.075),
+        dotSpacing: trackSize * 0.48,
+      })
+      board.addChild(homeConnector)
+    }
 
     if (player.index === 0) {
       const redRoutePoints = [
         ...trackPoints.slice(player.startIndex, homeEntryStep),
+        entryPoint ?? trackPoints[homeEntryStep] ?? trackPoints[0],
         ...finish,
       ]
       const redRoute = new PIXI.Graphics()
-      drawArrowPolyline(redRoute, redRoutePoints, {
+      drawDottedPolyline(redRoute, redRoutePoints, {
         color: 0xffd400,
-        alpha: 0.95,
-        width: 6,
-        arrowSize: Math.max(10, trackSize * 0.55),
-        arrowEvery: Math.max(1, options.boardPreset.stepsPerSide),
+        alpha: 0.42,
+        dotRadius: Math.max(2, trackSize * 0.08),
+        dotSpacing: trackSize * 0.55,
       })
       board.addChild(redRoute)
     }
@@ -398,7 +387,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   const hideHandoffDice =
     (options.turn.diceHandoffHiding || options.turn.isTurnTransitioning) &&
     !options.dice.isRolling &&
-    options.game.dice === null
+    options.game.dice === 0
 
   if (!hideHandoffDice) {
     const center = new PIXI.Container()
@@ -410,7 +399,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const diceSize = safeBoardSize * 0.18
     const diceValue = options.dice.getDiceDisplayValue()
     const isIdleDiceState =
-      !options.dice.isRolling && options.game.dice === null
+      !options.dice.isRolling && options.game.dice === 0
     const rollingDiceAssetTexture = options.dice.getRollingDiceAssetTexture()
     const settledDiceAssetTexture =
       options.dice.getDiceFaceAssetTexture(diceValue)
@@ -631,7 +620,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     )
     if (player && piece) {
       const startP =
-        options.move.replayingStartProgress != null
+        options.move.replayingStartProgress !== -1
           ? options.move.replayingStartProgress
           : piece.progress
       const pathPoints = [
@@ -685,7 +674,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         y = slot.y
       } else if (location === 'track') {
         const trackIndex = getTrackCellIndex(player, piece)
-        if (trackIndex !== null) {
+        if (trackIndex !== -1) {
           const point = trackPoints[trackIndex]
           x = point.x
           y = point.y
@@ -716,7 +705,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
   for (const pieceInfo of pieces) {
     const isLegal =
-      options.game.winnerIndex === null &&
+      options.game.winnerIndex === -1 &&
       options.legalPieces.includes(pieceInfo.piece.id)
     const isMoving =
       options.move.replayingPieceId === pieceInfo.piece.id &&

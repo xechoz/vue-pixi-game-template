@@ -29,39 +29,39 @@ export function createTurnController(options: TurnControllerOptions) {
   const isTurnTransitioning = ref(false)
   const diceHandoffHiding = ref(false)
 
-  let autoTimer: number | null = null
-  let autoMoveTimer: number | null = null
-  let turnAdvanceTimer: number | null = null
-  let turnAccentFrameId: number | null = null
+  let autoTimer: number = -1
+  let autoMoveTimer: number = -1
+  let turnAdvanceTimer: number = -1
+  let turnAccentFrameId: number = -1
 
   function isHumanTurn() {
     return options.currentPlayer.value.humanControlled
   }
 
   function clearAutoTimers() {
-    if (autoTimer !== null) {
+    if (autoTimer !== -1) {
       window.clearTimeout(autoTimer)
-      autoTimer = null
+      autoTimer = -1
     }
-    if (autoMoveTimer !== null) {
+    if (autoMoveTimer !== -1) {
       window.clearTimeout(autoMoveTimer)
-      autoMoveTimer = null
+      autoMoveTimer = -1
     }
   }
 
   function stopTurnAccentAnimation() {
-    if (turnAccentFrameId !== null) {
+    if (turnAccentFrameId !== -1) {
       window.cancelAnimationFrame(turnAccentFrameId)
-      turnAccentFrameId = null
+      turnAccentFrameId = -1
     }
     legalPulse.value = 0
   }
 
   function clearTurnTimers() {
     clearAutoTimers()
-    if (turnAdvanceTimer !== null) {
+    if (turnAdvanceTimer !== -1) {
       window.clearTimeout(turnAdvanceTimer)
-      turnAdvanceTimer = null
+      turnAdvanceTimer = -1
     }
     isTurnTransitioning.value = false
     diceHandoffHiding.value = false
@@ -69,18 +69,18 @@ export function createTurnController(options: TurnControllerOptions) {
   }
 
   function scheduleTurnAdvance(delay = 2000) {
-    if (!options.isPlayPageActive() || options.game.value.winnerIndex !== null)
+    if (!options.isPlayPageActive() || options.game.value.winnerIndex !== -1)
       return
-    if (turnAdvanceTimer !== null) {
+    if (turnAdvanceTimer !== -1) {
       window.clearTimeout(turnAdvanceTimer)
     }
     isTurnTransitioning.value = true
     const timer = window.setTimeout(() => {
       if (turnAdvanceTimer !== timer) return
-      turnAdvanceTimer = null
+      turnAdvanceTimer = -1
       if (
         !options.isPlayPageActive() ||
-        options.game.value.winnerIndex !== null
+        options.game.value.winnerIndex !== -1
       ) {
         isTurnTransitioning.value = false
         return
@@ -101,8 +101,8 @@ export function createTurnController(options: TurnControllerOptions) {
 
     const shouldAnimate =
       options.isPlayPageActive() &&
-      options.game.value.winnerIndex === null &&
-      options.game.value.dice !== null &&
+      options.game.value.winnerIndex === -1 &&
+      options.game.value.dice !== 0 &&
       !options.isRolling.value &&
       options.movingPoint.value === null &&
       options.legalPieces.value.length > 0
@@ -112,8 +112,8 @@ export function createTurnController(options: TurnControllerOptions) {
     const tick = (now: number) => {
       if (
         !options.isPlayPageActive() ||
-        options.game.value.winnerIndex !== null ||
-        options.game.value.dice === null ||
+        options.game.value.winnerIndex !== -1 ||
+        options.game.value.dice === 0 ||
         options.isRolling.value ||
         options.movingPoint.value !== null ||
         options.legalPieces.value.length === 0
@@ -133,35 +133,35 @@ export function createTurnController(options: TurnControllerOptions) {
 
   function getHumanAutoMovePieceId() {
     if (
-      options.game.value.dice === null ||
-      options.game.value.winnerIndex !== null
+      options.game.value.dice === 0 ||
+      options.game.value.winnerIndex !== -1
     )
-      return null
+      return ''
     const legalIds = options.legalPieces.value
-    if (legalIds.length === 0) return null
-    if (legalIds.length === 1) return legalIds[0] ?? null
+    if (legalIds.length === 0) return ''
+    if (legalIds.length === 1) return legalIds[0] ?? ''
     if (
       getPlayerTrackCount(options.currentPlayer.value) === 0 &&
       options.game.value.dice === 6
     )
-      return legalIds[0] ?? null
-    return null
+      return legalIds[0] ?? ""
+    return ''
   }
 
   function scheduleAutoTurn(delay = 180) {
-    if (!options.isPlayPageActive() || options.game.value.winnerIndex !== null)
+    if (!options.isPlayPageActive() || options.game.value.winnerIndex !== -1)
       return
     if (isTurnTransitioning.value || !options.autoPlayMode.value) return
-    if (autoTimer !== null) {
+    if (autoTimer !== -1) {
       window.clearTimeout(autoTimer)
     }
     const timer = window.setTimeout(() => {
       if (autoTimer !== timer) return
-      autoTimer = null
+      autoTimer = -1
       if (
         !options.isPlayPageActive() ||
         !options.autoPlayMode.value ||
-        options.game.value.winnerIndex !== null
+        options.game.value.winnerIndex !== -1
       )
         return
       playAutoTurn()
@@ -173,19 +173,19 @@ export function createTurnController(options: TurnControllerOptions) {
     if (
       !options.isPlayPageActive() ||
       !options.autoPlayMode.value ||
-      options.game.value.winnerIndex !== null
+      options.game.value.winnerIndex !== -1
     )
       return
-    if (autoMoveTimer !== null) {
+    if (autoMoveTimer !== -1) {
       window.clearTimeout(autoMoveTimer)
     }
     const timer = window.setTimeout(() => {
       if (autoMoveTimer !== timer) return
-      autoMoveTimer = null
+      autoMoveTimer = -1
       if (
         !options.isPlayPageActive() ||
         !options.autoPlayMode.value ||
-        options.game.value.winnerIndex !== null
+        options.game.value.winnerIndex !== -1
       )
         return
       action()
@@ -197,7 +197,7 @@ export function createTurnController(options: TurnControllerOptions) {
     if (
       !options.isPlayPageActive() ||
       !options.autoPlayMode.value ||
-      options.game.value.winnerIndex !== null
+      options.game.value.winnerIndex !== -1
     ) {
       clearAutoTimers()
       return
@@ -209,7 +209,7 @@ export function createTurnController(options: TurnControllerOptions) {
     )
       return
 
-    if (options.game.value.dice === null) {
+    if (options.game.value.dice === 0) {
       if (!isHumanTurn()) {
         scheduleAutoMove(() => options.handleRoll(true), 220)
       }
