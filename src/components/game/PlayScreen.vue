@@ -91,9 +91,8 @@ const difficultyOptions = [
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: none;
+  background: #ffffff;
 }
-
 
 .play-grid {
   --play-canvas-width: min(100%, calc(100dvw - 24px), calc((100dvh - 204px) / 1.5));

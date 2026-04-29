@@ -10,6 +10,7 @@ import {
   type PlayerState,
 } from '../../game'
 import { buildBoardLayout } from './boardLayout'
+import { deriveOuterAnchorPoints } from './boardView'
 import type { BoardLayout, LandingPoint, Point } from './types'
 
 type DiceRenderState = {
@@ -205,11 +206,13 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     options.boardRenderLayout,
   )
   const { trackPoints, baseSlots, finishSlots, outerBorderPoints, homeEntryPoints } = layout
+  const outerAnchorPoints = deriveOuterAnchorPoints(trackPoints)
   const homeEntryStep =
     options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerEdge / 2)
 
   let activeDiceAnchor = { x: centerX, y: centerY }
 
+  // Draw the raw track cells first. These cells are the actual movement path.
   for (let index = 0; index < trackPoints.length; index += 1) {
     const point = trackPoints[index]
     const cell = new PIXI.Graphics()
@@ -241,29 +244,16 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
   const outerBorderGuide = new PIXI.Graphics()
   drawDottedPolyline(outerBorderGuide, outerBorderPoints, {
-    color: 0x64748b,
-    alpha: 0.28,
-    dotRadius: Math.max(2, trackSize * 0.07),
-    dotSpacing: trackSize * 0.78,
+    color: 0xf59e0b,
+    alpha: 0.48,
+    dotRadius: Math.max(2.2, trackSize * 0.08),
+    dotSpacing: trackSize * 0.72,
     closed: true,
   })
   board.addChild(outerBorderGuide)
 
-  for (const player of options.game.players) {
-    const trackGuide = new PIXI.Graphics()
-    const sideStart = player.index * options.boardPreset.stepsPerEdge
-    const sidePoints = trackPoints.slice(
-      sideStart,
-      sideStart + options.boardPreset.stepsPerEdge,
-    )
-    drawDottedPolyline(trackGuide, sidePoints, {
-      color: hexToNumber(player.color),
-      alpha: 0.32,
-      dotRadius: Math.max(2, trackSize * 0.08),
-      dotSpacing: trackSize * 0.7,
-    })
-    board.addChild(trackGuide)
-  }
+  // The orange dotted overlay is UI-only. It helps explain the route shape,
+  // but it does not affect movement rules.
 
   const canRoll =
     options.game.winnerIndex === -1 &&
@@ -368,6 +358,10 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }
 
     if (player.index === 0) {
+      const baseAnchor = {
+        x: baseBounds.x + baseBounds.width / 2,
+        y: baseBounds.y + baseBounds.height / 2,
+      }
       const redRoutePoints = [
         ...trackPoints.slice(player.startIndex, homeEntryStep),
         entryPoint ?? trackPoints[homeEntryStep] ?? trackPoints[0],
@@ -381,6 +375,32 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         dotSpacing: trackSize * 0.55,
       })
       board.addChild(redRoute)
+
+      const redAnchorLabels = [
+        { point: baseAnchor, label: '0' },
+        ...outerAnchorPoints.map((point, index) => ({
+          point,
+          label: String(index + 1),
+        })),
+      ]
+
+      redAnchorLabels.forEach(({ point, label: text }) => {
+        const label = new PIXI.Text({
+          text,
+          style: {
+            fontFamily: 'Arial, sans-serif',
+            fontSize: Math.max(11, Math.round(trackSize * 0.34)),
+            fill: '#111827',
+            fontWeight: '700',
+            align: 'center',
+            stroke: { color: '#ffffff', width: 4, alpha: 0.95 },
+            dropShadow: false,
+          },
+        })
+        label.anchor.set(0.5)
+        label.position.set(point.x, point.y - trackSize * 0.12)
+        board.addChild(label)
+      })
     }
   }
 

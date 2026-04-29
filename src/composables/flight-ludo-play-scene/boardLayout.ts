@@ -27,6 +27,40 @@ function buildLinePoints(
   })
 }
 
+function buildPerimeterPoints(
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+  stepsPerEdge: number,
+) {
+  const topSide = buildLinePoints({ x: left, y: top }, { x: right, y: top }, stepsPerEdge)
+  const rightSide = buildLinePoints({ x: right, y: top }, { x: right, y: bottom }, stepsPerEdge)
+  const bottomSide = buildLinePoints({ x: right, y: bottom }, { x: left, y: bottom }, stepsPerEdge)
+  const leftSide = buildLinePoints({ x: left, y: bottom }, { x: left, y: top }, stepsPerEdge)
+
+  return {
+    topSide,
+    rightSide,
+    bottomSide,
+    leftSide,
+    perimeterPoints: [
+      ...topSide,
+      ...rightSide.slice(1),
+      ...bottomSide.slice(1),
+      ...leftSide.slice(1),
+    ],
+  }
+}
+
+function getEntrySideCount(trackLength: number, stepsPerEdge: number) {
+  void trackLength
+  // The last side is intentionally shorter so the visible outer loop can still
+  // close cleanly while leaving room for the home lane entry on the left edge.
+  // This count is chosen so the derived raw track length still matches the preset.
+  return Math.ceil((stepsPerEdge + 3) / 2)
+}
+
 export function buildBoardLayout(
   originX: number,
   originY: number,
@@ -42,46 +76,29 @@ export function buildBoardLayout(
   const centerX = originX + size / 2
   const centerY = originY + size / 2
 
-  const topSide = buildLinePoints(
-    { x: left, y: top },
-    { x: right, y: top },
-    boardPreset.stepsPerEdge,
-  )
-  const rightSide = buildLinePoints(
-    { x: right, y: top },
-    { x: right, y: bottom },
-    boardPreset.stepsPerEdge,
-  )
-  const bottomSide = buildLinePoints(
-    { x: right, y: bottom },
-    { x: left, y: bottom },
-    boardPreset.stepsPerEdge,
-  )
-  const leftSide = buildLinePoints(
-    { x: left, y: bottom },
-    { x: left, y: top },
+  const { topSide, rightSide, bottomSide, leftSide, perimeterPoints } = buildPerimeterPoints(
+    left,
+    right,
+    top,
+    bottom,
     boardPreset.stepsPerEdge,
   )
 
-  const leftEntrySide = buildLinePoints(
+  // 外圈路径：保持闭合矩形外环，左侧只比其它三边少一个点，用来匹配当前 trackLength。
+  const leftRouteSide = buildLinePoints(
     { x: left, y: bottom },
-    { x: left, y: centerY },
-    Math.ceil((boardPreset.stepsPerEdge + 1) / 2),
+    { x: left, y: top },
+    getEntrySideCount(boardPreset.trackLength, boardPreset.stepsPerEdge),
   )
 
   const trackPoints = [
     ...topSide,
     ...rightSide.slice(1),
     ...bottomSide.slice(1),
-    ...leftEntrySide.slice(1),
+    ...leftRouteSide.slice(1),
   ]
 
-  const outerBorderPoints = [
-    ...topSide,
-    ...rightSide.slice(1),
-    ...bottomSide.slice(1),
-    ...leftSide.slice(1),
-  ]
+  const outerBorderPoints = perimeterPoints
 
   const buildBaseSlots = (originXValue: number, originYValue: number) => {
     const zoneSize = Math.max(64, size * boardRenderLayout.baseZoneSizeRatio)
@@ -123,11 +140,12 @@ export function buildBoardLayout(
   const buildFinishSlots = (originXValue: number, originYValue: number) => {
     const slotCenterX = originXValue + size / 2
     const slotCenterY = originYValue + size / 2
+
     const laneAnchors = [
-      leftEntrySide[leftEntrySide.length - 1] ?? leftEntrySide[0] ?? { x: left, y: centerY },
-      topSide[Math.floor((topSide.length - 1) / 2)] ?? topSide[0] ?? { x: slotCenterX, y: top },
-      rightSide[Math.floor((rightSide.length - 1) / 2)] ?? rightSide[0] ?? { x: right, y: slotCenterY },
-      bottomSide[Math.floor((bottomSide.length - 1) / 2)] ?? bottomSide[0] ?? { x: slotCenterX, y: bottom },
+      leftSide[Math.floor((leftSide.length - 1) / 2)] ?? leftSide[0] ?? { x: left, y: centerY },
+      topSide[Math.floor((topSide.length - 1) / 2)] ?? topSide[0] ?? { x: centerX, y: top },
+      rightSide[Math.floor((rightSide.length - 1) / 2)] ?? rightSide[0] ?? { x: right, y: centerY },
+      bottomSide[Math.floor((bottomSide.length - 1) / 2)] ?? bottomSide[0] ?? { x: centerX, y: bottom },
     ]
 
     return laneAnchors.map((anchor) =>
@@ -142,13 +160,11 @@ export function buildBoardLayout(
   }
 
   const homeEntryPoints = [
-    leftEntrySide[leftEntrySide.length - 1] ?? leftEntrySide[0] ?? { x: left, y: centerY },
+    leftSide[Math.floor((leftSide.length - 1) / 2)] ?? leftSide[0] ?? { x: left, y: centerY },
     topSide[Math.floor((topSide.length - 1) / 2)] ?? topSide[0] ?? { x: centerX, y: top },
     rightSide[Math.floor((rightSide.length - 1) / 2)] ?? rightSide[0] ?? { x: right, y: centerY },
     bottomSide[Math.floor((bottomSide.length - 1) / 2)] ?? bottomSide[0] ?? { x: centerX, y: bottom },
   ]
-
-  void boardPreset.trackLength
 
   return {
     trackPoints,
