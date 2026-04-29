@@ -1,14 +1,24 @@
 export type BoardPresetId = 'tiny-3' | 'normal-5' | 'hell-7'
 
+// player 0 is top left, player 1 is top right, player 2 is bottom right, player 3 is bottom left
+
+// 0 is plane base, none of the track cells are 0,
+// 1 is first step, when roll dice of 6, plane moves from base to start cell, which is index 1, and is safe cell
+// homeSteps is last step in home stretch, 
+// trackLength is last step before home stretch
 export interface BoardPreset {
   id: BoardPresetId
   label: string
   stepsPerEdge: number
-  trackLength: number
   homeSteps: number
-  startIndices: [number, number, number, number]
-  safeCells: number[]
+  trackLength: number // outer track length, excluding home stretch
+  startIndices: [number, number, number, number] // the starting cell index for each player, in player order, from 1
+  safeCells: SafeCellInfo // key is player index, value is array of safe cell indices for that player, including start cell 
   flightJumps: Array<[number, number]>
+}
+
+export type SafeCellInfo = {
+  [playerIndex: number]: Array<number>
 }
 
 export interface BoardRenderLayout {
@@ -26,18 +36,21 @@ export function deriveOuterLength(stepsPerEdge: number): number {
   return 3 * stepsPerEdge - 3 + (stepsPerEdge + 1) / 2
 }
 
-function deriveQuarterIndices(trackLength: number): [number, number, number, number] {
+// top left, top right, bottom right, bottom left
+// top left is 1, 
+// for 3 steps per edge, the quarter indices are 1, 2, 4, 5 
+function deriveQuarterIndices(stepsPerEdge: number): [number, number, number, number] {
   return [
-    0,
-    Math.floor(trackLength / 4),
-    Math.floor(trackLength / 2),
-    Math.floor((trackLength * 3) / 4),
+    1,
+   stepsPerEdge -1,
+    2 * stepsPerEdge - 1,
+    3 * stepsPerEdge - 2,
   ]
 }
 
 function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, homeSteps: number): BoardPreset {
   const trackLength = deriveOuterLength(stepsPerEdge)
-  const startIndices = deriveQuarterIndices(trackLength)
+  const startIndices = deriveQuarterIndices(stepsPerEdge)
   return {
     id,
     label,
@@ -45,7 +58,12 @@ function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, ho
     trackLength,
     homeSteps,
     startIndices,
-    safeCells: [...startIndices],
+    safeCells: {
+      0: [startIndices[0]], 
+      1: [startIndices[1]],
+      2: [startIndices[2]],
+      3: [startIndices[3]],
+    },
     flightJumps: [],
   }
 }

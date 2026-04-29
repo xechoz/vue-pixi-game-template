@@ -92,7 +92,7 @@ function createPlayerDefs(boardPresetId: BoardPresetId): PlayerMeta[] {
 }
 
 export const PLAYER_DEFS: PlayerMeta[] = createPlayerDefs(activeBoardPreset.id)
-export const SAFE_CELLS = new Set(activeBoardPreset.safeCells)
+export const SAFE_CELLS = activeBoardPreset.safeCells
 export const FLIGHT_JUMPS = new Map<number, number>(activeBoardPreset.flightJumps)
 
 export function getTurnOrder(mode: GameMode): number[] {
@@ -297,7 +297,7 @@ export function movePiece(
 
   const boardPreset = getPresetForState(state)
   const finishStep = boardPreset.trackLength + boardPreset.homeSteps
-  const safeCells = new Set(boardPreset.safeCells)
+  // const safeCells = new Set(boardPreset.safeCells)
   const flightJumps = new Map<number, number>(boardPreset.flightJumps)
   const player = getCurrentPlayer(state)
   const piece = player.pieces.find((item) => item.id === pieceId)
@@ -332,7 +332,7 @@ export function movePiece(
   let captured = 0
   const landingCell = getTrackCellIndex(player, piece)
 
-  if (piece.progress <= boardPreset.trackLength && landingCell >= 0 && !safeCells.has(landingCell)) {
+  if (piece.progress <= boardPreset.trackLength && landingCell >= 0 && !boardPreset.safeCells[player.index].includes(landingCell)) {
     for (const enemy of state.players) {
       if (!enemy.active || enemy.index === player.index) continue
 
@@ -421,6 +421,6 @@ export function getPlayerTrackCount(player: PlayerState): number {
   return player.pieces.filter((piece) => piece.progress >= 1 && piece.progress <= boardPreset.trackLength && !piece.finished).length
 }
 
-export function isSafeCell(cellIndex: number, boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): boolean {
-  return getPresetForId(boardPresetId).safeCells.includes(cellIndex)
+export function isSafeCell(playerIndex: number, cellIndex: number, boardPresetId: BoardPresetId = DEFAULT_BOARD_PRESET_ID): boolean {
+  return getPresetForId(boardPresetId).safeCells[playerIndex].includes(cellIndex)
 }

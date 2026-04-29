@@ -221,7 +221,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       options.game.players.length
     const activeColor = options.game.players[playerIndex].color
     const isStartCell = index % options.boardPreset.stepsPerEdge === 0
-    const isSafeTrackCell = isSafeCell(index, options.game.boardPresetId)
+    const isSafeTrackCell = isSafeCell(playerIndex, index, options.game.boardPresetId)
     cell
       .roundRect(
         point.x - trackSize / 2,

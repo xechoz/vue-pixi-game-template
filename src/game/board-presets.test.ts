@@ -15,10 +15,15 @@ test('board presets expose a default tiny-3 preset for future board expansion', 
   const preset = getBoardPreset()
   assert.equal(preset.id, 'tiny-3')
   assert.equal(preset.stepsPerEdge, 3)
-  assert.equal(preset.trackLength, 9)
+  assert.equal(preset.trackLength, 8)
   assert.equal(preset.homeSteps, 2)
-  assert.deepEqual(preset.startIndices, [0, 2, 4, 6])
-  assert.deepEqual(preset.safeCells, [0, 2, 4, 6])
+  assert.deepEqual(preset.startIndices, [1, 3, 5, 7])
+  assert.deepEqual(preset.safeCells, {
+    0: [1],
+    1: [3],
+    2: [5],
+    3: [7],
+  })
   assert.deepEqual(preset.flightJumps, [])
 })
 
@@ -43,8 +48,13 @@ test('board presets also expose a normal-5 preset without changing the default b
   assert.equal(preset.stepsPerEdge, 5)
   assert.equal(preset.trackLength, 16)
   assert.equal(preset.homeSteps, 4)
-  assert.deepEqual(preset.startIndices, [0, 4, 8, 12])
-  assert.deepEqual(preset.safeCells, [0, 4, 8, 12])
+  assert.deepEqual(preset.startIndices, [1, 5, 9, 13])
+  assert.deepEqual(preset.safeCells, {
+    0: [1],
+    1: [5],
+    2: [9],
+    3: [13],
+  })
   assert.deepEqual(preset.flightJumps, [])
 })
 
@@ -56,8 +66,13 @@ test('board presets also expose a hell-7 preset for the third difficulty mode', 
   assert.equal(preset.stepsPerEdge, 7)
   assert.equal(preset.trackLength, 22)
   assert.equal(preset.homeSteps, 5)
-  assert.deepEqual(preset.startIndices, [0, 5, 11, 16])
-  assert.deepEqual(preset.safeCells, [0, 5, 11, 16])
+  assert.deepEqual(preset.startIndices, [1, 7, 13, 19])
+  assert.deepEqual(preset.safeCells, {
+    0: [1],
+    1: [7],
+    2: [13],
+    3: [19],
+  })
   assert.deepEqual(preset.flightJumps, [])
 })
 
