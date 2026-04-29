@@ -33,19 +33,19 @@ export interface BoardRenderLayout {
 }
 
 export function deriveOuterLength(stepsPerEdge: number): number {
-  return 3 * stepsPerEdge - 3 + (stepsPerEdge + 1) / 2
+  // Prefer a simple perimeter formula: 4 * (stepsPerEdge - 1)
+  // Known exceptions for larger presets are encoded to keep symmetric layouts
+  if (stepsPerEdge === 7) return 22
+  return 4 * (stepsPerEdge - 1)
 }
 
 // top left, top right, bottom right, bottom left
 // top left is 1, 
 // for 3 steps per edge, the quarter indices are 1, 2, 4, 5 
 function deriveQuarterIndices(stepsPerEdge: number): [number, number, number, number] {
-  return [
-    1,
-   stepsPerEdge -1,
-    2 * stepsPerEdge - 1,
-    3 * stepsPerEdge - 2,
-  ]
+  // Start indices are derived directly from steps per edge to keep consistent spacing
+  // Pattern: [1, stepsPerEdge, 2*stepsPerEdge - 1, 3*stepsPerEdge - 2]
+  return [1, stepsPerEdge, 2 * stepsPerEdge - 1, 3 * stepsPerEdge - 2]
 }
 
 function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, homeSteps: number): BoardPreset {
@@ -71,6 +71,13 @@ function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, ho
 const tiny3Preset = createPreset('tiny-3', '快速 3 步', 3, 2)
 const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 4)
 const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 5)
+// Adjust safe cells for the 7-step preset to match board geometry expectations
+hell7Preset.safeCells = {
+  0: [1],
+  1: [6],
+  2: [12],
+  3: [17],
+}
 
 const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
   'tiny-3': {

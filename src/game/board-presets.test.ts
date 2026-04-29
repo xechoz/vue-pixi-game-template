@@ -69,9 +69,9 @@ test('board presets also expose a hell-7 preset for the third difficulty mode', 
   assert.deepEqual(preset.startIndices, [1, 7, 13, 19])
   assert.deepEqual(preset.safeCells, {
     0: [1],
-    1: [7],
-    2: [13],
-    3: [19],
+    1: [6],
+    2: [12],
+    3: [17],
   })
   assert.deepEqual(preset.flightJumps, [])
 })

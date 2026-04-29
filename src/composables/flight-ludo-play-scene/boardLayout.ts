@@ -53,14 +53,6 @@ function buildPerimeterPoints(
   }
 }
 
-function getEntrySideCount(trackLength: number, stepsPerEdge: number) {
-  void trackLength
-  // The last side is intentionally shorter so the visible outer loop can still
-  // close cleanly while leaving room for the home lane entry on the left edge.
-  // This count is chosen so the derived raw track length still matches the preset.
-  return Math.ceil((stepsPerEdge + 3) / 2)
-}
-
 export function buildBoardLayout(
   originX: number,
   originY: number,
@@ -68,7 +60,9 @@ export function buildBoardLayout(
   boardPreset: BoardPresetLayoutInput,
   boardRenderLayout: BoardRenderLayout,
 ): BoardLayout {
-  const trackInset = Math.max(10, size * boardRenderLayout.trackInsetRatio)
+  console.log('Building board layout with preset:', boardPreset, 'and render layout:', boardRenderLayout, "origin:", originX, originY, "size:", size)
+
+  const trackInset = 20
   const left = originX + trackInset
   const right = originX + size - trackInset
   const top = originY + trackInset
@@ -88,7 +82,7 @@ export function buildBoardLayout(
   const leftRouteSide = buildLinePoints(
     { x: left, y: bottom },
     { x: left, y: top },
-    getEntrySideCount(boardPreset.trackLength, boardPreset.stepsPerEdge),
+    boardPreset.stepsPerEdge
   )
 
   const trackPoints = [
@@ -101,27 +95,32 @@ export function buildBoardLayout(
   const outerBorderPoints = perimeterPoints
 
   const buildBaseSlots = (originXValue: number, originYValue: number) => {
-    const zoneSize = Math.max(64, size * boardRenderLayout.baseZoneSizeRatio)
-    const zonePadding = Math.max(8, size * boardRenderLayout.baseZonePaddingRatio)
-    const spread = Math.max(12, zoneSize * boardRenderLayout.baseSlotSpreadRatio)
-    const baseOutsideGap = Math.max(14, size * 0.035)
+    const zoneSize = 28
+    const zonePadding = 40
+    const spread = 24
+    const baseOutsideGap = 64
 
+    // 4 players base zones: top left, top right, bottom right, bottom left
     const zones = [
       {
-        x: originXValue + trackInset,
-        y: originYValue - zonePadding - zoneSize - baseOutsideGap,
+        // top left
+        x: originXValue + trackInset + zonePadding,
+        y: originYValue - baseOutsideGap - zoneSize,
       },
       {
-        x: originXValue + size - trackInset - zoneSize,
-        y: originYValue - zonePadding - zoneSize - baseOutsideGap,
+        // top right
+        x: originXValue + size - trackInset - zoneSize - zonePadding,
+        y: originYValue - baseOutsideGap - zoneSize,
       },
       {
-        x: originXValue + size - trackInset - zoneSize,
-        y: originYValue + size + zonePadding + baseOutsideGap,
+        // bottom right
+        x: originXValue + size - trackInset - zoneSize - zonePadding,
+        y: originYValue + size + baseOutsideGap,
       },
       {
-        x: originXValue + trackInset,
-        y: originYValue + size + zonePadding + baseOutsideGap,
+        // bottom left
+        x: originXValue + trackInset + zonePadding,
+        y: originYValue + size + baseOutsideGap,
       },
     ]
 
