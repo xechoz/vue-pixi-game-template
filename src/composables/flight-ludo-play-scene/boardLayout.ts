@@ -139,6 +139,7 @@ export function buildBoardLayout(
   const buildFinishSlots = (originXValue: number, originYValue: number) => {
     const slotCenterX = originXValue + size / 2
     const slotCenterY = originYValue + size / 2
+    const finishGap = 50
 
     const laneAnchors = [
       leftSide[Math.floor((leftSide.length - 1) / 2)] ?? leftSide[0] ?? { x: left, y: centerY },
@@ -147,15 +148,35 @@ export function buildBoardLayout(
       bottomSide[Math.floor((bottomSide.length - 1) / 2)] ?? bottomSide[0] ?? { x: centerX, y: bottom },
     ]
 
-    return laneAnchors.map((anchor) =>
-      Array.from({ length: boardPreset.homeSteps }, (_, laneIndex) => {
+    const getFinishTarget = (anchor: { x: number; y: number }) => {
+      const dx = slotCenterX - anchor.x
+      const dy = slotCenterY - anchor.y
+      const distance = Math.hypot(dx, dy)
+
+      if (distance === 0) {
+        return { x: slotCenterX, y: slotCenterY }
+      }
+
+      const targetDistance = Math.max(0, distance - finishGap)
+      const scale = targetDistance / distance
+
+      return {
+        x: anchor.x + dx * scale,
+        y: anchor.y + dy * scale,
+      }
+    }
+
+    return laneAnchors.map((anchor) => {
+      const finishTarget = getFinishTarget(anchor)
+
+      return Array.from({ length: boardPreset.homeSteps }, (_, laneIndex) => {
         const t = (laneIndex + 1) / boardPreset.homeSteps
         return {
-          x: lerp(anchor.x, slotCenterX, t),
-          y: lerp(anchor.y, slotCenterY, t),
+          x: lerp(anchor.x, finishTarget.x, t),
+          y: lerp(anchor.y, finishTarget.y, t),
         }
-      }),
-    )
+      })
+    })
   }
 
   const homeEntryPoints = [
