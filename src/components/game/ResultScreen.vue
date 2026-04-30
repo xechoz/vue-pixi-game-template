@@ -27,10 +27,11 @@ const emit = defineEmits<{
 
 <style scoped>
 .page {
-  width: min(1280px, 100%);
+  width: min(920px, calc(100% - 20px));
   margin: 0 auto;
   display: grid;
   gap: 14px;
+  box-sizing: border-box;
 }
 
 .glass-card {
@@ -112,7 +113,7 @@ const emit = defineEmits<{
 
 @media (max-width: 859px) {
   .page {
-    width: 100%;
+    width: min(100%, calc(100% - 12px));
   }
 
   .result-card {

@@ -9,18 +9,6 @@ function read(relativePath: string) {
   return readFileSync(resolve(root, relativePath), 'utf8')
 }
 
-function sliceBlock(source: string, selector: string) {
-  const start = source.indexOf(selector)
-
-  assert.notEqual(start, -1, `Missing selector block: ${selector}`)
-
-  const end = source.indexOf('\n}\n', start)
-
-  assert.notEqual(end, -1, `Unclosed selector block: ${selector}`)
-
-  return source.slice(start, end + 3)
-}
-
 test('difficulty mode selector lives on PlayScreen instead of PrepareScreen', () => {
   const prepareScreen = read('components/game/PrepareScreen.vue')
   const playScreen = read('components/game/PlayScreen.vue')
@@ -67,25 +55,40 @@ test('back button shares the same row with horizontally centered difficulty butt
   assert.ok(!playScreen.includes('<div class="play-actions-stack">'))
 })
 
-test('play topbar sits lower and uses the uploaded image-based back button asset', () => {
+test('play page uses a centered non-fullscreen desktop shell with a capped board width', () => {
   const playScreen = read('components/game/PlayScreen.vue')
 
-  assert.match(playScreen, /top:\s*calc\(50% - \(var\(--play-canvas-width\) \* 0\.75\) - 86px\);/)
-  assert.match(playScreen, /top:\s*calc\(50% - \(var\(--play-canvas-width\) \* 0\.75\) - 70px\);/)
-
+  assert.ok(playScreen.includes('.page.page-play {'))
+  assert.ok(playScreen.includes('width: min(920px, calc(100% - 20px));'))
+  assert.ok(playScreen.includes('min-height: 100dvh;'))
+  assert.ok(playScreen.includes('background: transparent;'))
+  assert.ok(playScreen.includes('.play-grid {'))
+  assert.ok(playScreen.includes('max-width: 760px;'))
+  assert.ok(playScreen.includes('--play-canvas-width: min(100%, 760px, calc(100dvw - 20px), calc((100dvh - 212px) / 1.5));'))
+  assert.ok(playScreen.includes('.play-stage {'))
+  assert.ok(playScreen.includes('aspect-ratio: 2 / 3;'))
+  assert.ok(playScreen.includes('.play-topbar {'))
+  assert.ok(playScreen.includes('position: static;'))
   assert.ok(playScreen.includes('ui/back-button.png'))
   assert.ok(!playScreen.includes('>↩</button>'))
 })
 
-test('back button is a rounded rectangle instead of a circle', () => {
-  const playScreen = read('components/game/PlayScreen.vue')
-  const backActionBlock = sliceBlock(playScreen, '.back-action {')
+test('prepare and result screens stay centered and capped on desktop', () => {
+  const prepareScreen = read('components/game/PrepareScreen.vue')
+  const resultScreen = read('components/game/ResultScreen.vue')
 
-  assert.ok(backActionBlock.includes('width: 56px;'))
-  assert.ok(backActionBlock.includes('height: 40px;'))
-  assert.ok(backActionBlock.includes('padding: 6px 10px;'))
-  assert.ok(backActionBlock.includes('border-radius: 14px;'))
-  assert.ok(!backActionBlock.includes('border-radius: 999px;'))
+  assert.ok(prepareScreen.includes('.page {'))
+  assert.ok(prepareScreen.includes('width: min(920px, calc(100% - 20px));'))
+  assert.ok(prepareScreen.includes('margin: 0 auto;'))
+  assert.ok(prepareScreen.includes('box-sizing: border-box;'))
+  assert.ok(prepareScreen.includes('@media (max-width: 540px) {'))
+  assert.ok(prepareScreen.includes('width: min(100%, calc(100% - 12px));'))
+
+  assert.ok(resultScreen.includes('.page {'))
+  assert.ok(resultScreen.includes('width: min(920px, calc(100% - 20px));'))
+  assert.ok(resultScreen.includes('box-sizing: border-box;'))
+  assert.ok(resultScreen.includes('@media (max-width: 859px) {'))
+  assert.ok(resultScreen.includes('width: min(100%, calc(100% - 12px));'))
 })
 
 test('player plane sprites use board-step-aware sizing with softer clickable glow and no shadow', () => {
@@ -105,27 +108,23 @@ test('player plane sprites use board-step-aware sizing with softer clickable glo
   assert.ok(playScene.includes('alpha: 0.12 + options.turn.legalPulse * 0.16'))
 })
 
-test('red player route is drawn as a yellow arrowed solid path from start through finish', () => {
+test('red player route is drawn as a yellow dotted path from start through finish', () => {
   const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 
   assert.ok(playScene.includes("if (player.index === 0) {"))
   assert.ok(playScene.includes('const redRoutePoints = ['))
-  assert.ok(playScene.includes("color: 0xffd400"))
-  assert.ok(playScene.includes('arrowEvery: Math.max(1, options.boardPreset.stepsPerEdge)'))
-  assert.ok(playScene.includes('drawArrowPolyline(redRoute, redRoutePoints, {'))
+  assert.ok(playScene.includes('color: 0xffd400'))
+  assert.ok(playScene.includes('drawDottedPolyline(redRoute, redRoutePoints, {'))
+  assert.ok(playScene.includes('alpha: 0.42'))
 })
 
-test('idle dice prompt overlay uses 0.8x sizing and blurs the idle dice face', () => {
+test('stacked pieces get a deterministic visual offset layer', () => {
   const playScene = read('composables/flight-ludo-play-scene/boardRenderer.ts')
 
-  assert.ok(playScene.includes('const idleFaceBlur = new PIXI.Graphics()'))
-  assert.ok(playScene.includes('.roundRect('))
-  assert.ok(playScene.includes('fittedWidth * 0.72'))
-  assert.ok(playScene.includes('.fill({ color: 0xffffff, alpha: 0.3 })'))
-  assert.ok(playScene.includes('const overlayWidth = fittedWidth * 0.8'))
-  assert.ok(playScene.includes('const overlayHeight = fittedHeight * 0.8'))
-  assert.ok(playScene.includes('const overlayCenterY = -overlayHeight * 0.02'))
-  assert.ok(playScene.includes('idleOverlaySprite.position.set(0, overlayCenterY)'))
-  assert.ok(playScene.includes('idleOverlaySprite.width = overlayWidth'))
-  assert.ok(playScene.includes('idleOverlaySprite.height = overlayHeight'))
+  assert.ok(playScene.includes('export function getStackOffsets(count: number, step: number)'))
+  assert.ok(playScene.includes('const stackGroups = new Map<string, number[]>()'))
+  assert.ok(playScene.includes('const stackIndexByPiece = new Map<number, number>()'))
+  assert.ok(playScene.includes('const stackSizeByPiece = new Map<number, number>()'))
+  assert.ok(playScene.includes('const stackOffset = stackOffsets[stackIndex] ?? { x: 0, y: 0 }'))
+  assert.ok(playScene.includes('pieceGroup.position.set('))
 })

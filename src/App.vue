@@ -54,7 +54,7 @@ function handleWinnerChange(nextWinnerName: string) {
 
 <template>
   <main class="shell">
-    <img v-if="page !== 'play'" class="app-bg" :src="appBg" alt="" aria-hidden="true" />
+    <img class="app-bg" :src="appBg" alt="" aria-hidden="true" />
 
     <PrepareScreen
       v-if="page === 'prepare'"

@@ -114,9 +114,9 @@ const modeOptions = [
 
 <style scoped>
 .page {
-  width: 100%;
+  width: min(920px, calc(100% - 20px));
   min-height: 100dvh;
-  margin: 0;
+  margin: 0 auto;
   display: grid;
   align-content: center;
   justify-items: center;
@@ -125,8 +125,8 @@ const modeOptions = [
   isolation: isolate;
   background: none;
   overflow: hidden;
+  box-sizing: border-box;
 }
-
 
 .page::after {
   content: '';
@@ -474,6 +474,7 @@ const modeOptions = [
 
 @media (max-width: 540px) {
   .page {
+    width: min(100%, calc(100% - 12px));
     gap: 12px;
   }
 

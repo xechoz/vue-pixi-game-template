@@ -95,10 +95,11 @@ export function buildBoardLayout(
   const outerBorderPoints = perimeterPoints
 
   const buildBaseSlots = (originXValue: number, originYValue: number) => {
-    const zoneSize = 28
-    const zonePadding = 40
-    const spread = 24
-    const baseOutsideGap = 64
+    const baseScale = Math.min(1, Math.max(0.74, size / 700))
+    const zoneSize = Math.round(28 * baseScale)
+    const zonePadding = Math.round(40 * baseScale)
+    const spread = Math.round(22 * baseScale)
+    const baseOutsideGap = Math.round(58 * baseScale)
 
     // 4 players base zones: top left, top right, bottom right, bottom left
     const zones = [

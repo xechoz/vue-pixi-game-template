@@ -78,38 +78,39 @@ const difficultyOptions = [
 
 <style scoped>
 .page {
-  width: min(1280px, 100%);
+  width: min(920px, calc(100% - 20px));
   margin: 0 auto;
   display: grid;
   gap: 14px;
 }
 
 .page.page-play {
-  width: 100%;
-  height: 100dvh;
+  width: min(920px, calc(100% - 20px));
+  min-height: 100dvh;
+  padding: 18px 0 22px;
   align-content: center;
+  justify-items: center;
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: #ffffff;
+  background: transparent;
+  box-sizing: border-box;
 }
 
 .play-grid {
-  --play-canvas-width: min(100%, calc(100dvw - 24px), calc((100dvh - 204px) / 1.5));
+  --play-canvas-width: min(100%, 760px, calc(100dvw - 20px), calc((100dvh - 212px) / 1.5));
   display: grid;
+  gap: 14px;
   place-items: center;
   position: relative;
   width: 100%;
-  height: 100%;
+  max-width: 760px;
   z-index: 1;
 }
 
 .play-topbar {
-  position: absolute;
-  left: 50%;
-  top: calc(50% - (var(--play-canvas-width) * 0.75) - 86px);
-  width: var(--play-canvas-width);
-  transform: translateX(-50%);
+  position: static;
+  width: min(100%, var(--play-canvas-width));
   z-index: 3;
   pointer-events: none;
 }
@@ -125,7 +126,7 @@ const difficultyOptions = [
 .play-stage {
   position: relative;
   width: var(--play-canvas-width);
-  height: calc(var(--play-canvas-width) * 1.5);
+  aspect-ratio: 2 / 3;
 }
 
 .play-controls-row {
@@ -278,16 +279,15 @@ const difficultyOptions = [
 
 @media (max-width: 859px) {
   .page.page-play {
-    width: 100%;
-    height: 100dvh;
+    width: min(100%, calc(100% - 12px));
+    min-height: 100dvh;
+    padding: 10px 0 14px;
   }
 
   .play-grid {
-    --play-canvas-width: min(calc(100dvw - 16px), calc((100dvh - 172px) / 1.5));
-  }
-
-  .play-topbar {
-    top: calc(50% - (var(--play-canvas-width) * 0.75) - 70px);
+    --play-canvas-width: min(calc(100dvw - 12px), calc((100dvh - 176px) / 1.5));
+    max-width: 100%;
+    gap: 12px;
   }
 
   .canvas-shell {
@@ -311,12 +311,6 @@ const difficultyOptions = [
   .preset-pill::after {
     inset: 4px;
     border-radius: 10px;
-  }
-
-  .play-floating-actions {
-    right: 8px;
-    top: 8px;
-    gap: 8px;
   }
 
   .circle-action {

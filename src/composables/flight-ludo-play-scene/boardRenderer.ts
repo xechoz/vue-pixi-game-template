@@ -115,6 +115,37 @@ export function getPlayerByPieceId(state: GameState, pieceId: string) {
   )
 }
 
+export function getStackOffsets(count: number, step: number) {
+  const patterns = [
+    { x: 0, y: 0 },
+    { x: -1, y: 0 },
+    { x: 1, y: 0 },
+    { x: 0, y: -1 },
+    { x: 0, y: 1 },
+    { x: -1, y: -1 },
+    { x: 1, y: -1 },
+    { x: -1, y: 1 },
+    { x: 1, y: 1 },
+    { x: -2, y: 0 },
+    { x: 2, y: 0 },
+    { x: 0, y: -2 },
+    { x: 0, y: 2 },
+  ] as const
+
+  return Array.from({ length: count }, (_, index) => {
+    const pattern =
+      patterns[index] ?? {
+        x: (index % 5) - 2,
+        y: Math.floor(index / 5) - 1,
+      }
+
+    return {
+      x: pattern.x * step,
+      y: pattern.y * step,
+    }
+  })
+}
+
 function getPaddedPointBounds(points: Point[], padding: number) {
   if (points.length === 0) {
     return { x: 0, y: 0, width: 0, height: 0 }
@@ -723,7 +754,35 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }),
   )
 
-  for (const pieceInfo of pieces) {
+  const stackStep = Math.max(2, Math.round(pieceRadius * 0.2))
+  const stackGroups = new Map<string, number[]>()
+  const getStackKey = (pieceInfo: (typeof pieces)[number]) =>
+    [
+      pieceInfo.location,
+      pieceInfo.x.toFixed(2),
+      pieceInfo.y.toFixed(2),
+    ].join('|')
+
+  pieces.forEach((pieceInfo, index) => {
+    const key = getStackKey(pieceInfo)
+    const bucket = stackGroups.get(key)
+    if (bucket) {
+      bucket.push(index)
+    } else {
+      stackGroups.set(key, [index])
+    }
+  })
+
+  const stackIndexByPiece = new Map<number, number>()
+  const stackSizeByPiece = new Map<number, number>()
+  for (const indices of stackGroups.values()) {
+    indices.forEach((pieceIndex, stackIndex) => {
+      stackIndexByPiece.set(pieceIndex, stackIndex)
+      stackSizeByPiece.set(pieceIndex, indices.length)
+    })
+  }
+
+  for (const [index, pieceInfo] of pieces.entries()) {
     const isLegal =
       options.game.winnerIndex === -1 &&
       options.legalPieces.includes(pieceInfo.piece.id)
@@ -731,10 +790,15 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       options.move.replayingPieceId === pieceInfo.piece.id &&
       options.move.movingPoint !== null
     const movingPosition = options.move.movingPoint
+    const stackIndex = stackIndexByPiece.get(index) ?? 0
+    const stackSize = stackSizeByPiece.get(index) ?? 1
+    const stackOffsets =
+      stackSize > 1 ? getStackOffsets(stackSize, stackStep) : [{ x: 0, y: 0 }]
+    const stackOffset = stackOffsets[stackIndex] ?? { x: 0, y: 0 }
     const pieceGroup = new PIXI.Container()
     pieceGroup.position.set(
-      isMoving && movingPosition ? movingPosition.x : pieceInfo.x,
-      isMoving && movingPosition ? movingPosition.y : pieceInfo.y,
+      (isMoving && movingPosition ? movingPosition.x : pieceInfo.x) + stackOffset.x,
+      (isMoving && movingPosition ? movingPosition.y : pieceInfo.y) + stackOffset.y,
     )
     pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
     pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
