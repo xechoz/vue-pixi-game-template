@@ -502,8 +502,8 @@ export function resolvePiecePoint(
   player: Pick<PlayerState, 'index' | 'startIndex' | 'boardPresetId'>,
   piece: Pick<PieceState, 'progress'>,
 ) {
-  const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerEdge / 2)
-  const finishStep = homeEntryStep + boardPreset.homeSteps
+  const homeEntryStep = boardPreset.trackLength + 1
+  const finishStep = boardPreset.trackLength + boardPreset.homeSteps
 
   const centerX = layout.trackPoints[0]?.x ?? 0
   const centerY = layout.trackPoints[0]?.y ?? 0
@@ -512,9 +512,7 @@ export function resolvePiecePoint(
     return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
   }
 
-  if (piece.progress < homeEntryStep) {
-    // todo get player state 
-
+  if (piece.progress <= boardPreset.trackLength) {
     const trackIndex = getTrackCellIndex(player, piece)
     if (trackIndex !== -1) {
       return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }

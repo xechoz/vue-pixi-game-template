@@ -6,7 +6,7 @@ import { type AppPage } from './composables/useFlightLudoPlayScene'
 import { type BoardPresetId, type GameMode } from './game'
 
 const assetBase = import.meta.env.BASE_URL
-const appBg = `${assetBase}prepare-bg.jpg`
+const appBg = `${assetBase}prepare-bg.png`
 
 const loadResultScreen = () => import('./components/game/ResultScreen.vue')
 const loadPlayPage = () => import('./components/game/PlayScreen.Content.vue')

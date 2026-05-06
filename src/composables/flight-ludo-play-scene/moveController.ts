@@ -10,6 +10,17 @@ import {
 } from '../../game'
 import type { BoardLayout, LandingPoint, Point, RefreshGameView } from './types'
 
+function easeInOutSine(progress: number) {
+  return 0.5 - Math.cos(Math.PI * progress) / 2
+}
+
+function interpolatePoint(start: Point, end: Point, progress: number): Point {
+  return {
+    x: start.x + (end.x - start.x) * progress,
+    y: start.y + (end.y - start.y) * progress,
+  }
+}
+
 type MoveControllerOptions = {
   game: Ref<GameState>
   legalPieces: ComputedRef<string[]>
@@ -27,10 +38,6 @@ type MoveControllerOptions = {
   playFailSound: () => void
   playMoveSound: () => void
   playWinSound: () => void
-}
-
-function lerp(start: number, end: number, t: number) {
-  return start + (end - start) * t
 }
 
 export function createMoveController(options: MoveControllerOptions) {
@@ -115,11 +122,14 @@ export function createMoveController(options: MoveControllerOptions) {
     movingPoint.value = { x: animPathPoints[0]!.x, y: animPathPoints[0]!.y }
     options.refreshGameView({ deferResultPage: willWin })
 
-    const hopLift = Math.max(8, animPathPoints.length * 2)
-    const totalDuration = Math.max(420, (animPathPoints.length - 1) * 120)
-    const startTime = performance.now()
-    const stepDelay = 100
     const pathPoints = animPathPoints
+    const totalSteps = pathPoints.length - 1
+    const hopLift = Math.max(10, Math.min(24, totalSteps * 2))
+    const stepDuration = Math.max(200, Math.min(220, Math.round(420 / Math.max(1, totalSteps))))
+    const flightRatio = 0.55
+    const flightDuration = stepDuration * flightRatio
+    const totalDuration = stepDuration * totalSteps
+    const startTime = performance.now()
 
     const finishMove = () => {
       moveFrameId = -1
@@ -141,22 +151,27 @@ export function createMoveController(options: MoveControllerOptions) {
       options.refreshGameView()
       if (result.advancePending) {
         options.diceHandoffHiding.value = false
-        options.scheduleTurnAdvance(2000)
+        options.scheduleTurnAdvance(1200)
       }
     }
 
     const frame = (now: number) => {
       const elapsed = now - startTime
-      const totalSteps = pathPoints.length - 1
 
       if (totalSteps <= 0) {
         finishMove()
         return
       }
 
-      const rawStep = Math.min(totalSteps, Math.floor(elapsed / stepDelay))
-      const segmentProgress = Math.min(1, (elapsed % stepDelay) / stepDelay)
-      const currentStep = Math.max(0, Math.min(totalSteps - 1, rawStep))
+      const clampedElapsed = Math.min(elapsed, totalDuration)
+      const currentStep = Math.min(
+        totalSteps - 1,
+        Math.floor(clampedElapsed / stepDuration),
+      )
+      const stepElapsed = clampedElapsed - currentStep * stepDuration
+      const isFlying = stepElapsed < flightDuration
+      const stepProgress = isFlying ? stepElapsed / flightDuration : 1
+      const easedProgress = easeInOutSine(stepProgress)
       const start = pathPoints[currentStep]
       const end = pathPoints[currentStep + 1] ?? start
 
@@ -165,15 +180,16 @@ export function createMoveController(options: MoveControllerOptions) {
         return
       }
 
-      const lift = Math.sin(segmentProgress * Math.PI) * hopLift
+      const currentPosition = interpolatePoint(start, end, easedProgress)
+      const lift = isFlying ? Math.sin(stepProgress * Math.PI) * hopLift : 0
 
       movingPoint.value = {
-        x: lerp(start.x, end.x, segmentProgress),
-        y: lerp(start.y, end.y, segmentProgress) - lift,
+        x: currentPosition.x,
+        y: currentPosition.y - lift,
       }
       options.renderScene()
 
-      if (elapsed < totalDuration && rawStep < totalSteps) {
+      if (elapsed < totalDuration) {
         moveFrameId = window.requestAnimationFrame(frame)
         return
       }
