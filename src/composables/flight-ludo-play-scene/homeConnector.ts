@@ -21,5 +21,5 @@ export function getHomeConnectorDotSpacing(points: Point[], homeSteps: number, t
     return Math.max(8, trackSize * 0.55)
   }
 
-  return Math.max(trackSize * 0.55, connectorLength / homeSteps)
+  return Math.max(8, connectorLength / Math.max(1, homeSteps))
 }

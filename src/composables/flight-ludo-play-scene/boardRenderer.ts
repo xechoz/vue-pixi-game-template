@@ -380,10 +380,10 @@ function syncDiceOverlay(options: DiceSceneOptions) {
       0,
       fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08),
       fittedWidth *
-        0.24 *
-        (1 +
-          options.dice.diceLandingSquash * 0.45 +
-          (options.dice.isRolling ? 0.06 : 0)),
+      0.24 *
+      (1 +
+        options.dice.diceLandingSquash * 0.45 +
+        (options.dice.isRolling ? 0.06 : 0)),
       fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
     )
     .fill({
@@ -426,13 +426,13 @@ function syncDiceOverlay(options: DiceSceneOptions) {
   const settleFlashAlpha =
     !options.dice.isRolling && !isIdleDiceState
       ? Math.max(
-          0,
-          Math.min(
-            0.18,
-            options.dice.diceLandingSquash * 0.32 +
-              options.dice.diceLandingLift * 0.004,
-          ),
-        )
+        0,
+        Math.min(
+          0.18,
+          options.dice.diceLandingSquash * 0.32 +
+          options.dice.diceLandingLift * 0.004,
+        ),
+      )
       : 0
   const settleFlash = getOrCreateGraphicsChild(diceGroup, DICE_SETTLE_FLASH_NAME)
   settleFlash.visible = settleFlashAlpha > 0.001
@@ -484,9 +484,9 @@ function syncDiceOverlay(options: DiceSceneOptions) {
   diceGroup.position.set(
     shakeX,
     shakeY -
-      options.dice.diceIdleLift -
-      options.dice.diceLandingLift +
-      landingSettleNudge * fittedHeight * 0.08,
+    options.dice.diceIdleLift -
+    options.dice.diceLandingLift +
+    landingSettleNudge * fittedHeight * 0.08,
   )
   diceGroup.rotation = options.dice.diceSpinRotation
   diceGroup.scale.set(spinScaleX, spinScaleY)
@@ -613,7 +613,7 @@ function drawDottedPolyline(
     })
   }
 
-  drawDot(points[0].x, points[0].y)
+  // drawDot(points[0].x, points[0].y)
 
   const segmentCount = options.closed ? points.length : points.length - 1
   for (let index = 0; index < segmentCount; index += 1) {
@@ -624,7 +624,7 @@ function drawDottedPolyline(
     const distance = Math.hypot(dx, dy)
     const steps = Math.max(1, Math.floor(distance / options.dotSpacing))
 
-    for (let step = 1; step <= steps; step += 1) {
+    for (let step = 0; step <= steps; step += 1) {
       const t = step / steps
       drawDot(from.x + dx * t, from.y + dy * t)
     }
@@ -638,11 +638,10 @@ function getOuterBorderMidPoint(layout: BoardLayout, playerIndex: number) {
     layout.rightBorderPoints,
     layout.bottomBorderPoints,
   ]
-  const points = borderSides[playerIndex] ?? []
+  const points = borderSides[playerIndex]
+  console.log('Border points for player', playerIndex, points)
   return (
-    points[Math.floor((points.length - 1) / 2)] ??
-    points[0] ??
-    { x: 0, y: 0 }
+    points[Math.floor((points.length - 1) / 2)]
   )
 }
 
@@ -860,7 +859,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     trackPoints,
     baseSlots,
     finishSlots,
-    homeEntryPoints,
   } = layout
 
   const sceneState = getSceneRenderState(options.scene)
@@ -893,11 +891,11 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
           point.y - trackSize / 2,
           trackSize,
           trackSize,
-          9,
+          90, // fully rounded to make circles
         )
         .fill({
           color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0,
-          alpha: isSafeTrackCell ? 0.16 : 0.07,
+          alpha: isSafeTrackCell ? 0.6 : 0.5,
         })
         .stroke({
           color: activeColor,
@@ -907,13 +905,14 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       staticLayer.addChild(cell)
     }
 
-    const outerBorderDotRadius = Math.max(2, trackSize * 0.08)
+    const outerBorderDotRadius = Math.max(4, trackSize * 0.08)
     const outerBorderDotSpacing = Math.max(12, trackSize * 0.9)
 
+    // Draw dotted borders around the board edges, colored by player
     const topBorder = new PIXI.Graphics()
     drawDottedPolyline(topBorder, layout.topBorderPoints, {
       color: hexToNumber(options.game.players[0].color),
-      alpha: 0.45,
+      alpha: 0.25,
       dotRadius: outerBorderDotRadius,
       dotSpacing: outerBorderDotSpacing,
     })
@@ -922,7 +921,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const rightBorder = new PIXI.Graphics()
     drawDottedPolyline(rightBorder, layout.rightBorderPoints, {
       color: hexToNumber(options.game.players[1].color),
-      alpha: 0.45,
+      alpha: 0.5,
       dotRadius: outerBorderDotRadius,
       dotSpacing: outerBorderDotSpacing,
     })
@@ -931,7 +930,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const bottomBorder = new PIXI.Graphics()
     drawDottedPolyline(bottomBorder, layout.bottomBorderPoints, {
       color: hexToNumber(options.game.players[2].color),
-      alpha: 0.45,
+      alpha: 0.25,
       dotRadius: outerBorderDotRadius,
       dotSpacing: outerBorderDotSpacing,
     })
@@ -940,7 +939,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const leftBorder = new PIXI.Graphics()
     drawDottedPolyline(leftBorder, layout.leftBorderPoints, {
       color: hexToNumber(options.game.players[3].color),
-      alpha: 0.45,
+      alpha: 0.25,
       dotRadius: outerBorderDotRadius,
       dotSpacing: outerBorderDotSpacing,
     })
@@ -948,14 +947,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
     for (const player of options.game.players) {
       const finish = finishSlots[player.index]
-      const finishGuide = new PIXI.Graphics()
-      drawDottedPolyline(finishGuide, finish, {
-        color: hexToNumber(player.color),
-        alpha: 0.35,
-        dotRadius: Math.max(2, trackSize * 0.09),
-        dotSpacing: trackSize * 0.65,
-      })
-      staticLayer.addChild(finishGuide)
 
       const finishBoxRadius =
         safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
@@ -967,7 +958,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
             lanePoint.y - finishBoxRadius,
             finishBoxRadius * 2,
             finishBoxRadius * 2,
-            12,
+            120,
           )
           .fill({
             color: player.color,
@@ -989,37 +980,33 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         }
       })()
 
+      // Draw dotted line from base to start point on track
       const startPoint = options.layout.trackPoints[player.startIndex]
-      if (startPoint) {
-        const baseToStartLine = new PIXI.Graphics()
-        drawDottedPolyline(baseToStartLine, [baseCenter, startPoint], {
-          color: hexToNumber(player.color),
-          alpha: 0.5,
-          dotRadius: Math.max(2, trackSize * 0.08),
-          dotSpacing: Math.max(12, trackSize * 0.9),
-        })
-        staticLayer.addChild(baseToStartLine)
-      }
+      const baseToStartLine = new PIXI.Graphics()
+      drawDottedPolyline(baseToStartLine, [baseCenter, startPoint], {
+        color: hexToNumber(player.color),
+        alpha: 0.25,
+        dotRadius: Math.max(2, trackSize * 0.08),
+        dotSpacing: Math.max(12, trackSize * 0.9),
+      })
+      staticLayer.addChild(baseToStartLine)
+
 
       // Draw dotted lines from outer border midpoint to track home lane entry
-      const entryPoint = homeEntryPoints[player.index]
-      if (entryPoint && finish.length > 0) {
-        const homeConnector = new PIXI.Graphics()
-        const outerMidPoint = getOuterBorderMidPoint(layout, player.index)
-        const homeConnectorPoints = [outerMidPoint, entryPoint, ...finish]
-        drawDottedPolyline(homeConnector, homeConnectorPoints, {
-          color: hexToNumber(player.color),
-          alpha: 0.34,
-          dotRadius: Math.max(2, trackSize * 0.075),
-          dotSpacing: getHomeConnectorDotSpacing(
-            homeConnectorPoints,
-            options.boardPreset.homeSteps,
-            trackSize,
-          ),
-        })
-        staticLayer.addChild(homeConnector)
-      }
+      const homeConnector = new PIXI.Graphics()
+      const outerMidPoint = getOuterBorderMidPoint(layout, player.index)
+      const homeConnectorPoints = [outerMidPoint, ...finish]
+      console.log('Home connector points for player', player.index, homeConnectorPoints)
+
+      drawDottedPolyline(homeConnector, homeConnectorPoints, {
+        color: hexToNumber(player.color),
+        alpha: 0.25,
+        dotRadius: Math.max(4, trackSize * 0.075),
+        dotSpacing: outerBorderDotSpacing
+      })
+      staticLayer.addChild(homeConnector)
     }
+
 
     sceneState.staticBoardKey = staticBoardKey
   }
