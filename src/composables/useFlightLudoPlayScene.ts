@@ -179,6 +179,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         replayingStartProgress: moveController.replayingStartProgress.value,
         movingPoint: moveController.movingPoint.value,
         landingPoint: moveController.landingPoint.value,
+        capturedFlights: moveController.capturedFlights.value,
       },
       turn: {
         legalPulse: turnController.legalPulse.value,
@@ -219,6 +220,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         replayingStartProgress: moveController.replayingStartProgress.value,
         movingPoint: moveController.movingPoint.value,
         landingPoint: moveController.landingPoint.value,
+        capturedFlights: moveController.capturedFlights.value,
       },
       turn: {
         legalPulse: turnController.legalPulse.value,

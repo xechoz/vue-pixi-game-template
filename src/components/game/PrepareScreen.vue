@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from '../../i18n'
+import { createSceneAudio } from '../../composables/flight-ludo-play-scene/sceneAudio'
 
 const props = defineProps<{
   mode: 1 | 2 | 3 | 4
@@ -16,6 +17,13 @@ const emit = defineEmits<{
 
 const assetBase = import.meta.env.BASE_URL
 const { t } = useI18n()
+const { startBackgroundMusic } = createSceneAudio((name) => `${assetBase}${name}`)
+
+function selectMode(value: 1 | 2 | 3 | 4) {
+  startBackgroundMusic()
+  emit('update:mode', value)
+  emit('start')
+}
 
 const playerAvatarSources = [
   { src: `${assetBase}player-red.png`, key: 'red' },
@@ -74,7 +82,7 @@ const modeOptions = computed(() => [
           type="button"
           :aria-label="t('playerMode', { count: option.value })"
           :style="{ '--accent': option.accent }"
-          @click="emit('update:mode', option.value); emit('start')"
+          @click="selectMode(option.value)"
         >
           <div class="card-topbar"></div>
           <div class="card-glow"></div>

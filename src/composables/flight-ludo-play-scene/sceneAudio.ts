@@ -1,9 +1,9 @@
 type AssetUrlResolver = (name: string) => string
 
-export function createSceneAudio(assetUrl: AssetUrlResolver) {
-  let audioCtx: AudioContext | null = null
-  let bgmAudio: HTMLAudioElement | null = null
+let audioCtx: AudioContext | null = null
+let bgmAudio: HTMLAudioElement | null = null
 
+export function createSceneAudio(assetUrl: AssetUrlResolver) {
   function ensureAudioContext() {
     if (audioCtx) return audioCtx
     const AudioCtor =
@@ -31,7 +31,9 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
     audio.volume = 0.09
     bgmAudio = audio
     audio.play().catch(() => {
-      // Autoplay may be blocked until the first user gesture; keep the element ready.
+      if (bgmAudio === audio) {
+        bgmAudio = null
+      }
     })
   }
 

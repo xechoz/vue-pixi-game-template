@@ -60,6 +60,7 @@ export interface MoveResult {
   advancePending: boolean
   victory: boolean
   capturedCount: number
+  capturedPieceIds: string[]
   message: string
 }
 
@@ -337,11 +338,11 @@ export function movePiece(
   void options
 
   if (state.dice <= 0) {
-    return { moved: false, advancePending: false, victory: false, capturedCount: 0, message: t('moveBeforeRoll') }
+    return { moved: false, advancePending: false, victory: false, capturedCount: 0, capturedPieceIds: [], message: t('moveBeforeRoll') }
   }
 
   if (state.winnerIndex !== -1) {
-    return { moved: false, advancePending: false, victory: false, capturedCount: 0, message: t('gameEnded') }
+    return { moved: false, advancePending: false, victory: false, capturedCount: 0, capturedPieceIds: [], message: t('gameEnded') }
   }
 
   const boardPreset = getPresetForState(state)
@@ -350,11 +351,11 @@ export function movePiece(
   const player = getCurrentPlayer(state)
   const piece = player.pieces.find((item) => item.id === pieceId)
   if (!piece) {
-    return { moved: false, advancePending: false, victory: false, capturedCount: 0, message: t('onlyCurrentPlayerPiece') }
+    return { moved: false, advancePending: false, victory: false, capturedCount: 0, capturedPieceIds: [], message: t('onlyCurrentPlayerPiece') }
   }
 
   if (!canPieceMove(state, piece)) {
-    return { moved: false, advancePending: false, victory: false, capturedCount: 0, message: t('cannotMovePiece') }
+    return { moved: false, advancePending: false, victory: false, capturedCount: 0, capturedPieceIds: [], message: t('cannotMovePiece') }
   }
 
   const dice = state.dice
@@ -378,6 +379,7 @@ export function movePiece(
   }
 
   let captured = 0
+  const capturedPieceIds: string[] = []
   const landingCell = getTrackCellIndex(player, piece)
 
   if (piece.progress <= boardPreset.trackLength && landingCell >= 0 && !boardPreset.safeCells[player.index].includes(landingCell)) {
@@ -392,6 +394,7 @@ export function movePiece(
           enemyPiece.progress = 0
           enemyPiece.finished = false
           captured += 1
+          capturedPieceIds.push(enemyPiece.id)
         }
       }
     }
@@ -421,6 +424,7 @@ export function movePiece(
       advancePending: false,
       victory: true,
       capturedCount: captured,
+      capturedPieceIds,
       message: state.status,
     }
   }
@@ -439,6 +443,7 @@ export function movePiece(
       advancePending: false,
       victory: false,
       capturedCount: captured,
+      capturedPieceIds,
       message: state.status,
     }
   }
@@ -461,6 +466,7 @@ export function movePiece(
     advancePending: true,
     victory: false,
     capturedCount: captured,
+    capturedPieceIds,
     message: state.status,
   }
 }

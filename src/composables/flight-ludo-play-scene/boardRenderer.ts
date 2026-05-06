@@ -12,6 +12,8 @@ import {
   type PlayerState,
 } from '../../game'
 import type { BoardLayout, LandingPoint, Point } from './types'
+import { getCapturedFlightRenderState } from './boardRenderer.FailAnim'
+import type { CapturedFlightState } from './boardRenderer.FailAnim'
 
 type DiceRenderState = {
   isRolling: boolean
@@ -33,6 +35,7 @@ type MoveRenderState = {
   replayingStartProgress: number
   movingPoint: Point | null
   landingPoint: LandingPoint | null
+  capturedFlights: CapturedFlightState[]
 }
 
 type TurnRenderState = {
@@ -67,6 +70,7 @@ type PieceRenderInfo = {
   x: number
   y: number
   location: 'base' | 'track' | 'home' | 'finished'
+  capturedFlight?: CapturedFlightState
 }
 
 type DiceSceneOptions = Pick<
@@ -1284,7 +1288,19 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         }
       }
 
-      return { player, piece, pieceIndex, x, y, location }
+      const capturedFlight = options.move.capturedFlights.find(
+        (flight) => flight.pieceId === piece.id,
+      )
+      if (capturedFlight) {
+        const capturedState = getCapturedFlightRenderState(
+          capturedFlight,
+          performance.now(),
+        )
+        x = capturedState.position.x
+        y = capturedState.position.y
+      }
+
+      return { player, piece, pieceIndex, x, y, location, capturedFlight }
     }),
   )
 
@@ -1329,7 +1345,11 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const isMoving =
       options.move.replayingPieceId === pieceInfo.piece.id &&
       options.move.movingPoint !== null
+    const isCaptured = Boolean(pieceInfo.capturedFlight)
     const movingPosition = options.move.movingPoint
+    const capturedRenderState = pieceInfo.capturedFlight
+      ? getCapturedFlightRenderState(pieceInfo.capturedFlight, performance.now())
+      : null
     const stackIndex = stackIndexByPiece.get(index) ?? 0
     const stackSize = stackSizeByPiece.get(index) ?? 1
     const stackScale = getStackScale(stackSize)
@@ -1351,8 +1371,8 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       (isMoving && movingPosition ? movingPosition.y : pieceInfo.y) + stackOffset.y,
     )
     pieceGroup.scale.set(stackScale)
-    pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
-    pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
+    pieceGroup.eventMode = isLegal && !isMoving && !isCaptured ? 'static' : 'passive'
+    pieceGroup.cursor = isLegal && !isMoving && !isCaptured ? 'pointer' : 'default'
     pieceGroup.removeAllListeners()
 
     if (isLegal && !isMoving) {
@@ -1381,6 +1401,14 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       pieceBodyScale,
       isBasePiece: pieceInfo.location === 'base',
     })
+
+    if (capturedRenderState) {
+      pieceGroup.rotation = capturedRenderState.rotation
+      pieceGroup.alpha = capturedRenderState.alpha
+    } else {
+      pieceGroup.rotation = 0
+      pieceGroup.alpha = 1
+    }
 
     if (piecesLayer.getChildIndex(pieceGroup) !== index) {
       piecesLayer.setChildIndex(pieceGroup, index)

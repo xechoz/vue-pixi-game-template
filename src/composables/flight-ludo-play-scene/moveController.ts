@@ -9,6 +9,8 @@ import {
   type PlayerState,
 } from '../../game'
 import type { BoardLayout, LandingPoint, Point, RefreshGameView } from './types'
+import { createCapturedFlight, isCapturedFlightComplete } from './boardRenderer.FailAnim'
+import type { CapturedFlightState } from './boardRenderer.FailAnim'
 
 function easeInOutSine(progress: number) {
   return 0.5 - Math.cos(Math.PI * progress) / 2
@@ -46,9 +48,19 @@ export function createMoveController(options: MoveControllerOptions) {
   const replayingStartProgress = ref<number>(-1)
   const movingPoint = ref<Point | null>(null)
   const landingPoint = ref<LandingPoint | null>(null)
+  const capturedFlights = ref<CapturedFlightState[]>([])
 
   let landingTimer: number = -1
   let moveFrameId: number = -1
+  let captureFrameId: number = -1
+
+  function clearCapturedFlights() {
+    if (captureFrameId !== -1) {
+      window.cancelAnimationFrame(captureFrameId)
+      captureFrameId = -1
+    }
+    capturedFlights.value = []
+  }
 
   function clearMovePreview() {
     replayingPieceId.value = ''
@@ -67,6 +79,26 @@ export function createMoveController(options: MoveControllerOptions) {
       window.cancelAnimationFrame(moveFrameId)
       moveFrameId = -1
     }
+    clearCapturedFlights()
+  }
+
+  function scheduleCapturedFlightAnimation() {
+    if (captureFrameId !== -1 || capturedFlights.value.length === 0) return
+
+    const frame = (now: number) => {
+      const activeFlights = capturedFlights.value.filter(
+        (flight) => !isCapturedFlightComplete(flight, now),
+      )
+      if (activeFlights.length === 0) {
+        clearCapturedFlights()
+        options.refreshGameView()
+        return
+      }
+      options.renderScene()
+      captureFrameId = window.requestAnimationFrame(frame)
+    }
+
+    captureFrameId = window.requestAnimationFrame(frame)
   }
 
   function resetMoveState() {
@@ -103,6 +135,28 @@ export function createMoveController(options: MoveControllerOptions) {
     const endPoint =
       animPathPoints[animPathPoints.length - 1] ?? animPathPoints[0]
 
+    const snapshotByPieceId = new Map<
+      string,
+      { origin: Point; ownerIndex: number; pieceIndex: number; color: string }
+    >()
+
+    for (const candidatePlayer of options.game.value.players) {
+      for (const candidatePiece of candidatePlayer.pieces) {
+        const origin = options.resolvePiecePoint(
+          currentLayout,
+          candidatePlayer,
+          candidatePiece,
+        )
+        const [, pieceIdIndex] = candidatePiece.id.split('-')
+        snapshotByPieceId.set(candidatePiece.id, {
+          origin,
+          ownerIndex: candidatePlayer.index,
+          pieceIndex: Number(pieceIdIndex),
+          color: candidatePlayer.color,
+        })
+      }
+    }
+
     options.clearTimers()
     replayingStartProgress.value = startProgress
     const result = movePiece(options.game.value, pieceId)
@@ -111,6 +165,29 @@ export function createMoveController(options: MoveControllerOptions) {
       clearMovePreview()
       options.refreshGameView()
       return
+    }
+
+    const capturedFlightsInMove = result.capturedPieceIds?.length
+      ? result.capturedPieceIds
+          .map((capturedId) => {
+            const snapshot = snapshotByPieceId.get(capturedId)
+            if (!snapshot) return null
+            const destination =
+              currentLayout.baseSlots[snapshot.ownerIndex]?.[snapshot.pieceIndex] ??
+              currentLayout.baseSlots[snapshot.ownerIndex]?.[0] ??
+              snapshot.origin
+            return createCapturedFlight(
+              capturedId,
+              snapshot.origin,
+              destination,
+              snapshot.color,
+            )
+          })
+          .filter((value): value is CapturedFlightState => Boolean(value))
+      : []
+
+    if (capturedFlightsInMove.length > 0) {
+      capturedFlights.value = capturedFlightsInMove
     }
 
     const willWin = result.victory
@@ -149,6 +226,9 @@ export function createMoveController(options: MoveControllerOptions) {
         landingPoint.value = null
       }, 260)
       options.refreshGameView()
+      if (capturedFlights.value.length > 0) {
+        scheduleCapturedFlightAnimation()
+      }
       if (result.advancePending) {
         options.diceHandoffHiding.value = false
         options.scheduleTurnAdvance(1200)
@@ -206,6 +286,7 @@ export function createMoveController(options: MoveControllerOptions) {
     replayingStartProgress,
     movingPoint,
     landingPoint,
+    capturedFlights,
     clearMovePreview,
     clearMoveTimers,
     resetMoveState,
