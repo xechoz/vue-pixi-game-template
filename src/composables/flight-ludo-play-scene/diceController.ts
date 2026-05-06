@@ -1,5 +1,4 @@
 import { ref, type Ref } from 'vue'
-import type * as PIXI from 'pixi.js'
 
 import { rollDice, type GameState } from '../../game'
 import type { Point, RefreshGameView } from './types'
@@ -37,29 +36,12 @@ export function createDiceController(options: DiceControllerOptions) {
   const diceIdleLift = ref(0)
   const isRolling = ref(false)
 
-  let diceFaceTextures: Partial<Record<number, PIXI.Texture>> = {}
-  let diceIdleTexture: PIXI.Texture | null = null
-  let diceRollTextures: PIXI.Texture[] = []
   let rollTimer: number = -1
   let rollFrameId: number = -1
   let diceLandingFrameId: number = -1
   let diceIdleFrameId: number = -1
   let diceIdleLastRender = 0
   let diceIdleStart = 0
-
-  function setDiceAssets(
-    idleTexture: PIXI.Texture | null,
-    faceTextures: Partial<Record<number, PIXI.Texture>>,
-    rollTextures: PIXI.Texture[],
-  ) {
-    diceIdleTexture = idleTexture
-    diceFaceTextures = faceTextures
-    diceRollTextures = rollTextures
-  }
-
-  function getDiceIdleTexture() {
-    return diceIdleTexture
-  }
 
   function clearRollTimers() {
     if (rollTimer !== -1) {
@@ -103,31 +85,6 @@ export function createDiceController(options: DiceControllerOptions) {
   function getDiceDisplayValue() {
     if (isRolling.value) return rollingFace.value
     return options.game.value.dice
-  }
-
-  function getDiceFaceAssetTexture(value: number) {
-    if (value <= 0) return null
-    return diceFaceTextures[value] ?? null
-  }
-
-  function getRollingDiceAssetTexture() {
-    if (!isRolling.value) return null
-    if (diceRollTextures.length > 0) {
-      return (
-        diceRollTextures[diceRollFrame.value] ??
-        diceRollTextures[diceRollTextures.length - 1] ??
-        null
-      )
-    }
-    return getDiceFaceAssetTexture(rollingFace.value)
-  }
-
-  function getIdleDiceAssetTexture() {
-    return (
-      getDiceFaceAssetTexture(
-        options.game.value.dice || rollingFace.value || 1,
-      ) ?? getDiceFaceAssetTexture(1)
-    )
   }
 
   function syncDiceIdleAnimation() {
@@ -233,12 +190,6 @@ export function createDiceController(options: DiceControllerOptions) {
         turnProgress * Math.PI * 0.1
       diceSpinFlip.value =
         0.46 + Math.abs(Math.cos(progress * Math.PI * 6.8)) * 0.54
-      if (diceRollTextures.length > 0) {
-        diceRollFrame.value = Math.min(
-          diceRollTextures.length - 1,
-          Math.floor(progress * diceRollTextures.length),
-        )
-      }
       options.renderScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
@@ -247,9 +198,6 @@ export function createDiceController(options: DiceControllerOptions) {
         diceSpinScale.value = 1
         diceSpinRotation.value = 0
         diceSpinFlip.value = 1
-        if (diceRollTextures.length > 0) {
-          diceRollFrame.value = Math.max(0, diceRollTextures.length - 1)
-        }
         options.renderScene()
       }
     }
@@ -339,12 +287,7 @@ export function createDiceController(options: DiceControllerOptions) {
     diceIdleShake,
     diceIdleLift,
     isRolling,
-    setDiceAssets,
-    getDiceIdleTexture,
     getDiceDisplayValue,
-    getDiceFaceAssetTexture,
-    getRollingDiceAssetTexture,
-    getIdleDiceAssetTexture,
     clearRollTimers,
     stopDiceIdleAnimation,
     resetDiceState,

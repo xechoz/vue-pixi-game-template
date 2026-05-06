@@ -24,11 +24,7 @@ type DiceRenderState = {
   diceIdlePulse: number
   diceIdleShake: number
   diceIdleLift: number
-  diceIdleTexture: PIXI.Texture | null
   getDiceDisplayValue: () => number
-  getDiceFaceAssetTexture: (value: number) => PIXI.Texture | null
-  getRollingDiceAssetTexture: () => PIXI.Texture | null
-  getIdleDiceAssetTexture: () => PIXI.Texture | null
 }
 
 type MoveRenderState = {
@@ -65,6 +61,128 @@ type RenderPlaySceneOptions = {
 
 export function hexToNumber(color: string) {
   return Number.parseInt(color.replace('#', ''), 16)
+}
+
+const DIE_PIP_GRID = {
+  left: -0.24,
+  center: 0,
+  right: 0.24,
+  top: -0.24,
+  middle: 0,
+  bottom: 0.24,
+} as const
+
+const DIE_PIP_LAYOUTS: Record<number, Array<{ x: number; y: number }>> = {
+  1: [{ x: DIE_PIP_GRID.center, y: DIE_PIP_GRID.middle }],
+  2: [
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.bottom },
+  ],
+  3: [
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.center, y: DIE_PIP_GRID.middle },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.bottom },
+  ],
+  4: [
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.bottom },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.bottom },
+  ],
+  5: [
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.center, y: DIE_PIP_GRID.middle },
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.bottom },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.bottom },
+  ],
+  6: [
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.top },
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.middle },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.middle },
+    { x: DIE_PIP_GRID.left, y: DIE_PIP_GRID.bottom },
+    { x: DIE_PIP_GRID.right, y: DIE_PIP_GRID.bottom },
+  ],
+}
+
+function buildDiceFaceGraphic(options: {
+  size: number
+  color: number
+  value: number
+  isIdle: boolean
+  idlePulse: number
+  isRolling: boolean
+  diceLandingSquash: number
+}) {
+  const container = new PIXI.Container()
+  const faceSize = options.size * 0.92
+  const halfFace = faceSize / 2
+  const cornerRadius = faceSize * 0.22
+  const pipRadius = Math.max(3, faceSize * 0.072)
+  const outlineAlpha = options.isIdle
+    ? 0.8 + options.idlePulse * 0.14
+    : options.isRolling
+      ? 0.92
+      : 0.88
+
+  const shadow = new PIXI.Graphics()
+    .roundRect(
+      -halfFace,
+      -halfFace + faceSize * 0.05,
+      faceSize,
+      faceSize,
+      cornerRadius,
+    )
+    .fill({ color: 0x020617, alpha: 0.14 + options.diceLandingSquash * 0.08 })
+  container.addChild(shadow)
+
+  const plate = new PIXI.Graphics()
+    .roundRect(-halfFace, -halfFace, faceSize, faceSize, cornerRadius)
+    .fill({ color: 0xffffff, alpha: 0.98 })
+    .stroke({ color: options.color, width: Math.max(2, faceSize * 0.05), alpha: outlineAlpha })
+  container.addChild(plate)
+
+  const gloss = new PIXI.Graphics()
+    .roundRect(
+      -faceSize * 0.28,
+      -faceSize * 0.32,
+      faceSize * 0.56,
+      faceSize * 0.24,
+      faceSize * 0.08,
+    )
+    .fill({ color: 0xffffff, alpha: 0.26 })
+  container.addChild(gloss)
+
+  if (options.isIdle) {
+    const idleBackdrop = new PIXI.Graphics()
+      .circle(0, 0, faceSize * 0.17)
+      .fill({ color: options.color, alpha: 0.08 + options.idlePulse * 0.05 })
+    container.addChild(idleBackdrop)
+
+    const questionMark = new PIXI.Text({
+      text: '?',
+      style: {
+        fill: options.color,
+        fontFamily: 'Trebuchet MS',
+        fontSize: faceSize * 0.42,
+        fontWeight: '800',
+      },
+    })
+    questionMark.anchor.set(0.5)
+    questionMark.position.set(0, -faceSize * 0.02)
+    container.addChild(questionMark)
+    return container
+  }
+
+  for (const pip of DIE_PIP_LAYOUTS[options.value] ?? []) {
+    const pipGraphic = new PIXI.Graphics()
+      .circle(pip.x * faceSize, pip.y * faceSize, pipRadius)
+      .fill({ color: options.color, alpha: 0.98 })
+    container.addChild(pipGraphic)
+  }
+
+  return container
 }
 
 export function resolvePiecePoint(
@@ -241,8 +359,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   const homeEntryStep =
     options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerEdge / 2)
 
-  let activeDiceAnchor = { x: centerX, y: centerY }
-
   // Draw the raw track cells first. These cells are the actual movement path.
   for (let index = 0; index < trackPoints.length; index += 1) {
     const point = trackPoints[index]
@@ -327,19 +443,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         baseBounds.height,
       )
       playerBase.on('pointerdown', () => options.onRoll(false))
-    }
-
-    if (isActivePlayer) {
-      const diceHalf = safeBoardSize * 0.09
-      const diceGap = safeBoardSize * 0.012
-      const diceYOffset = baseBounds.height / 2
-      activeDiceAnchor = {
-        x:
-          player.index === 0 || player.index === 3
-            ? baseBounds.x + baseBounds.width + diceHalf + diceGap
-            : baseBounds.x - diceHalf - diceGap,
-        y: baseBounds.y + diceYOffset,
-      }
     }
 
     const finish = finishSlots[player.index]
@@ -450,19 +553,9 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const diceSize = safeBoardSize * 0.18
     const currentPlayer = options.game.players[options.game.currentPlayerIndex]
     const currentPlayerColor = hexToNumber(currentPlayer.color)
-    const diceBorderPadding = diceSize * 0.14
-    const diceBorderHalf = diceSize / 2 + diceBorderPadding
     const diceValue = options.dice.getDiceDisplayValue()
     const isIdleDiceState =
       !options.dice.isRolling && options.game.dice === 0
-    const rollingDiceAssetTexture = options.dice.getRollingDiceAssetTexture()
-    const settledDiceAssetTexture =
-      options.dice.getDiceFaceAssetTexture(diceValue)
-    const idleDiceAssetTexture = options.dice.getIdleDiceAssetTexture()
-    const useDiceAssetRender =
-      rollingDiceAssetTexture !== null ||
-      settledDiceAssetTexture !== null ||
-      idleDiceAssetTexture !== null
 
     const diceGroup = new PIXI.Container()
     diceGroup.eventMode = canRoll ? 'static' : 'passive'
@@ -477,178 +570,119 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       diceGroup.on('pointerdown', () => options.onRoll(false))
     }
 
-    const borderAlpha = isIdleDiceState
-      ? 0.55 + options.dice.diceIdlePulse * 0.35
-      : 0.65
-    const diceBorder = new PIXI.Graphics()
-      .roundRect(
-        -diceBorderHalf,
-        -diceBorderHalf,
-        diceBorderHalf * 2,
-        diceBorderHalf * 2,
-        diceBorderHalf * 0.3,
-      )
-      .stroke({ color: currentPlayerColor, width: 3, alpha: borderAlpha })
-    center.addChild(diceBorder)
-
     center.addChild(diceGroup)
 
     const faceSize = diceSize * 0.72
-
-    if (useDiceAssetRender) {
-      const assetTexture =
-        rollingDiceAssetTexture ??
-        settledDiceAssetTexture ??
-        idleDiceAssetTexture
-      if (assetTexture) {
-        const textureWidth = assetTexture.width || 1
-        const textureHeight = assetTexture.height || 1
-        const fittedHeight = diceSize * 0.98
-        const fittedWidth = Math.max(
-          diceSize * 0.8,
-          (fittedHeight * textureWidth) / textureHeight,
-        )
-
-        const diceSprite = new PIXI.Sprite(assetTexture)
-        diceSprite.anchor.set(0.5)
-        diceSprite.width = fittedWidth
-        diceSprite.height = fittedHeight
-        diceGroup.addChild(diceSprite)
-
-        if (
-          !options.dice.isRolling &&
-          isIdleDiceState &&
-          options.dice.diceIdleTexture
-        ) {
-          const idleFaceBlur = new PIXI.Graphics()
-            .roundRect(
-              -fittedWidth * 0.36,
-              -fittedHeight * 0.36,
-              fittedWidth * 0.72,
-              fittedHeight * 0.72,
-              fittedWidth * 0.12,
-            )
-            .fill({ color: 0xffffff, alpha: 0.3 })
-          diceGroup.addChild(idleFaceBlur)
-
-          const overlayWidth = fittedWidth * 0.8
-          const overlayHeight = fittedHeight * 0.8
-          const overlayCenterY = -overlayHeight * 0.02
-
-          const idleOverlaySprite = new PIXI.Sprite(
-            options.dice.diceIdleTexture,
-          )
-          idleOverlaySprite.anchor.set(0.5)
-          idleOverlaySprite.position.set(0, overlayCenterY)
-          idleOverlaySprite.width = overlayWidth
-          idleOverlaySprite.height = overlayHeight
-          idleOverlaySprite.alpha = 1
-          diceGroup.addChild(idleOverlaySprite)
-        }
-
-        const landingShadowScale =
-          1 +
-          options.dice.diceLandingSquash * 0.45 +
-          (options.dice.isRolling ? 0.06 : 0)
-        const landingShadowOffset =
-          fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08)
-        const shadowAlpha =
+    const fittedHeight = diceSize * 0.98
+    const fittedWidth = diceSize * 0.92
+    const diceShadow = new PIXI.Graphics()
+      .ellipse(
+        0,
+        fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08),
+        fittedWidth * 0.24 * (1 + options.dice.diceLandingSquash * 0.45 + (options.dice.isRolling ? 0.06 : 0)),
+        fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
+      )
+      .fill({
+        color: 0x020617,
+        alpha:
           0.16 +
           (options.dice.isRolling ? 0.08 : 0.02) +
-          options.dice.diceLandingSquash * 0.14
-        const diceShadow = new PIXI.Graphics()
-          .ellipse(
-            0,
-            landingShadowOffset,
-            fittedWidth * 0.24 * landingShadowScale,
-            fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
-          )
-          .fill({ color: 0x020617, alpha: shadowAlpha })
-        diceGroup.addChildAt(diceShadow, 0)
+          options.dice.diceLandingSquash * 0.14,
+      })
+    diceGroup.addChild(diceShadow)
 
-        if (!options.dice.isRolling && isIdleDiceState) {
-          const promptGlow = new PIXI.Graphics()
-            .roundRect(
-              -faceSize * 0.18,
-              faceSize * 0.09,
-              faceSize * 0.36,
-              faceSize * 0.2,
-              faceSize * 0.08,
-            )
-            .fill({
-              color: 0xffffff,
-              alpha: 0.14 + options.dice.diceIdlePulse * 0.08,
-            })
-          diceGroup.addChild(promptGlow)
-        }
+    const diceFace = buildDiceFaceGraphic({
+      size: diceSize,
+      color: currentPlayerColor,
+      value: Math.min(6, Math.max(1, diceValue || 1)),
+      isIdle: isIdleDiceState,
+      idlePulse: options.dice.diceIdlePulse,
+      isRolling: options.dice.isRolling,
+      diceLandingSquash: options.dice.diceLandingSquash,
+    })
+    diceGroup.addChild(diceFace)
 
-        const settleFlashAlpha =
-          !options.dice.isRolling && !isIdleDiceState
-            ? Math.max(
-                0,
-                Math.min(
-                  0.18,
-                  options.dice.diceLandingSquash * 0.32 +
-                    options.dice.diceLandingLift * 0.004,
-                ),
-              )
-            : 0
-        if (settleFlashAlpha > 0.001) {
-          const settleFlash = new PIXI.Graphics()
-            .roundRect(
-              -fittedWidth * 0.33,
-              -fittedHeight * 0.33,
-              fittedWidth * 0.66,
-              fittedHeight * 0.24,
-              fittedWidth * 0.08,
-            )
-            .fill({ color: 0xffffff, alpha: settleFlashAlpha })
-          diceGroup.addChild(settleFlash)
-        }
-
-        const diceScaleBoost =
-          1 +
-          options.dice.diceIdlePulse * 0.05 +
-          (options.dice.isRolling ? 0.05 : 0)
-        const shakeX =
-          options.dice.diceIdleShake * (options.dice.isRolling ? 4.5 : 3)
-        const shakeY =
-          Math.sin(options.dice.diceIdleShake * Math.PI * 0.5) * 2.2
-        const landingScaleX =
-          1 +
-          options.dice.diceLandingSquash * 0.34 +
-          options.dice.diceResultPop * 0.08
-        const landingScaleY =
-          1 -
-          options.dice.diceLandingSquash * 0.24 +
-          options.dice.diceResultPop * 0.04
-        const landingSettleNudge =
-          !options.dice.isRolling && !isIdleDiceState
-            ? Math.max(0, options.dice.diceLandingSquash * 0.1)
-            : 0
-        const spinScaleX =
-          options.dice.diceSpinScale *
-          diceScaleBoost *
-          (options.dice.isRolling ? options.dice.diceSpinFlip : 1) *
-          landingScaleX
-        const spinScaleY =
-          options.dice.diceSpinScale *
-          diceScaleBoost *
-          (options.dice.isRolling
-            ? 1 + (1 - options.dice.diceSpinFlip) * 0.22
-            : 1) *
-          landingScaleY
-        diceGroup.position.set(
-          shakeX,
-          shakeY -
-            options.dice.diceIdleLift -
-            options.dice.diceLandingLift +
-            landingSettleNudge * fittedHeight * 0.08,
+    if (!options.dice.isRolling && isIdleDiceState) {
+      const promptGlow = new PIXI.Graphics()
+        .roundRect(
+          -faceSize * 0.18,
+          faceSize * 0.09,
+          faceSize * 0.36,
+          faceSize * 0.2,
+          faceSize * 0.08,
         )
-        diceGroup.rotation = options.dice.diceSpinRotation
-        diceGroup.scale.set(spinScaleX, spinScaleY)
-      }
+        .fill({
+          color: 0xffffff,
+          alpha: 0.14 + options.dice.diceIdlePulse * 0.08,
+        })
+      diceGroup.addChild(promptGlow)
     }
+
+    const settleFlashAlpha =
+      !options.dice.isRolling && !isIdleDiceState
+        ? Math.max(
+            0,
+            Math.min(
+              0.18,
+              options.dice.diceLandingSquash * 0.32 +
+                options.dice.diceLandingLift * 0.004,
+            ),
+          )
+        : 0
+    if (settleFlashAlpha > 0.001) {
+      const settleFlash = new PIXI.Graphics()
+        .roundRect(
+          -fittedWidth * 0.33,
+          -fittedHeight * 0.33,
+          fittedWidth * 0.66,
+          fittedHeight * 0.24,
+          fittedWidth * 0.08,
+        )
+        .fill({ color: 0xffffff, alpha: settleFlashAlpha })
+      diceGroup.addChild(settleFlash)
+    }
+
+    const diceScaleBoost =
+      1 +
+      options.dice.diceIdlePulse * 0.05 +
+      (options.dice.isRolling ? 0.05 : 0)
+    const shakeX =
+      options.dice.diceIdleShake * (options.dice.isRolling ? 4.5 : 3)
+    const shakeY =
+      Math.sin(options.dice.diceIdleShake * Math.PI * 0.5) * 2.2
+    const landingScaleX =
+      1 +
+      options.dice.diceLandingSquash * 0.34 +
+      options.dice.diceResultPop * 0.08
+    const landingScaleY =
+      1 -
+      options.dice.diceLandingSquash * 0.24 +
+      options.dice.diceResultPop * 0.04
+    const landingSettleNudge =
+      !options.dice.isRolling && !isIdleDiceState
+        ? Math.max(0, options.dice.diceLandingSquash * 0.1)
+        : 0
+    const spinScaleX =
+      options.dice.diceSpinScale *
+      diceScaleBoost *
+      (options.dice.isRolling ? options.dice.diceSpinFlip : 1) *
+      landingScaleX
+    const spinScaleY =
+      options.dice.diceSpinScale *
+      diceScaleBoost *
+      (options.dice.isRolling
+        ? 1 + (1 - options.dice.diceSpinFlip) * 0.22
+        : 1) *
+      landingScaleY
+    diceGroup.position.set(
+      shakeX,
+      shakeY -
+        options.dice.diceIdleLift -
+        options.dice.diceLandingLift +
+        landingSettleNudge * fittedHeight * 0.08,
+    )
+    diceGroup.rotation = options.dice.diceSpinRotation
+    diceGroup.scale.set(spinScaleX, spinScaleY)
   }
 
   if (options.winner) {

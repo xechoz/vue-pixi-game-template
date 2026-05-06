@@ -26,11 +26,6 @@ import {
   resolvePiecePoint as resolveBoardPiecePoint,
 } from './flight-ludo-play-scene/boardRenderer'
 import { createDiceController } from './flight-ludo-play-scene/diceController'
-import {
-  loadDiceFaceAssets,
-  loadDiceIdleAsset,
-  loadDiceRollAssets,
-} from './flight-ludo-play-scene/diceAssets'
 import { createMoveController } from './flight-ludo-play-scene/moveController'
 import { createSceneAudio } from './flight-ludo-play-scene/sceneAudio'
 import { createTurnController } from './flight-ludo-play-scene/turnController'
@@ -125,11 +120,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         diceIdlePulse: diceController.diceIdlePulse.value,
         diceIdleShake: diceController.diceIdleShake.value,
         diceIdleLift: diceController.diceIdleLift.value,
-        diceIdleTexture: diceController.getDiceIdleTexture(),
         getDiceDisplayValue: diceController.getDiceDisplayValue,
-        getDiceFaceAssetTexture: diceController.getDiceFaceAssetTexture,
-        getRollingDiceAssetTexture: diceController.getRollingDiceAssetTexture,
-        getIdleDiceAssetTexture: diceController.getIdleDiceAssetTexture,
       },
       move: {
         replayingPieceId: moveController.replayingPieceId.value,
@@ -297,18 +288,6 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
         playerPieceTextures[2] ??
         playerPieceTextures[3] ??
         null
-      const [loadedDiceIdle, loadedDiceFaces, loadedDiceRoll] =
-        await Promise.all([
-          loadDiceIdleAsset(assetUrl),
-          loadDiceFaceAssets(assetUrl),
-          loadDiceRollAssets(assetUrl),
-        ])
-      if (initToken !== pixiInitToken || !app || !scene) return
-      diceController.setDiceAssets(
-        loadedDiceIdle,
-        loadedDiceFaces,
-        loadedDiceRoll,
-      )
     })()
 
     try {
