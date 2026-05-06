@@ -20,6 +20,7 @@ const boardPresetId = ref<BoardPresetId>('tiny-3')
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
 const winnerName = ref('已结束')
+const winnerIndex = ref(0)
 
 async function startGame() {
   await loadPlayPage()
@@ -46,8 +47,9 @@ function setBoardPresetId(nextBoardPresetId: BoardPresetId) {
   boardPresetId.value = nextBoardPresetId
 }
 
-function handleWinnerChange(nextWinnerName: string) {
-  winnerName.value = nextWinnerName
+function handleWinnerChange(nextWinner: { name: string; color: string; index: number }) {
+  winnerName.value = nextWinner.name
+  winnerIndex.value = nextWinner.index
   page.value = 'result'
 }
 </script>
@@ -66,7 +68,7 @@ function handleWinnerChange(nextWinnerName: string) {
     />
 
     <PlayPage
-      v-else-if="page === 'play'"
+      v-else-if="page === 'play' || page === 'result'"
       :mode="mode"
       :pieces-per-player="piecesPerPlayer"
       :board-preset-id="boardPresetId"
@@ -77,8 +79,9 @@ function handleWinnerChange(nextWinnerName: string) {
     />
 
     <ResultScreen
-      v-else
+      v-if="page === 'result'"
       :winner-name="winnerName"
+      :winner-index="winnerIndex"
       @replay="replayGame"
       @prepare="goToPrepare"
     />

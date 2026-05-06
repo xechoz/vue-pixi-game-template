@@ -12,11 +12,11 @@ const props = defineProps<{
   autoPlayMode: boolean
 }>()
 
-const emit = defineEmits<{
-  (event: 'back'): void
-  (event: 'winner-change', value: string): void
-  (event: 'update:board-preset-id', value: BoardPresetId): void
-}>()
+const emit = defineEmits({
+  back: null,
+  'winner-change': null,
+  'update:board-preset-id': null,
+})
 
 const page = ref<AppPage>('play')
 const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
@@ -35,10 +35,10 @@ const {
 })
 
 watch(
-  () => winner.value?.name ?? null,
-  (name) => {
-    if (name) {
-      emit('winner-change', name)
+  () => winner.value,
+  (player) => {
+    if (player) {
+      emit('winner-change', { name: player.name, color: player.color })
     }
   },
   { immediate: true },
@@ -63,6 +63,7 @@ onMounted(() => {
     ref="playScreenRef"
     :board-preset-id="boardPresetId"
     @back="handleBack"
+    @winner-change="emit('winner-change', $event)"
     @update:board-preset-id="handleBoardPresetId"
   />
 </template>

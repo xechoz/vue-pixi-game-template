@@ -13,10 +13,11 @@ const canvasEl = ref<HTMLDivElement | null>(null)
 
 defineExpose({ canvasEl })
 
-const emit = defineEmits<{
-  (event: 'back'): void
-  (event: 'update:board-preset-id', value: BoardPresetId): void
-}>()
+const emit = defineEmits({
+  back: null,
+  'winner-change': null,
+  'update:board-preset-id': null,
+})
 
 const difficultyOptions = [
   {
@@ -117,7 +118,7 @@ const difficultyOptions = [
 
 .play-controls-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   width: 100%;
   pointer-events: auto;
@@ -131,7 +132,7 @@ const difficultyOptions = [
 
 .play-controls-row {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   width: 100%;
   pointer-events: auto;
