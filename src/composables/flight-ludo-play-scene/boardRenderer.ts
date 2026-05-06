@@ -9,7 +9,6 @@ import {
   type GameState,
   type PlayerState,
 } from '../../game'
-import { getHomeConnectorDotSpacing } from './homeConnector'
 import type { BoardLayout, LandingPoint, Point } from './types'
 
 type DiceRenderState = {
@@ -593,6 +592,118 @@ function getPaddedPointBounds(points: Point[], padding: number) {
   }
 }
 
+function getRoundedRectBorderPoint(
+  rect: { x: number; y: number; width: number; height: number },
+  cornerRadius: number,
+  target: Point,
+) {
+  const centerX = rect.x + rect.width / 2
+  const centerY = rect.y + rect.height / 2
+  const dx = target.x - centerX
+  const dy = target.y - centerY
+  const distance = Math.hypot(dx, dy)
+
+  if (distance === 0) {
+    return { x: centerX, y: centerY }
+  }
+
+  const directionX = dx / distance
+  const directionY = dy / distance
+  const left = rect.x
+  const right = rect.x + rect.width
+  const top = rect.y
+  const bottom = rect.y + rect.height
+
+  const candidates: Array<{ x: number; y: number; t: number }> = []
+
+  if (directionX !== 0) {
+    const tLeft = (left - centerX) / directionX
+    const yLeft = centerY + tLeft * directionY
+    if (tLeft > 0 && yLeft >= top && yLeft <= bottom) {
+      candidates.push({ x: left, y: yLeft, t: tLeft })
+    }
+
+    const tRight = (right - centerX) / directionX
+    const yRight = centerY + tRight * directionY
+    if (tRight > 0 && yRight >= top && yRight <= bottom) {
+      candidates.push({ x: right, y: yRight, t: tRight })
+    }
+  }
+
+  if (directionY !== 0) {
+    const tTop = (top - centerY) / directionY
+    const xTop = centerX + tTop * directionX
+    if (tTop > 0 && xTop >= left && xTop <= right) {
+      candidates.push({ x: xTop, y: top, t: tTop })
+    }
+
+    const tBottom = (bottom - centerY) / directionY
+    const xBottom = centerX + tBottom * directionX
+    if (tBottom > 0 && xBottom >= left && xBottom <= right) {
+      candidates.push({ x: xBottom, y: bottom, t: tBottom })
+    }
+  }
+
+  if (candidates.length === 0) {
+    return { x: centerX, y: centerY }
+  }
+
+  const nearest = candidates.reduce((best, candidate) =>
+    candidate.t < best.t ? candidate : best,
+  )
+
+  let edgePoint = { x: nearest.x, y: nearest.y }
+
+  if (cornerRadius > 0) {
+    const isTopOrBottom = edgePoint.y === top || edgePoint.y === bottom
+    const isLeftOrRight = edgePoint.x === left || edgePoint.x === right
+
+    if (isTopOrBottom && edgePoint.x < left + cornerRadius) {
+      const cornerCenter = {
+        x: left + cornerRadius,
+        y: edgePoint.y === top ? top + cornerRadius : bottom - cornerRadius,
+      }
+      const angle = Math.atan2(target.y - cornerCenter.y, target.x - cornerCenter.x)
+      edgePoint = {
+        x: cornerCenter.x + Math.cos(angle) * cornerRadius,
+        y: cornerCenter.y + Math.sin(angle) * cornerRadius,
+      }
+    } else if (isTopOrBottom && edgePoint.x > right - cornerRadius) {
+      const cornerCenter = {
+        x: right - cornerRadius,
+        y: edgePoint.y === top ? top + cornerRadius : bottom - cornerRadius,
+      }
+      const angle = Math.atan2(target.y - cornerCenter.y, target.x - cornerCenter.x)
+      edgePoint = {
+        x: cornerCenter.x + Math.cos(angle) * cornerRadius,
+        y: cornerCenter.y + Math.sin(angle) * cornerRadius,
+      }
+    } else if (isLeftOrRight && edgePoint.y < top + cornerRadius) {
+      const cornerCenter = {
+        x: edgePoint.x === left ? left + cornerRadius : right - cornerRadius,
+        y: top + cornerRadius,
+      }
+      const angle = Math.atan2(target.y - cornerCenter.y, target.x - cornerCenter.x)
+      edgePoint = {
+        x: cornerCenter.x + Math.cos(angle) * cornerRadius,
+        y: cornerCenter.y + Math.sin(angle) * cornerRadius,
+      }
+    } else if (isLeftOrRight && edgePoint.y > bottom - cornerRadius) {
+      const cornerCenter = {
+        x: edgePoint.x === left ? left + cornerRadius : right - cornerRadius,
+        y: bottom - cornerRadius,
+      }
+      const angle = Math.atan2(target.y - cornerCenter.y, target.x - cornerCenter.x)
+      edgePoint = {
+        x: cornerCenter.x + Math.cos(angle) * cornerRadius,
+        y: cornerCenter.y + Math.sin(angle) * cornerRadius,
+      }
+    }
+  }
+
+  return edgePoint
+}
+
 function drawDottedPolyline(
   graphics: PIXI.Graphics,
   points: Point[],
@@ -972,18 +1083,18 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         staticLayer.addChild(laneCell)
       }
 
-      const baseCenter = (() => {
-        const bounds = getPaddedPointBounds(baseSlots[player.index], 0)
-        return {
-          x: bounds.x + bounds.width / 2,
-          y: bounds.y + bounds.height / 2,
-        }
-      })()
-
-      // Draw dotted line from base to start point on track
+      // base point: 
+      // player 0 is  top left, 
+      // player 1 is top right, 
+      // player 2 is bottom right, 
+      // player 3 is bottom left
+      const baseBounds = getPaddedPointBounds(baseSlots[player.index], 2.5*outerBorderDotSpacing)
       const startPoint = options.layout.trackPoints[player.startIndex]
+      const baseEdgePoint = getRoundedRectBorderPoint(baseBounds, 14, startPoint)
+
+      // Draw dotted line from base roundRect edge to start point on track
       const baseToStartLine = new PIXI.Graphics()
-      drawDottedPolyline(baseToStartLine, [baseCenter, startPoint], {
+      drawDottedPolyline(baseToStartLine, [baseEdgePoint, startPoint], {
         color: hexToNumber(player.color),
         alpha: 0.25,
         dotRadius: Math.max(2, trackSize * 0.08),
