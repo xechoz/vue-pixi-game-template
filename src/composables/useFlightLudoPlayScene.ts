@@ -25,6 +25,7 @@ import {
   renderPlayScene,
   resolvePiecePoint as resolveBoardPiecePoint,
 } from './flight-ludo-play-scene/boardRenderer'
+import { buildBoardLayout } from './flight-ludo-play-scene/boardLayout'
 import { createDiceController } from './flight-ludo-play-scene/diceController'
 import { createMoveController } from './flight-ludo-play-scene/moveController'
 import { createSceneAudio } from './flight-ludo-play-scene/sceneAudio'
@@ -86,8 +87,53 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   let pieceTexture: PIXI.Texture | null = null
   let playerPieceTextures: Partial<Record<number, PIXI.Texture>> = {}
   let currentLayout: BoardLayout | null = null
+  let currentLayoutCacheKey = ''
   let appInitPromise: Promise<void> | null = null
   let pixiInitToken = 0
+
+  function getBoardLayoutCacheKey(width: number, height: number) {
+    const preset = boardPreset.value
+    const renderLayout = boardRenderLayout.value
+
+    return [
+      game.value.boardPresetId,
+      width,
+      height,
+      preset.trackLength,
+      preset.stepsPerEdge,
+      preset.homeSteps,
+      renderLayout.trackInsetRatio,
+      renderLayout.baseSlotSpreadRatio,
+      renderLayout.baseZonePaddingRatio,
+      renderLayout.finishGapRatio,
+    ].join(':')
+  }
+
+  function getCurrentBoardLayout() {
+    if (!app) return null
+
+    const { width, height } = app.screen
+    const layoutCacheKey = getBoardLayoutCacheKey(width, height)
+    if (currentLayout && currentLayoutCacheKey === layoutCacheKey) {
+      return currentLayout
+    }
+
+    const boardSize = Math.min(width, height) - 20
+    const safeBoardSize = Math.max(240, boardSize)
+    const originX = (width - safeBoardSize) / 2
+    const originY = (height - safeBoardSize) / 2
+
+    currentLayout = buildBoardLayout(
+      originX,
+      originY,
+      safeBoardSize,
+      boardPreset.value,
+      boardRenderLayout.value,
+    )
+    currentLayoutCacheKey = layoutCacheKey
+
+    return currentLayout
+  }
 
   function isPlayPageActive() {
     return options.page.value === 'play'
@@ -100,9 +146,13 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
   function renderScene() {
     if (!app || !scene) return
 
+    const layout = getCurrentBoardLayout()
+    if (!layout) return
+
     currentLayout = renderPlayScene({
       app,
       scene,
+      layout,
       boardPreset: boardPreset.value,
       boardRenderLayout: boardRenderLayout.value,
       game: game.value,

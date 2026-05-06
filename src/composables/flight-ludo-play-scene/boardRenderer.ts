@@ -9,7 +9,6 @@ import {
   type GameState,
   type PlayerState,
 } from '../../game'
-import { buildBoardLayout } from './boardLayout'
 import { deriveOuterAnchorPoints } from './boardView'
 import type { BoardLayout, LandingPoint, Point } from './types'
 
@@ -45,6 +44,7 @@ type TurnRenderState = {
 type RenderPlaySceneOptions = {
   app: PIXI.Application
   scene: PIXI.Container
+  layout: BoardLayout
   boardPreset: BoardPreset
   boardRenderLayout: BoardRenderLayout
   game: GameState
@@ -57,6 +57,15 @@ type RenderPlaySceneOptions = {
   onRoll: (fromAuto?: boolean) => void
   onMove: (pieceId: string) => void
   getPlayerPieceTexture: (playerIndex: number) => PIXI.Texture | null
+}
+
+type PieceRenderInfo = {
+  player: RenderPlaySceneOptions['game']['players'][number]
+  piece: RenderPlaySceneOptions['game']['players'][number]['pieces'][number]
+  pieceIndex: number
+  x: number
+  y: number
+  location: 'base' | 'track' | 'home' | 'finished'
 }
 
 export function hexToNumber(color: string) {
@@ -320,11 +329,200 @@ function drawDottedPolyline(
   }
 }
 
-export function renderPlayScene(options: RenderPlaySceneOptions) {
-  const removable = options.scene.removeChildren()
+const STATIC_LAYER_NAME = 'flight-ludo-static-layer'
+const DYNAMIC_LAYER_NAME = 'flight-ludo-dynamic-layer'
+const DYNAMIC_OVERLAY_LAYER_NAME = 'flight-ludo-dynamic-overlay-layer'
+const DYNAMIC_PIECES_LAYER_NAME = 'flight-ludo-dynamic-pieces-layer'
+const PIECE_GLOW_NAME = 'flight-ludo-piece-glow'
+const PIECE_BODY_NAME = 'flight-ludo-piece-body'
+
+type SceneRenderState = {
+  staticBoardKey: string
+  pieceGroups: Map<string, PIXI.Container>
+}
+
+const sceneRenderStates = new WeakMap<PIXI.Container, SceneRenderState>()
+
+function clearContainer(container: PIXI.Container) {
+  const removable = container.removeChildren()
   for (const child of removable) {
     child.destroy({ children: true })
   }
+}
+
+function getSceneRenderState(scene: PIXI.Container) {
+  let state = sceneRenderStates.get(scene)
+  if (!state) {
+    state = {
+      staticBoardKey: '',
+      pieceGroups: new Map<string, PIXI.Container>(),
+    }
+    sceneRenderStates.set(scene, state)
+  }
+
+  return state
+}
+
+function findNamedChild(container: PIXI.Container, name: string) {
+  return container.children.find((child) => child.label === name) ?? null
+}
+
+function getOrCreateSceneLayer(scene: PIXI.Container, name: string) {
+  const existing = findNamedChild(scene, name)
+  if (existing instanceof PIXI.Container) {
+    return existing
+  }
+
+  const layer = new PIXI.Container()
+  layer.label = name
+  scene.addChild(layer)
+  return layer
+}
+
+function syncPieceGlow(options: {
+  pieceGroup: PIXI.Container
+  isVisible: boolean
+  pieceRadius: number
+  color: string
+  legalPulse: number
+}) {
+  const existingGlow = findNamedChild(options.pieceGroup, PIECE_GLOW_NAME)
+  let glow: PIXI.Graphics
+  if (existingGlow instanceof PIXI.Graphics) {
+    glow = existingGlow
+  } else {
+    if (existingGlow) {
+      options.pieceGroup.removeChild(existingGlow)
+      existingGlow.destroy({ children: true })
+    }
+    glow = new PIXI.Graphics()
+    glow.label = PIECE_GLOW_NAME
+    options.pieceGroup.addChildAt(glow, 0)
+  }
+
+  if (!options.isVisible) {
+    glow.visible = false
+    glow.clear()
+    return
+  }
+
+  glow.visible = true
+  glow.clear()
+  glow.circle(0, 0, options.pieceRadius + 6).stroke({
+    color: hexToNumber(options.color),
+    width: 2,
+    alpha: 0.12 + options.legalPulse * 0.16,
+  })
+}
+
+function syncPieceBody(options: {
+  pieceGroup: PIXI.Container
+  texture: PIXI.Texture | null
+  tint: number
+  pieceRadius: number
+  pieceBodyScale: number
+  isBasePiece: boolean
+}) {
+  const existingBody = findNamedChild(options.pieceGroup, PIECE_BODY_NAME)
+
+  if (options.texture) {
+    let body: PIXI.Sprite
+    if (existingBody instanceof PIXI.Sprite) {
+      body = existingBody
+    } else {
+      if (existingBody) {
+        options.pieceGroup.removeChild(existingBody)
+        existingBody.destroy({ children: true })
+      }
+      body = new PIXI.Sprite(options.texture)
+      body.label = PIECE_BODY_NAME
+      options.pieceGroup.addChild(body)
+    }
+
+    body.texture = options.texture
+    body.anchor.set(0.5)
+    body.position.set(0, options.isBasePiece ? -3 : -1.5)
+    body.width = options.pieceRadius * options.pieceBodyScale
+    body.height = options.pieceRadius * options.pieceBodyScale
+    body.tint = 0xffffff
+    return
+  }
+
+  let body: PIXI.Graphics
+  if (existingBody instanceof PIXI.Graphics) {
+    body = existingBody
+  } else {
+    if (existingBody) {
+      options.pieceGroup.removeChild(existingBody)
+      existingBody.destroy({ children: true })
+    }
+    body = new PIXI.Graphics()
+    body.label = PIECE_BODY_NAME
+    options.pieceGroup.addChild(body)
+  }
+
+  body.clear()
+  body
+    .circle(0, 0, options.pieceRadius + 5)
+    .fill({ color: options.tint, alpha: 1 })
+    .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
+}
+
+function removeStalePieceGroups(
+  piecesLayer: PIXI.Container,
+  sceneState: SceneRenderState,
+  activePieceIds: Set<string>,
+) {
+  for (const [pieceId, pieceGroup] of Array.from(sceneState.pieceGroups.entries())) {
+    if (activePieceIds.has(pieceId)) continue
+    if (pieceGroup.parent === piecesLayer) {
+      piecesLayer.removeChild(pieceGroup)
+    }
+    pieceGroup.destroy({ children: true })
+    sceneState.pieceGroups.delete(pieceId)
+  }
+}
+
+function buildStaticBoardKey(options: {
+  width: number
+  height: number
+  safeBoardSize: number
+  boardPresetId: string
+  boardPreset: BoardPreset
+  boardRenderLayout: BoardRenderLayout
+  game: GameState
+}) {
+  const playerSignature = options.game.players
+    .map((player) => `${player.index}:${player.color}:${player.startIndex}`)
+    .join('|')
+
+  return [
+    options.width,
+    options.height,
+    options.safeBoardSize,
+    options.boardPresetId,
+    options.boardPreset.trackLength,
+    options.boardPreset.stepsPerEdge,
+    options.boardPreset.homeSteps,
+    options.boardRenderLayout.trackInsetRatio,
+    options.boardRenderLayout.baseZonePaddingRatio,
+    options.boardRenderLayout.finishGapRatio,
+    options.boardRenderLayout.finishBoxSizeRatio,
+    playerSignature,
+  ].join(':')
+}
+
+export function renderPlayScene(options: RenderPlaySceneOptions) {
+  const staticLayer = getOrCreateSceneLayer(options.scene, STATIC_LAYER_NAME)
+  const dynamicLayer = getOrCreateSceneLayer(options.scene, DYNAMIC_LAYER_NAME)
+  for (const child of options.scene.children.slice()) {
+    if (child !== staticLayer && child !== dynamicLayer) {
+      options.scene.removeChild(child)
+      child.destroy({ children: true })
+    }
+  }
+  options.scene.setChildIndex(staticLayer, 0)
+  options.scene.setChildIndex(dynamicLayer, 1)
 
   const { width, height } = options.app.screen
   const boardSize = Math.min(width, height) - 20
@@ -341,63 +539,182 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     (pieceRadius * basePieceBodyScale) / 2 + 3,
   )
 
-  const board = new PIXI.Container()
-  options.scene.addChild(board)
-
   const centerX = originX + safeBoardSize / 2
   const centerY = originY + safeBoardSize / 2
 
-  const layout = buildBoardLayout(
-    originX,
-    originY,
-    safeBoardSize,
-    options.boardPreset,
-    options.boardRenderLayout,
-  )
+  const layout = options.layout
   const { trackPoints, baseSlots, finishSlots, outerBorderPoints, homeEntryPoints } = layout
   const outerAnchorPoints = deriveOuterAnchorPoints(trackPoints)
   const homeEntryStep =
     options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerEdge / 2)
 
-  // Draw the raw track cells first. These cells are the actual movement path.
-  for (let index = 0; index < trackPoints.length; index += 1) {
-    const point = trackPoints[index]
-    const cell = new PIXI.Graphics()
-    const playerIndex =
-      Math.floor(index / options.boardPreset.stepsPerEdge) %
-      options.game.players.length
-    const activeColor = options.game.players[playerIndex].color
-    const isStartCell = index % options.boardPreset.stepsPerEdge === 0
-    const isSafeTrackCell = isSafeCell(playerIndex, index, options.game.boardPresetId)
-    cell
-      .roundRect(
-        point.x - trackSize / 2,
-        point.y - trackSize / 2,
-        trackSize,
-        trackSize,
-        9,
-      )
-      .fill({
-        color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0,
-        alpha: isSafeTrackCell ? 0.16 : 0.07,
+  const sceneState = getSceneRenderState(options.scene)
+  const staticBoardKey = buildStaticBoardKey({
+    width,
+    height,
+    safeBoardSize,
+    boardPresetId: options.game.boardPresetId,
+    boardPreset: options.boardPreset,
+    boardRenderLayout: options.boardRenderLayout,
+    game: options.game,
+  })
+
+  if (sceneState.staticBoardKey !== staticBoardKey) {
+    clearContainer(staticLayer)
+
+    // Draw the raw track cells first. These cells are the actual movement path.
+    for (let index = 0; index < trackPoints.length; index += 1) {
+      const point = trackPoints[index]
+      const cell = new PIXI.Graphics()
+      const playerIndex =
+        Math.floor(index / options.boardPreset.stepsPerEdge) %
+        options.game.players.length
+      const activeColor = options.game.players[playerIndex].color
+      const isStartCell = index % options.boardPreset.stepsPerEdge === 0
+      const isSafeTrackCell = isSafeCell(playerIndex, index, options.game.boardPresetId)
+      cell
+        .roundRect(
+          point.x - trackSize / 2,
+          point.y - trackSize / 2,
+          trackSize,
+          trackSize,
+          9,
+        )
+        .fill({
+          color: isSafeTrackCell ? 0xf8fafc : 0xe2e8f0,
+          alpha: isSafeTrackCell ? 0.16 : 0.07,
+        })
+        .stroke({
+          color: activeColor,
+          width: isStartCell ? 3 : isSafeTrackCell ? 2 : 1,
+          alpha: isSafeTrackCell ? 0.55 : 0.35,
+        })
+      staticLayer.addChild(cell)
+    }
+
+    const outerBorderGuide = new PIXI.Graphics()
+    drawDottedPolyline(outerBorderGuide, outerBorderPoints, {
+      color: 0xf59e0b,
+      alpha: 0.48,
+      dotRadius: Math.max(2.2, trackSize * 0.08),
+      dotSpacing: trackSize * 0.72,
+      closed: true,
+    })
+    staticLayer.addChild(outerBorderGuide)
+
+    for (const player of options.game.players) {
+      const finish = finishSlots[player.index]
+      const finishGuide = new PIXI.Graphics()
+      drawDottedPolyline(finishGuide, finish, {
+        color: hexToNumber(player.color),
+        alpha: 0.35,
+        dotRadius: Math.max(2, trackSize * 0.09),
+        dotSpacing: trackSize * 0.65,
       })
-      .stroke({
-        color: activeColor,
-        width: isStartCell ? 3 : isSafeTrackCell ? 2 : 1,
-        alpha: isSafeTrackCell ? 0.55 : 0.35,
-      })
-    board.addChild(cell)
+      staticLayer.addChild(finishGuide)
+
+      const finishBoxRadius =
+        safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
+      for (const [laneIndex, lanePoint] of finish.entries()) {
+        const laneCell = new PIXI.Graphics()
+        laneCell
+          .roundRect(
+            lanePoint.x - finishBoxRadius,
+            lanePoint.y - finishBoxRadius,
+            finishBoxRadius * 2,
+            finishBoxRadius * 2,
+            12,
+          )
+          .fill({
+            color: player.color,
+            alpha: laneIndex === finish.length - 1 ? 0.13 : 0.08,
+          })
+          .stroke({
+            color: player.color,
+            width: laneIndex === finish.length - 1 ? 2 : 1,
+            alpha: laneIndex === finish.length - 1 ? 0.35 : 0.24,
+          })
+        staticLayer.addChild(laneCell)
+      }
+
+      const entryPoint = homeEntryPoints[player.index]
+      if (entryPoint && finish.length > 0) {
+        const homeConnector = new PIXI.Graphics()
+        drawDottedPolyline(homeConnector, [entryPoint, finish[0], ...finish.slice(1)], {
+          color: hexToNumber(player.color),
+          alpha: 0.34,
+          dotRadius: Math.max(2, trackSize * 0.075),
+          dotSpacing: trackSize * 0.48,
+        })
+        staticLayer.addChild(homeConnector)
+      }
+
+      if (player.index === 0) {
+        const baseBounds = getPaddedPointBounds(
+          baseSlots[player.index],
+          basePlaneBoundsPadding,
+        )
+        const baseAnchor = {
+          x: baseBounds.x + baseBounds.width / 2,
+          y: baseBounds.y + baseBounds.height / 2,
+        }
+        const redRoutePoints = [
+          ...trackPoints.slice(player.startIndex, homeEntryStep),
+          entryPoint ?? trackPoints[homeEntryStep] ?? trackPoints[0],
+          ...finish,
+        ]
+        const redRoute = new PIXI.Graphics()
+        drawDottedPolyline(redRoute, redRoutePoints, {
+          color: 0xffd400,
+          alpha: 0.42,
+          dotRadius: Math.max(2, trackSize * 0.08),
+          dotSpacing: trackSize * 0.55,
+        })
+        staticLayer.addChild(redRoute)
+
+        const redAnchorLabels = [
+          { point: baseAnchor, label: '0' },
+          ...outerAnchorPoints.map((point, index) => ({
+            point,
+            label: String(index + 1),
+          })),
+        ]
+
+        redAnchorLabels.forEach(({ point, label: text }) => {
+          const label = new PIXI.Text({
+            text,
+            style: {
+              fontFamily: 'Arial, sans-serif',
+              fontSize: Math.max(11, Math.round(trackSize * 0.34)),
+              fill: '#111827',
+              fontWeight: '700',
+              align: 'center',
+              stroke: { color: '#ffffff', width: 4, alpha: 0.95 },
+              dropShadow: false,
+            },
+          })
+          label.anchor.set(0.5)
+          label.position.set(point.x, point.y - trackSize * 0.12)
+          staticLayer.addChild(label)
+        })
+      }
+    }
+
+    sceneState.staticBoardKey = staticBoardKey
   }
 
-  const outerBorderGuide = new PIXI.Graphics()
-  drawDottedPolyline(outerBorderGuide, outerBorderPoints, {
-    color: 0xf59e0b,
-    alpha: 0.48,
-    dotRadius: Math.max(2.2, trackSize * 0.08),
-    dotSpacing: trackSize * 0.72,
-    closed: true,
-  })
-  board.addChild(outerBorderGuide)
+  const overlayLayer = getOrCreateSceneLayer(dynamicLayer, DYNAMIC_OVERLAY_LAYER_NAME)
+  const piecesLayer = getOrCreateSceneLayer(dynamicLayer, DYNAMIC_PIECES_LAYER_NAME)
+  for (const child of dynamicLayer.children.slice()) {
+    if (child !== overlayLayer && child !== piecesLayer) {
+      dynamicLayer.removeChild(child)
+      child.destroy({ children: true })
+    }
+  }
+  dynamicLayer.setChildIndex(overlayLayer, 0)
+  dynamicLayer.setChildIndex(piecesLayer, 1)
+  clearContainer(overlayLayer)
+  const board = overlayLayer
 
   // The orange dotted overlay is UI-only. It helps explain the route shape,
   // but it does not affect movement rules.
@@ -443,98 +760,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         baseBounds.height,
       )
       playerBase.on('pointerdown', () => options.onRoll(false))
-    }
-
-    const finish = finishSlots[player.index]
-    const finishGuide = new PIXI.Graphics()
-    drawDottedPolyline(finishGuide, finish, {
-      color: hexToNumber(player.color),
-      alpha: 0.35,
-      dotRadius: Math.max(2, trackSize * 0.09),
-      dotSpacing: trackSize * 0.65,
-    })
-    board.addChild(finishGuide)
-
-    const finishBoxRadius =
-      safeBoardSize * options.boardRenderLayout.finishBoxSizeRatio
-    for (const [laneIndex, lanePoint] of finish.entries()) {
-      const laneCell = new PIXI.Graphics()
-      laneCell
-        .roundRect(
-          lanePoint.x - finishBoxRadius,
-          lanePoint.y - finishBoxRadius,
-          finishBoxRadius * 2,
-          finishBoxRadius * 2,
-          12,
-        )
-        .fill({
-          color: player.color,
-          alpha: laneIndex === finish.length - 1 ? 0.13 : 0.08,
-        })
-        .stroke({
-          color: player.color,
-          width: laneIndex === finish.length - 1 ? 2 : 1,
-          alpha: laneIndex === finish.length - 1 ? 0.35 : 0.24,
-        })
-      board.addChild(laneCell)
-    }
-
-    const entryPoint = homeEntryPoints[player.index]
-    if (entryPoint && finish.length > 0) {
-      const homeConnector = new PIXI.Graphics()
-      drawDottedPolyline(homeConnector, [entryPoint, finish[0], ...finish.slice(1)], {
-        color: hexToNumber(player.color),
-        alpha: 0.34,
-        dotRadius: Math.max(2, trackSize * 0.075),
-        dotSpacing: trackSize * 0.48,
-      })
-      board.addChild(homeConnector)
-    }
-
-    if (player.index === 0) {
-      const baseAnchor = {
-        x: baseBounds.x + baseBounds.width / 2,
-        y: baseBounds.y + baseBounds.height / 2,
-      }
-      const redRoutePoints = [
-        ...trackPoints.slice(player.startIndex, homeEntryStep),
-        entryPoint ?? trackPoints[homeEntryStep] ?? trackPoints[0],
-        ...finish,
-      ]
-      const redRoute = new PIXI.Graphics()
-      drawDottedPolyline(redRoute, redRoutePoints, {
-        color: 0xffd400,
-        alpha: 0.42,
-        dotRadius: Math.max(2, trackSize * 0.08),
-        dotSpacing: trackSize * 0.55,
-      })
-      board.addChild(redRoute)
-
-      const redAnchorLabels = [
-        { point: baseAnchor, label: '0' },
-        ...outerAnchorPoints.map((point, index) => ({
-          point,
-          label: String(index + 1),
-        })),
-      ]
-
-      redAnchorLabels.forEach(({ point, label: text }) => {
-        const label = new PIXI.Text({
-          text,
-          style: {
-            fontFamily: 'Arial, sans-serif',
-            fontSize: Math.max(11, Math.round(trackSize * 0.34)),
-            fill: '#111827',
-            fontWeight: '700',
-            align: 'center',
-            stroke: { color: '#ffffff', width: 4, alpha: 0.95 },
-            dropShadow: false,
-          },
-        })
-        label.anchor.set(0.5)
-        label.position.set(point.x, point.y - trackSize * 0.12)
-        board.addChild(label)
-      })
     }
   }
 
@@ -765,7 +990,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }
   }
 
-  const pieces = options.game.players.flatMap((player) =>
+  const pieces: PieceRenderInfo[] = options.game.players.flatMap((player) =>
     player.pieces.map((piece, pieceIndex) => {
       const location = getPieceLocation(player, piece)
       let x = originX + safeBoardSize / 2
@@ -835,7 +1060,10 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     })
   }
 
+  const activePieceIds = new Set<string>()
+
   for (const [index, pieceInfo] of pieces.entries()) {
+    activePieceIds.add(pieceInfo.piece.id)
     const isLegal =
       options.game.winnerIndex === -1 &&
       options.legalPieces.includes(pieceInfo.piece.id)
@@ -848,28 +1076,35 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const stackOffsets =
       stackSize > 1 ? getStackOffsets(stackSize, stackStep) : [{ x: 0, y: 0 }]
     const stackOffset = stackOffsets[stackIndex] ?? { x: 0, y: 0 }
-    const pieceGroup = new PIXI.Container()
+    let pieceGroup = sceneState.pieceGroups.get(pieceInfo.piece.id)
+    if (!pieceGroup) {
+      pieceGroup = new PIXI.Container()
+      pieceGroup.label = `flight-ludo-piece-${pieceInfo.piece.id}`
+      sceneState.pieceGroups.set(pieceInfo.piece.id, pieceGroup)
+      piecesLayer.addChild(pieceGroup)
+    } else if (pieceGroup.parent !== piecesLayer) {
+      piecesLayer.addChild(pieceGroup)
+    }
+
     pieceGroup.position.set(
       (isMoving && movingPosition ? movingPosition.x : pieceInfo.x) + stackOffset.x,
       (isMoving && movingPosition ? movingPosition.y : pieceInfo.y) + stackOffset.y,
     )
     pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
     pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
+    pieceGroup.removeAllListeners()
 
     if (isLegal && !isMoving) {
       pieceGroup.on('pointerdown', () => options.onMove(pieceInfo.piece.id))
     }
 
-    if (isLegal && !isMoving) {
-      const legalGlow = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 6)
-        .stroke({
-          color: hexToNumber(pieceInfo.player.color),
-          width: 2,
-          alpha: 0.12 + options.turn.legalPulse * 0.16,
-        })
-      pieceGroup.addChildAt(legalGlow, 0)
-    }
+    syncPieceGlow({
+      pieceGroup,
+      isVisible: isLegal && !isMoving,
+      pieceRadius,
+      color: pieceInfo.player.color,
+      legalPulse: options.turn.legalPulse,
+    })
 
     const tint = hexToNumber(pieceInfo.player.color)
     const texture = options.getPlayerPieceTexture(pieceInfo.player.index)
@@ -877,23 +1112,21 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       pieceInfo.location === 'base'
         ? basePieceBodyScale
         : trackPieceBodyScale
-    if (texture) {
-      const body = new PIXI.Sprite(texture)
-      body.anchor.set(0.5)
-      body.position.set(0, pieceInfo.location === 'base' ? -3 : -1.5)
-      body.width = pieceRadius * pieceBodyScale
-      body.height = pieceRadius * pieceBodyScale
-      pieceGroup.addChild(body)
-    } else {
-      const body = new PIXI.Graphics()
-        .circle(0, 0, pieceRadius + 5)
-        .fill({ color: tint, alpha: 1 })
-        .stroke({ color: 0xffffff, width: 2, alpha: 0.88 })
-      pieceGroup.addChild(body)
-    }
+    syncPieceBody({
+      pieceGroup,
+      texture,
+      tint,
+      pieceRadius,
+      pieceBodyScale,
+      isBasePiece: pieceInfo.location === 'base',
+    })
 
-    board.addChild(pieceGroup)
+    if (piecesLayer.getChildIndex(pieceGroup) !== index) {
+      piecesLayer.setChildIndex(pieceGroup, index)
+    }
   }
+
+  removeStalePieceGroups(piecesLayer, sceneState, activePieceIds)
 
   return layout
 }
