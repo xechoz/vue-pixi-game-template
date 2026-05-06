@@ -128,16 +128,6 @@ const modeOptions = [
   box-sizing: border-box;
 }
 
-.page::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(circle at center, rgba(255, 255, 255, 0), rgba(0, 34, 76, 0.18)),
-    linear-gradient(180deg, rgba(4, 14, 28, 0.12), rgba(4, 14, 28, 0.26));
-  z-index: -1;
-}
-
 .mode-shell {
   width: min(980px, calc(100% - 24px));
   margin: 0 auto;
