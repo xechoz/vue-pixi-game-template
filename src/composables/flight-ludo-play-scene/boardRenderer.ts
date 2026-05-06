@@ -577,6 +577,14 @@ export function getStackOffsets(count: number, step: number) {
   })
 }
 
+export function getStackScale(stackSize: number) {
+  if (stackSize <= 1) {
+    return 1
+  }
+
+  return Math.max(0.52, 1 - (stackSize - 1) * 0.14)
+}
+
 function getPaddedPointBounds(points: Point[], padding: number) {
   if (points.length === 0) {
     return { x: 0, y: 0, width: 0, height: 0 }
@@ -1272,7 +1280,10 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }),
   )
 
-  const stackStep = Math.max(2, Math.round(pieceRadius * 0.2))
+  const stackStep = Math.max(
+    2,
+    Math.round(pieceRadius * Math.min(trackPieceBodyScale, basePieceBodyScale) * 0.12),
+  )
   const stackGroups = new Map<string, number[]>()
   const getStackKey = (pieceInfo: (typeof pieces)[number]) =>
     [
@@ -1313,6 +1324,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     const movingPosition = options.move.movingPoint
     const stackIndex = stackIndexByPiece.get(index) ?? 0
     const stackSize = stackSizeByPiece.get(index) ?? 1
+    const stackScale = getStackScale(stackSize)
     const stackOffsets =
       stackSize > 1 ? getStackOffsets(stackSize, stackStep) : [{ x: 0, y: 0 }]
     const stackOffset = stackOffsets[stackIndex] ?? { x: 0, y: 0 }
@@ -1330,6 +1342,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       (isMoving && movingPosition ? movingPosition.x : pieceInfo.x) + stackOffset.x,
       (isMoving && movingPosition ? movingPosition.y : pieceInfo.y) + stackOffset.y,
     )
+    pieceGroup.scale.set(stackScale)
     pieceGroup.eventMode = isLegal && !isMoving ? 'static' : 'passive'
     pieceGroup.cursor = isLegal && !isMoving ? 'pointer' : 'default'
     pieceGroup.removeAllListeners()
