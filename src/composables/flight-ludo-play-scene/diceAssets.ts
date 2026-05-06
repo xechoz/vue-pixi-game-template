@@ -17,11 +17,7 @@ export async function loadFirstAvailableTexture(paths: string[]) {
 
 export async function loadDiceIdleAsset(assetUrl: AssetUrlResolver) {
   return loadFirstAvailableTexture([
-    assetUrl('dice/idle-question.png'),
-    assetUrl('dice/idle-question.webp'),
-    assetUrl('dice/idle-question.jpg'),
-    assetUrl('dice/idle-question.jpeg'),
-    assetUrl('dice/idle-question.svg'),
+    assetUrl('dice/idle-question.png')
   ])
 }
 
