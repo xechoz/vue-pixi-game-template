@@ -892,6 +892,45 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       staticLayer.addChild(cell)
     }
 
+    const outerBorderDotRadius = Math.max(2, trackSize * 0.08)
+    const outerBorderDotSpacing = Math.max(12, trackSize * 0.9)
+
+    const topBorder = new PIXI.Graphics()
+    drawDottedPolyline(topBorder, layout.topBorderPoints, {
+      color: hexToNumber(options.game.players[0].color),
+      alpha: 0.45,
+      dotRadius: outerBorderDotRadius,
+      dotSpacing: outerBorderDotSpacing,
+    })
+    staticLayer.addChild(topBorder)
+
+    const rightBorder = new PIXI.Graphics()
+    drawDottedPolyline(rightBorder, layout.rightBorderPoints, {
+      color: hexToNumber(options.game.players[1].color),
+      alpha: 0.45,
+      dotRadius: outerBorderDotRadius,
+      dotSpacing: outerBorderDotSpacing,
+    })
+    staticLayer.addChild(rightBorder)
+
+    const bottomBorder = new PIXI.Graphics()
+    drawDottedPolyline(bottomBorder, layout.bottomBorderPoints, {
+      color: hexToNumber(options.game.players[2].color),
+      alpha: 0.45,
+      dotRadius: outerBorderDotRadius,
+      dotSpacing: outerBorderDotSpacing,
+    })
+    staticLayer.addChild(bottomBorder)
+
+    const leftBorder = new PIXI.Graphics()
+    drawDottedPolyline(leftBorder, layout.leftBorderPoints, {
+      color: hexToNumber(options.game.players[3].color),
+      alpha: 0.45,
+      dotRadius: outerBorderDotRadius,
+      dotSpacing: outerBorderDotSpacing,
+    })
+    staticLayer.addChild(leftBorder)
+
     for (const player of options.game.players) {
       const finish = finishSlots[player.index]
       const finishGuide = new PIXI.Graphics()
