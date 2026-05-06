@@ -189,6 +189,10 @@ export function buildBoardLayout(
   return {
     trackPoints,
     outerBorderPoints,
+    topBorderPoints: topSide,
+    rightBorderPoints: rightSide,
+    bottomBorderPoints: bottomSide,
+    leftBorderPoints: leftSide,
     homeEntryPoints,
     baseSlots: buildBaseSlots(),
     finishSlots: buildFinishSlots(originX, originY),

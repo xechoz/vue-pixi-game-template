@@ -9,7 +9,7 @@ import {
   type GameState,
   type PlayerState,
 } from '../../game'
-import { deriveOuterAnchorPoints } from './boardView'
+import { getHomeConnectorDotSpacing } from './homeConnector'
 import type { BoardLayout, LandingPoint, Point } from './types'
 
 type DiceRenderState = {
@@ -695,7 +695,6 @@ function syncPieceGlow(options: {
   } else {
     if (existingGlow) {
       options.pieceGroup.removeChild(existingGlow)
-      existingGlow.destroy({ children: true })
     }
     glow = new PIXI.Graphics()
     glow.label = PIECE_GLOW_NAME
@@ -842,10 +841,12 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   )
 
   const layout = options.layout
-  const { trackPoints, baseSlots, finishSlots, outerBorderPoints, homeEntryPoints } = layout
-  const outerAnchorPoints = deriveOuterAnchorPoints(trackPoints)
-  const homeEntryStep =
-    options.boardPreset.trackLength - Math.ceil(options.boardPreset.stepsPerEdge / 2)
+  const {
+    trackPoints,
+    baseSlots,
+    finishSlots,
+    homeEntryPoints,
+  } = layout
 
   const sceneState = getSceneRenderState(options.scene)
   const staticBoardKey = buildStaticBoardKey({
@@ -891,16 +892,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       staticLayer.addChild(cell)
     }
 
-    const outerBorderGuide = new PIXI.Graphics()
-    drawDottedPolyline(outerBorderGuide, outerBorderPoints, {
-      color: 0xf59e0b,
-      alpha: 0.48,
-      dotRadius: Math.max(2.2, trackSize * 0.08),
-      dotSpacing: trackSize * 0.72,
-      closed: true,
-    })
-    staticLayer.addChild(outerBorderGuide)
-
     for (const player of options.game.players) {
       const finish = finishSlots[player.index]
       const finishGuide = new PIXI.Graphics()
@@ -936,66 +927,22 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         staticLayer.addChild(laneCell)
       }
 
+      // Draw dotted lines from track home lane entry to home lane end step
       const entryPoint = homeEntryPoints[player.index]
       if (entryPoint && finish.length > 0) {
         const homeConnector = new PIXI.Graphics()
-        drawDottedPolyline(homeConnector, [entryPoint, finish[0], ...finish.slice(1)], {
+        const homeConnectorPoints = [entryPoint, ...finish]
+        drawDottedPolyline(homeConnector, homeConnectorPoints, {
           color: hexToNumber(player.color),
           alpha: 0.34,
           dotRadius: Math.max(2, trackSize * 0.075),
-          dotSpacing: trackSize * 0.48,
+          dotSpacing: getHomeConnectorDotSpacing(
+            homeConnectorPoints,
+            options.boardPreset.homeSteps,
+            trackSize,
+          ),
         })
         staticLayer.addChild(homeConnector)
-      }
-
-      if (player.index === 0) {
-        const baseBounds = getPaddedPointBounds(
-          baseSlots[player.index],
-          basePlaneBoundsPadding,
-        )
-        const baseAnchor = {
-          x: baseBounds.x + baseBounds.width / 2,
-          y: baseBounds.y + baseBounds.height / 2,
-        }
-        const redRoutePoints = [
-          ...trackPoints.slice(player.startIndex, homeEntryStep),
-          entryPoint ?? trackPoints[homeEntryStep] ?? trackPoints[0],
-          ...finish,
-        ]
-        const redRoute = new PIXI.Graphics()
-        drawDottedPolyline(redRoute, redRoutePoints, {
-          color: 0xffd400,
-          alpha: 0.42,
-          dotRadius: Math.max(2, trackSize * 0.08),
-          dotSpacing: trackSize * 0.55,
-        })
-        staticLayer.addChild(redRoute)
-
-        const redAnchorLabels = [
-          { point: baseAnchor, label: '0' },
-          ...outerAnchorPoints.map((point, index) => ({
-            point,
-            label: String(index + 1),
-          })),
-        ]
-
-        redAnchorLabels.forEach(({ point, label: text }) => {
-          const label = new PIXI.Text({
-            text,
-            style: {
-              fontFamily: 'Arial, sans-serif',
-              fontSize: Math.max(11, Math.round(trackSize * 0.34)),
-              fill: '#111827',
-              fontWeight: '700',
-              align: 'center',
-              stroke: { color: '#ffffff', width: 4, alpha: 0.95 },
-              dropShadow: false,
-            },
-          })
-          label.anchor.set(0.5)
-          label.position.set(point.x, point.y - trackSize * 0.12)
-          staticLayer.addChild(label)
-        })
       }
     }
 
@@ -1031,9 +978,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   clearContainer(overlayEffectsLayer)
   const baseBoard = overlayBasesLayer
   const effectsBoard = overlayEffectsLayer
-
-  // The orange dotted overlay is UI-only. It helps explain the route shape,
-  // but it does not affect movement rules.
 
   const canRoll =
     options.game.winnerIndex === -1 &&
@@ -1108,57 +1052,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         alpha: 0.35,
       })
     effectsBoard.addChild(pulse)
-  }
-
-  if (options.move.replayingPieceId && options.move.movePath.length > 0) {
-    const player = getPlayerByPieceId(
-      options.game,
-      options.move.replayingPieceId,
-    )
-    const piece = player?.pieces.find(
-      (item) => item.id === options.move.replayingPieceId,
-    )
-    if (player && piece) {
-      const startP =
-        options.move.replayingStartProgress !== -1
-          ? options.move.replayingStartProgress
-          : piece.progress
-      const pathPoints = [
-        resolvePiecePoint(layout, options.boardPreset, player, {
-          progress: startP,
-        }),
-        ...options.move.movePath.map((progress) =>
-          resolvePiecePoint(layout, options.boardPreset, player, { progress }),
-        ),
-      ]
-
-      const trail = new PIXI.Graphics()
-      trail.moveTo(pathPoints[0].x, pathPoints[0].y)
-      for (const point of pathPoints.slice(1)) {
-        trail.lineTo(point.x, point.y)
-      }
-      trail.stroke({ color: player.color, width: 5, alpha: 0.45 })
-      effectsBoard.addChild(trail)
-
-      const arcLift = Math.max(4, pieceRadius * 0.75)
-      for (let index = 1; index < pathPoints.length; index += 1) {
-        const point = pathPoints[index]
-        const prev = pathPoints[index - 1]
-        const midX = (prev.x + point.x) / 2
-        const midY = (prev.y + point.y) / 2 - arcLift
-        const arcTrail = new PIXI.Graphics()
-        arcTrail.moveTo(prev.x, prev.y)
-        arcTrail.quadraticCurveTo(midX, midY, point.x, point.y)
-        arcTrail.stroke({ color: player.color, width: 4, alpha: 0.28 })
-        effectsBoard.addChild(arcTrail)
-
-        const marker = new PIXI.Graphics()
-          .circle(point.x, point.y, 8)
-          .fill({ color: 0xffffff, alpha: 0.14 })
-          .stroke({ color: player.color, width: 2, alpha: 0.6 })
-        effectsBoard.addChild(marker)
-      }
-    }
   }
 
   const pieces: PieceRenderInfo[] = options.game.players.flatMap((player) =>
