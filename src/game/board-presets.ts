@@ -69,8 +69,8 @@ function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, ho
 }
 
 const tiny3Preset = createPreset('tiny-3', '快速 3 步', 3, 2)
-const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 4)
-const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 5)
+const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 3)
+const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 4)
 // Adjust safe cells for the 7-step preset to match board geometry expectations
 hell7Preset.safeCells = {
   0: [1],
