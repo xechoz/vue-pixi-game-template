@@ -5,6 +5,8 @@ import {
   getCurrentPlayer,
   movePiece,
   type GameState,
+  type PieceState,
+  type PlayerState,
 } from '../../game'
 import type { BoardLayout, LandingPoint, Point, RefreshGameView } from './types'
 
@@ -15,8 +17,8 @@ type MoveControllerOptions = {
   getCurrentLayout: () => BoardLayout | null
   resolvePiecePoint: (
     layout: BoardLayout,
-    player: { index: number; startIndex: number },
-    piece: { progress: number },
+    player: Pick<PlayerState, 'index' | 'startIndex' | 'boardPresetId'>,
+    piece: Pick<PieceState, 'progress'>,
   ) => Point
   clearTimers: () => void
   renderScene: () => void

@@ -161,7 +161,10 @@ export function getPieceLocation(player: PlayerState, piece: PieceState): PieceL
   return 'finished'
 }
 
-export function getTrackCellIndex(player: PlayerState, piece: PieceState): number {
+export function getTrackCellIndex(
+  player: Pick<PlayerState, 'startIndex' | 'boardPresetId'>,
+  piece: Pick<PieceState, 'progress'>,
+): number {
   const boardPreset = getPresetForPlayer(player)
   if (piece.progress <= 0 || piece.progress > boardPreset.trackLength) return -1
   return (player.startIndex + piece.progress - 1) % boardPreset.trackLength

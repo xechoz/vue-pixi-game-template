@@ -7,6 +7,7 @@ import {
   type BoardPreset,
   type BoardRenderLayout,
   type GameState,
+  type PieceState,
   type PlayerState,
 } from '../../game'
 import type { BoardLayout, LandingPoint, Point } from './types'
@@ -498,8 +499,8 @@ export function syncDiceOnly(options: DiceSceneOptions) {
 export function resolvePiecePoint(
   layout: BoardLayout,
   boardPreset: BoardPreset,
-  player: { index: number; startIndex: number },
-  piece: { progress: number },
+  player: Pick<PlayerState, 'index' | 'startIndex' | 'boardPresetId'>,
+  piece: Pick<PieceState, 'progress'>,
 ) {
   const homeEntryStep = boardPreset.trackLength - Math.ceil(boardPreset.stepsPerEdge / 2)
   const finishStep = homeEntryStep + boardPreset.homeSteps
@@ -507,14 +508,18 @@ export function resolvePiecePoint(
   const centerX = layout.trackPoints[0]?.x ?? 0
   const centerY = layout.trackPoints[0]?.y ?? 0
 
-  if (piece.progress < 0) {
+  if (piece.progress <= 0) {
     return layout.baseSlots[player.index]?.[0] ?? { x: centerX, y: centerY }
   }
 
   if (piece.progress < homeEntryStep) {
-    const trackIndex =
-      (player.startIndex + piece.progress) % boardPreset.trackLength
-    return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
+    // todo get player state 
+
+    const trackIndex = getTrackCellIndex(player, piece)
+    if (trackIndex !== -1) {
+      return layout.trackPoints[trackIndex] ?? { x: centerX, y: centerY }
+    }
+    return { x: centerX, y: centerY }
   }
 
   if (piece.progress < finishStep) {
