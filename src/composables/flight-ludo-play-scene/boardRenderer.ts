@@ -210,8 +210,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   )
   const { trackPoints, baseSlots, finishSlots } = layout
 
-  let activeDiceAnchor = { x: centerX, y: centerY }
-
   for (let index = 0; index < trackPoints.length; index += 1) {
     const point = trackPoints[index]
     const cell = new PIXI.Graphics()
@@ -300,22 +298,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       playerBase.on('pointerdown', () => options.onRoll(false))
     }
 
-    if (isActivePlayer) {
-      const diceHalf = safeBoardSize * 0.09
-      const diceGap = safeBoardSize * 0.012
-      const diceYOffset = safeBoardSize * 0.09
-      activeDiceAnchor = {
-        x:
-          player.index === 0 || player.index === 3
-            ? baseBounds.x + baseBounds.width + diceHalf + diceGap
-            : baseBounds.x - diceHalf - diceGap,
-        y:
-          player.index === 0 || player.index === 1
-            ? baseBounds.y + baseBounds.height / 2 - diceYOffset
-            : baseBounds.y + baseBounds.height / 2 + diceYOffset,
-      }
-    }
-
     const finish = finishSlots[player.index]
     const finishGuide = new PIXI.Graphics()
     drawDottedPolyline(finishGuide, finish, {
@@ -349,12 +331,16 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
 
   if (!hideHandoffDice) {
     const center = new PIXI.Container()
-    center.position.set(activeDiceAnchor.x, activeDiceAnchor.y)
+    center.position.set(centerX, centerY)
     center.eventMode = 'passive'
     center.cursor = 'default'
     board.addChild(center)
 
     const diceSize = safeBoardSize * 0.18
+    const currentPlayer = options.game.players[options.game.currentPlayerIndex]
+    const currentPlayerColor = hexToNumber(currentPlayer.color)
+    const diceBorderPadding = diceSize * 0.14
+    const diceBorderHalf = diceSize / 2 + diceBorderPadding
     const diceValue = options.dice.getDiceDisplayValue()
     const isIdleDiceState =
       !options.dice.isRolling && options.game.dice === null
@@ -379,6 +365,21 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     if (canRoll) {
       diceGroup.on('pointerdown', () => options.onRoll(false))
     }
+
+    const borderAlpha = isIdleDiceState
+      ? 0.55 + options.dice.diceIdlePulse * 0.35
+      : 0.65
+    const diceBorder = new PIXI.Graphics()
+      .roundRect(
+        -diceBorderHalf,
+        -diceBorderHalf,
+        diceBorderHalf * 2,
+        diceBorderHalf * 2,
+        diceBorderHalf * 0.3,
+      )
+      .stroke({ color: currentPlayerColor, width: 3, alpha: borderAlpha })
+    center.addChild(diceBorder)
+
     center.addChild(diceGroup)
 
     const faceSize = diceSize * 0.72
