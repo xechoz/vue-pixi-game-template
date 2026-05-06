@@ -52,7 +52,7 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
     const audio = new Audio(assetUrl('bgm.mp3'))
     audio.loop = true
     audio.preload = 'auto'
-    audio.volume = 0.09
+    audio.volume = 0.05
     bgmAudio = audio
     audio.play().catch(() => {
       if (bgmAudio === audio) {
