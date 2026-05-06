@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js'
 
 import {
+  getHomeLaneIndex,
   getPieceLocation,
   getTrackCellIndex,
   isSafeCell,
@@ -1256,9 +1257,16 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
           x = point.x
           y = point.y
         }
+      } else if (location === 'home') {
+        const laneIndex = getHomeLaneIndex(piece, player.boardPresetId)
+        const slot =
+          finishSlots[player.index][laneIndex] ?? finishSlots[player.index][0]
+        x = slot.x
+        y = slot.y
       } else {
         const slot =
-          finishSlots[player.index][pieceIndex] ?? finishSlots[player.index][0]
+          finishSlots[player.index][options.boardPreset.homeSteps - 1] ??
+          finishSlots[player.index][0]
         x = slot.x
         y = slot.y
       }
