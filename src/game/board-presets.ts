@@ -24,10 +24,8 @@ export type SafeCellInfo = {
 export interface BoardRenderLayout {
   trackInsetRatio: number
   trackSizeRatio: number
-  baseZoneSizeRatio: number
   baseZonePaddingRatio: number
   baseSlotSpreadRatio: number
-  finishOffsetRatio: number
   finishGapRatio: number
   finishBoxSizeRatio: number
 }
@@ -69,8 +67,8 @@ function createPreset(id: BoardPresetId, label: string, stepsPerEdge: number, ho
 }
 
 const tiny3Preset = createPreset('tiny-3', '快速 3 步', 3, 2)
-const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 3)
-const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 4)
+const normal5Preset = createPreset('normal-5', '标准 5 步', 5, 4)
+const hell7Preset = createPreset('hell-7', '地狱 7 步', 7, 5)
 // Adjust safe cells for the 7-step preset to match board geometry expectations
 hell7Preset.safeCells = {
   0: [1],
@@ -81,33 +79,27 @@ hell7Preset.safeCells = {
 
 const boardRenderLayouts: Record<BoardPresetId, BoardRenderLayout> = {
   'tiny-3': {
-    trackInsetRatio: 0.18,
+    trackInsetRatio: 0.029,
     trackSizeRatio: 0.082,
-    baseZoneSizeRatio: 0.125,
-    baseZonePaddingRatio: 0.018,
-    baseSlotSpreadRatio: 0.24,
-    finishOffsetRatio: 0.16,
-    finishGapRatio: 0.08,
+    baseZonePaddingRatio: 0.029,
+    baseSlotSpreadRatio: 0.031,
+    finishGapRatio: 0.13,
     finishBoxSizeRatio: 0.036,
   },
   'normal-5': {
-    trackInsetRatio: 0.14,
+    trackInsetRatio: 0.029,
     trackSizeRatio: 0.068,
-    baseZoneSizeRatio: 0.11,
-    baseZonePaddingRatio: 0.014,
-    baseSlotSpreadRatio: 0.22,
-    finishOffsetRatio: 0.12,
-    finishGapRatio: 0.055,
+    baseZonePaddingRatio: 0.029,
+    baseSlotSpreadRatio: 0.031,
+    finishGapRatio: 0.13,
     finishBoxSizeRatio: 0.03,
   },
   'hell-7': {
-    trackInsetRatio: 0.1,
+    trackInsetRatio: 0.029,
     trackSizeRatio: 0.058,
-    baseZoneSizeRatio: 0.1,
-    baseZonePaddingRatio: 0.012,
-    baseSlotSpreadRatio: 0.2,
-    finishOffsetRatio: 0.105,
-    finishGapRatio: 0.046,
+    baseZonePaddingRatio: 0.029,
+    baseSlotSpreadRatio: 0.031,
+    finishGapRatio: 0.13,
     finishBoxSizeRatio: 0.026,
   },
 }

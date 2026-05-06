@@ -62,7 +62,7 @@ export function buildBoardLayout(
 ): BoardLayout {
   console.log('Building board layout with preset:', boardPreset, 'and render layout:', boardRenderLayout, "origin:", originX, originY, "size:", size)
 
-  const trackInset = 20
+  const trackInset = size * boardRenderLayout.trackInsetRatio
   const left = originX + trackInset
   const right = originX + size - trackInset
   const top = originY + trackInset
@@ -95,9 +95,8 @@ export function buildBoardLayout(
   const outerBorderPoints = perimeterPoints
 
   const buildBaseSlots = () => {
-    const baseScale = Math.min(1, Math.max(0.74, size / 700))
-    const spread = Math.round(22 * baseScale)
-    const quadrantInset = Math.round(20 * baseScale)
+    const spread = size * boardRenderLayout.baseSlotSpreadRatio
+    const quadrantInset = size * boardRenderLayout.baseZonePaddingRatio
     const quadrantBounds = [
       {
         minX: left + quadrantInset,
@@ -140,7 +139,7 @@ export function buildBoardLayout(
   const buildFinishSlots = (originXValue: number, originYValue: number) => {
     const slotCenterX = originXValue + size / 2
     const slotCenterY = originYValue + size / 2
-    const finishGap = 50
+    const finishGap = size * boardRenderLayout.finishGapRatio
 
     const laneAnchors = [
       leftSide[Math.floor((leftSide.length - 1) / 2)] ?? leftSide[0] ?? { x: left, y: centerY },

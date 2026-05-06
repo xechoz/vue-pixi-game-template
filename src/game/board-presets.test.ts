@@ -30,13 +30,23 @@ test('board presets expose a default tiny-3 preset for future board expansion', 
 test('tiny-3 render layout is preset-driven and keeps compact-board-specific spacing values together', () => {
   const layout = getBoardRenderLayout('tiny-3')
 
-  assert.equal(layout.trackInsetRatio, 0.18)
+  assert.equal(layout.trackInsetRatio, 0.029)
   assert.equal(layout.trackSizeRatio, 0.082)
-  assert.equal(layout.baseZoneSizeRatio, 0.125)
-  assert.equal(layout.baseSlotSpreadRatio, 0.24)
-  assert.equal(layout.finishOffsetRatio, 0.16)
-  assert.equal(layout.finishGapRatio, 0.08)
+  assert.equal(layout.baseZonePaddingRatio, 0.029)
+  assert.equal(layout.baseSlotSpreadRatio, 0.031)
+  assert.equal(layout.finishGapRatio, 0.13)
   assert.equal(layout.finishBoxSizeRatio, 0.036)
+})
+
+test('normal-5 render layout keeps the finish lane clear of the centered dice', () => {
+  const layout = getBoardRenderLayout('normal-5')
+
+  assert.equal(layout.trackInsetRatio, 0.029)
+  assert.equal(layout.trackSizeRatio, 0.068)
+  assert.equal(layout.baseZonePaddingRatio, 0.029)
+  assert.equal(layout.baseSlotSpreadRatio, 0.031)
+  assert.equal(layout.finishGapRatio, 0.13)
+  assert.equal(layout.finishBoxSizeRatio, 0.03)
 })
 
 test('board presets also expose a normal-5 preset without changing the default board', () => {
@@ -79,11 +89,10 @@ test('board presets also expose a hell-7 preset for the third difficulty mode', 
 test('hell-7 render layout tightens the board for the longest route', () => {
   const layout = getBoardRenderLayout('hell-7')
 
-  assert.equal(layout.trackInsetRatio, 0.1)
+  assert.equal(layout.trackInsetRatio, 0.029)
   assert.equal(layout.trackSizeRatio, 0.058)
-  assert.equal(layout.baseZoneSizeRatio, 0.1)
-  assert.equal(layout.baseSlotSpreadRatio, 0.2)
-  assert.equal(layout.finishOffsetRatio, 0.105)
-  assert.equal(layout.finishGapRatio, 0.046)
+  assert.equal(layout.baseZonePaddingRatio, 0.029)
+  assert.equal(layout.baseSlotSpreadRatio, 0.031)
+  assert.equal(layout.finishGapRatio, 0.13)
   assert.equal(layout.finishBoxSizeRatio, 0.026)
 })

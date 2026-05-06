@@ -25,7 +25,6 @@ const {
   winner,
   startGame,
   goToPrepare,
-  setBoardPresetId,
 } = useFlightLudoPlayScene({
   page,
   mode: toRef(props, 'mode'),
@@ -51,7 +50,6 @@ function handleBack() {
 }
 
 function handleBoardPresetId(nextBoardPresetId: BoardPresetId) {
-  setBoardPresetId(nextBoardPresetId)
   emit('update:board-preset-id', nextBoardPresetId)
 }
 
