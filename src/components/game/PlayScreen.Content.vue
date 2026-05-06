@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref, watch, toRef } from 'vue'
+import { useI18n } from '../../i18n'
 
 import PlayScreen from './PlayScreen.vue'
 import { type AppPage, useFlightLudoPlayScene } from '../../composables/useFlightLudoPlayScene'
@@ -21,6 +22,8 @@ const emit = defineEmits({
 const page = ref<AppPage>('play')
 const playScreenRef = ref<{ canvasEl: HTMLDivElement | null } | null>(null)
 
+const { t } = useI18n()
+
 const {
   winner,
   startGame,
@@ -38,7 +41,11 @@ watch(
   () => winner.value,
   (player) => {
     if (player) {
-      emit('winner-change', { name: player.name, color: player.color })
+      emit('winner-change', {
+        name: t(`${player.name}Player`),
+        color: player.color,
+        index: player.index,
+      })
     }
   },
   { immediate: true },

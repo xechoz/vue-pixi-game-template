@@ -19,7 +19,7 @@ const piecesPerPlayer = ref(4)
 const boardPresetId = ref<BoardPresetId>('tiny-3')
 const page = ref<AppPage>('prepare')
 const autoPlayMode = ref(true)
-const winnerName = ref('已结束')
+const winnerName = ref('')
 const winnerIndex = ref(0)
 
 async function startGame() {

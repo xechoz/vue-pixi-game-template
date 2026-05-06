@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useI18n } from '../../i18n'
+
 const props = defineProps<{
   mode: 1 | 2 | 3 | 4
   piecesPerPlayer: number
@@ -6,51 +9,58 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (event: 'update:mode', value: 1 | 2 | 3 | 4): void
-  (event: 'update:piecesPerPlayer', value: number): void
+  (event: 'update:pieces-per-player', value: number): void
   (event: 'start'): void
   (event: 'reset'): void
 }>()
 
 const assetBase = import.meta.env.BASE_URL
+const { t } = useI18n()
 
-const playerAvatars = [
-  { src: `${assetBase}player-red.png`, alt: '红色玩家头像' },
-  { src: `${assetBase}player-blue.png`, alt: '蓝色玩家头像' },
-  { src: `${assetBase}player-green.png`, alt: '绿色玩家头像' },
-  { src: `${assetBase}player-yellow.png`, alt: '黄色玩家头像' },
+const playerAvatarSources = [
+  { src: `${assetBase}player-red.png`, key: 'red' },
+  { src: `${assetBase}player-blue.png`, key: 'blue' },
+  { src: `${assetBase}player-green.png`, key: 'green' },
+  { src: `${assetBase}player-yellow.png`, key: 'yellow' },
 ]
 
-const modeOptions = [
+const playerAvatars = computed(() =>
+  playerAvatarSources.map((item) => ({
+    src: item.src,
+    alt: t(`${item.key}PlayerAvatarAlt`),
+  })),
+)
+
+const modeOptions = computed(() => [
   {
     value: 1 as const,
-    avatars: playerAvatars.slice(0, 1),
-    title: '单人闯关',
-    hint: '稳一点',
+    avatars: playerAvatars.value.slice(0, 1),
+    title: t('singlePlayer'),
+    hint: '',
     accent: '#ffb347',
   },
   {
     value: 2 as const,
-    avatars: playerAvatars.slice(0, 2),
-    title: '双人对战',
-    hint: '刚刚好',
+    avatars: playerAvatars.value.slice(0, 2),
+    title: t('twoPlayer'),
+    hint: '',
     accent: '#5f9cff',
   },
   {
     value: 3 as const,
-    avatars: playerAvatars.slice(0, 3),
-    title: '三人混战',
-    hint: '更热闹',
+    avatars: playerAvatars.value.slice(0, 3),
+    title: t('threePlayer'),
+    hint: '',
     accent: '#56d38f',
   },
   {
     value: 4 as const,
-    avatars: playerAvatars.slice(0, 4),
-    title: '四人乱斗',
-    hint: '经典局',
+    avatars: playerAvatars.value.slice(0, 4),
+    title: t('fourPlayer'),
+    hint: '',
     accent: '#f56f7f',
   },
-]
-
+])
 </script>
 
 <template>
@@ -62,7 +72,7 @@ const modeOptions = [
           :key="option.value"
           :class="['select-card', `card-${option.avatars.length}`, { active: props.mode === option.value }]"
           type="button"
-          :aria-label="`${option.value}人模式`"
+          :aria-label="t('playerMode', { count: option.value })"
           :style="{ '--accent': option.accent }"
           @click="emit('update:mode', option.value); emit('start')"
         >

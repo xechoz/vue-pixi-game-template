@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
+import { useI18n } from '../../i18n'
 
 import { getBoardPreset, type BoardPresetId } from '../../game'
 
@@ -19,29 +20,31 @@ const emit = defineEmits({
   'update:board-preset-id': null,
 })
 
-const difficultyOptions = [
+const { t } = useI18n()
+
+const difficultyOptions = computed(() => [
   {
     value: 'tiny-3' as const,
-    title: '快速模式',
-    hint: `${getBoardPreset('tiny-3').stepsPerEdge}步/边`,
+    title: t('quickMode'),
+    hint: t('stepsPerEdge', { steps: getBoardPreset('tiny-3').stepsPerEdge }),
     accent: '#ffb347',
     image: `${assetBase}difficulty/quick-mode.png`,
   },
   {
     value: 'normal-5' as const,
-    title: '正常模式',
-    hint: `${getBoardPreset('normal-5').stepsPerEdge}步/边`,
+    title: t('normalMode'),
+    hint: t('stepsPerEdge', { steps: getBoardPreset('normal-5').stepsPerEdge }),
     accent: '#5f9cff',
     image: `${assetBase}difficulty/normal-mode.png`,
   },
   {
     value: 'hell-7' as const,
-    title: '地狱模式',
-    hint: `${getBoardPreset('hell-7').stepsPerEdge}步/边`,
+    title: t('hellMode'),
+    hint: t('stepsPerEdge', { steps: getBoardPreset('hell-7').stepsPerEdge }),
     accent: '#ef4444',
     image: `${assetBase}difficulty/hell-mode.png`,
   },
-]
+])
 </script>
 
 <template>
@@ -49,10 +52,10 @@ const difficultyOptions = [
     <div class="grid play-grid">
       <div class="play-topbar">
         <div class="play-controls-row">
-          <button class="circle-action secondary back-action" type="button" aria-label="返回准备" @click="emit('back')">
+          <button class="circle-action secondary back-action" type="button" :aria-label="t('backToPrepare')" @click="emit('back')">
             <img class="back-icon" :src="backButtonImage" alt="" />
           </button>
-          <div class="board-preset-row" aria-label="难度模式">
+          <div class="board-preset-row" :aria-label="t('difficultyMode')">
             <button
               v-for="option in difficultyOptions"
               :key="option.value"
@@ -71,7 +74,7 @@ const difficultyOptions = [
         </div>
       </div>
       <div class="play-stage">
-        <section ref="canvasEl" class="canvas-shell play-canvas-shell" aria-label="飞行棋游戏画布" />
+        <section ref="canvasEl" class="canvas-shell play-canvas-shell" :aria-label="t('rollCanvas')" />
       </div>
     </div>
   </section>

@@ -113,7 +113,7 @@ export function createMoveController(options: MoveControllerOptions) {
       return
     }
 
-    const willWin = result.message.includes('胜利')
+    const willWin = result.victory
     if (result.advancePending) {
       options.diceHandoffHiding.value = true
     }
@@ -135,8 +135,8 @@ export function createMoveController(options: MoveControllerOptions) {
       moveFrameId = -1
       movingPoint.value = null
       options.playMoveSound()
-      if (result.message.includes('吃子')) options.playFailSound()
-      if (result.message.includes('胜利')) options.playWinSound()
+      if (result.capturedCount > 0) options.playFailSound()
+      if (result.victory) options.playWinSound()
       clearMovePreview()
       landingPoint.value = {
         x: endPoint.x,

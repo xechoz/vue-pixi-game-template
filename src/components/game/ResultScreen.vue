@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from '../../i18n'
 
 const props = defineProps<{
   winnerName: string
@@ -19,6 +20,8 @@ const winnerAvatar = computed(() => {
   const key = playerAvatarKeys[props.winnerIndex] ?? 'red'
   return `${assetBase}player-${key}.png`
 })
+
+const { t } = useI18n()
 </script>
 
 <template>
@@ -26,15 +29,15 @@ const winnerAvatar = computed(() => {
     <div class="result-card glass-card" @click.stop>
 
       <div class="winner-hero">
-        <img class="winner-plane" :src="winnerAvatar" :alt="winnerName + ' 飞机'" />
+        <img class="winner-plane" :src="winnerAvatar" :alt="t('winnerPlaneAlt', { winnerName: props.winnerName })" />
       </div>
 
       <div class="actions">
-        <button class="action-button" type="button" aria-label="再来一次" @click="emit('replay')">
-          <img :src="onceMoreButtonImage" alt="再来一次" />
+        <button class="action-button" type="button" :aria-label="t('onceMoreButton')" @click="emit('replay')">
+          <img :src="onceMoreButtonImage" :alt="t('onceMoreButton')" />
         </button>
-        <button class="action-button" type="button" aria-label="返回准备页" @click="emit('prepare')">
-          <img :src="closeButtonImage" alt="返回准备页" />
+        <button class="action-button" type="button" :aria-label="t('backButton')" @click="emit('prepare')">
+          <img :src="closeButtonImage" :alt="t('backButton')" />
         </button>
       </div>
     </div>
