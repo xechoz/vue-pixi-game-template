@@ -38,6 +38,44 @@ test('boardLayout scales base slots down on smaller boards', () => {
   assert.ok(smallHeight < largeHeight)
 })
 
+test('boardLayout keeps base slots inside centered corner quadrants', () => {
+  const preset = getBoardPreset('hell-7')
+  const renderLayout = getBoardRenderLayout('hell-7')
+  const size = 700
+  const layout = buildBoardLayout(0, 0, size, preset, renderLayout)
+  const centerX = size / 2
+  const centerY = size / 2
+
+  for (const slots of layout.baseSlots) {
+    for (const slot of slots) {
+      assert.ok(slot.x > 0)
+      assert.ok(slot.x < size)
+      assert.ok(slot.y > 0)
+      assert.ok(slot.y < size)
+    }
+  }
+
+  const [topLeftSlots, topRightSlots, bottomRightSlots, bottomLeftSlots] = layout.baseSlots
+  const averagePoint = (slots: { x: number; y: number }[]) => ({
+    x: slots.reduce((sum, slot) => sum + slot.x, 0) / slots.length,
+    y: slots.reduce((sum, slot) => sum + slot.y, 0) / slots.length,
+  })
+
+  const topLeftCenter = averagePoint(topLeftSlots)
+  const topRightCenter = averagePoint(topRightSlots)
+  const bottomRightCenter = averagePoint(bottomRightSlots)
+  const bottomLeftCenter = averagePoint(bottomLeftSlots)
+
+  assert.ok(topLeftCenter.x < centerX)
+  assert.ok(topLeftCenter.y < centerY)
+  assert.ok(topRightCenter.x > centerX)
+  assert.ok(topRightCenter.y < centerY)
+  assert.ok(bottomRightCenter.x > centerX)
+  assert.ok(bottomRightCenter.y > centerY)
+  assert.ok(bottomLeftCenter.x < centerX)
+  assert.ok(bottomLeftCenter.y > centerY)
+})
+
 test('boardLayout keeps finish slots 50px away from center', () => {
   const preset = getBoardPreset('hell-7')
   const renderLayout = getBoardRenderLayout('hell-7')

@@ -94,40 +94,40 @@ export function buildBoardLayout(
 
   const outerBorderPoints = perimeterPoints
 
-  const buildBaseSlots = (originXValue: number, originYValue: number) => {
+  const buildBaseSlots = () => {
     const baseScale = Math.min(1, Math.max(0.74, size / 700))
-    const zoneSize = Math.round(28 * baseScale)
-    const zonePadding = Math.round(40 * baseScale)
     const spread = Math.round(22 * baseScale)
-    const baseOutsideGap = Math.round(58 * baseScale)
-
-    // 4 players base zones: top left, top right, bottom right, bottom left
-    const zones = [
+    const quadrantInset = Math.round(20 * baseScale)
+    const quadrantBounds = [
       {
-        // top left
-        x: originXValue + trackInset + zonePadding,
-        y: originYValue - baseOutsideGap - zoneSize,
+        minX: left + quadrantInset,
+        maxX: centerX - quadrantInset,
+        minY: top + quadrantInset,
+        maxY: centerY - quadrantInset,
       },
       {
-        // top right
-        x: originXValue + size - trackInset - zoneSize - zonePadding,
-        y: originYValue - baseOutsideGap - zoneSize,
+        minX: centerX + quadrantInset,
+        maxX: right - quadrantInset,
+        minY: top + quadrantInset,
+        maxY: centerY - quadrantInset,
       },
       {
-        // bottom right
-        x: originXValue + size - trackInset - zoneSize - zonePadding,
-        y: originYValue + size + baseOutsideGap,
+        minX: centerX + quadrantInset,
+        maxX: right - quadrantInset,
+        minY: centerY + quadrantInset,
+        maxY: bottom - quadrantInset,
       },
       {
-        // bottom left
-        x: originXValue + trackInset + zonePadding,
-        y: originYValue + size + baseOutsideGap,
+        minX: left + quadrantInset,
+        maxX: centerX - quadrantInset,
+        minY: centerY + quadrantInset,
+        maxY: bottom - quadrantInset,
       },
     ]
 
-    return zones.map((zone) => {
-      const slotCenterX = zone.x + zoneSize / 2
-      const slotCenterY = zone.y + zoneSize / 2
+    return quadrantBounds.map((bounds) => {
+      const slotCenterX = (bounds.minX + bounds.maxX) / 2
+      const slotCenterY = (bounds.minY + bounds.maxY) / 2
       return [
         { x: slotCenterX - spread, y: slotCenterY - spread },
         { x: slotCenterX + spread, y: slotCenterY - spread },
@@ -191,7 +191,7 @@ export function buildBoardLayout(
     trackPoints,
     outerBorderPoints,
     homeEntryPoints,
-    baseSlots: buildBaseSlots(originX, originY),
+    baseSlots: buildBaseSlots(),
     finishSlots: buildFinishSlots(originX, originY),
   }
 }

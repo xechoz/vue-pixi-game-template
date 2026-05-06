@@ -9,7 +9,7 @@ const assetBase = import.meta.env.BASE_URL
 const appBg = `${assetBase}prepare-bg.jpg`
 
 const loadResultScreen = () => import('./components/game/ResultScreen.vue')
-const loadPlayPage = () => import('./components/game/PlayPage.vue')
+const loadPlayPage = () => import('./components/game/PlayScreen.Content.vue')
 
 const ResultScreen = defineAsyncComponent(loadResultScreen)
 const PlayPage = defineAsyncComponent(loadPlayPage)
