@@ -2,6 +2,7 @@ type AssetUrlResolver = (name: string) => string
 
 let audioCtx: AudioContext | null = null
 let bgmAudio: HTMLAudioElement | null = null
+const activeEffectAudios = new Set<HTMLAudioElement>()
 
 export function createSceneAudio(assetUrl: AssetUrlResolver) {
   function ensureAudioContext() {
@@ -23,6 +24,29 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
     }
   }
 
+  function playEffectSound(name: string, volume: number) {
+    const audio = new Audio(assetUrl(name))
+    audio.preload = 'auto'
+    audio.volume = volume
+    audio.currentTime = 0
+    activeEffectAudios.add(audio)
+
+    const cleanup = () => {
+      activeEffectAudios.delete(audio)
+    }
+
+    audio.addEventListener('ended', cleanup, { once: true })
+    audio.addEventListener('error', cleanup, { once: true })
+    audio.addEventListener('pause', cleanup, { once: true })
+
+    audio.load()
+    audio.play().catch(() => {
+      cleanup()
+      playTone(220, 0.14, 'sawtooth', 0.08)
+      window.setTimeout(() => playTone(180, 0.16, 'sawtooth', 0.06), 80)
+    })
+  }
+
   function startBackgroundMusic() {
     if (bgmAudio) return
     const audio = new Audio(assetUrl('bgm.mp3'))
@@ -38,10 +62,7 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
   }
 
   function playFailSound() {
-    const audio = new Audio(assetUrl('fail.wav'))
-    audio.preload = 'auto'
-    audio.volume = 0.9
-    audio.play().catch(() => {})
+    playEffectSound('fail.wav', 1.0)
   }
 
   function playTone(
@@ -68,12 +89,12 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
 
   function playRollSound() {
     playTone(660, 0.06, 'square', 0.03)
-    window.setTimeout(() => playTone(880, 0.09, 'square', 0.035), 60)
+    window.setTimeout(() => playTone(880, 0.09, 'square', 0.035), 80)
   }
 
   function playMoveSound() {
     playTone(392, 0.08, 'triangle', 0.03)
-    window.setTimeout(() => playTone(523.25, 0.08, 'triangle', 0.028), 70)
+    window.setTimeout(() => playTone(523.25, 0.08, 'triangle', 0.028), 80)
   }
 
   function playWinSound() {
@@ -84,6 +105,11 @@ export function createSceneAudio(assetUrl: AssetUrlResolver) {
 
   function disposeAudio() {
     stopBackgroundMusic()
+    activeEffectAudios.forEach((audio) => {
+      audio.pause()
+      audio.currentTime = 0
+    })
+    activeEffectAudios.clear()
     audioCtx?.close().catch(() => {})
     audioCtx = null
   }
