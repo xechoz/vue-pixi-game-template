@@ -68,6 +68,11 @@ type PieceRenderInfo = {
   location: 'base' | 'track' | 'home' | 'finished'
 }
 
+type DiceSceneOptions = Pick<
+  RenderPlaySceneOptions,
+  'app' | 'scene' | 'game' | 'autoPlayMode' | 'dice' | 'move' | 'turn' | 'onRoll'
+>
+
 export function hexToNumber(color: string) {
   return Number.parseInt(color.replace('#', ''), 16)
 }
@@ -115,16 +120,84 @@ const DIE_PIP_LAYOUTS: Record<number, Array<{ x: number; y: number }>> = {
   ],
 }
 
-function buildDiceFaceGraphic(options: {
-  size: number
-  color: number
-  value: number
-  isIdle: boolean
-  idlePulse: number
-  isRolling: boolean
-  diceLandingSquash: number
-}) {
-  const container = new PIXI.Container()
+const OVERLAY_BASES_LAYER_NAME = 'flight-ludo-overlay-bases-layer'
+const OVERLAY_EFFECTS_LAYER_NAME = 'flight-ludo-overlay-effects-layer'
+const OVERLAY_DICE_LAYER_NAME = 'flight-ludo-overlay-dice-layer'
+const DICE_CENTER_NAME = 'flight-ludo-dice-center'
+const DICE_GROUP_NAME = 'flight-ludo-dice-group'
+const DICE_SHADOW_NAME = 'flight-ludo-dice-shadow'
+const DICE_FACE_NAME = 'flight-ludo-dice-face'
+const DICE_FACE_DROP_SHADOW_NAME = 'flight-ludo-dice-face-shadow'
+const DICE_FACE_PLATE_NAME = 'flight-ludo-dice-face-plate'
+const DICE_FACE_GLOSS_NAME = 'flight-ludo-dice-face-gloss'
+const DICE_IDLE_BACKDROP_NAME = 'flight-ludo-dice-idle-backdrop'
+const DICE_QUESTION_MARK_NAME = 'flight-ludo-dice-question-mark'
+const DICE_PIPS_LAYER_NAME = 'flight-ludo-dice-pips-layer'
+const DICE_PROMPT_GLOW_NAME = 'flight-ludo-dice-prompt-glow'
+const DICE_SETTLE_FLASH_NAME = 'flight-ludo-dice-settle-flash'
+const DICE_PIP_NAME_PREFIX = 'flight-ludo-dice-pip'
+
+function getOrCreateGraphicsChild(
+  container: PIXI.Container,
+  name: string,
+  childIndex?: number,
+) {
+  const existing = findNamedChild(container, name)
+  if (existing instanceof PIXI.Graphics) {
+    if (typeof childIndex === 'number' && container.getChildIndex(existing) !== childIndex) {
+      container.setChildIndex(existing, childIndex)
+    }
+    return existing
+  }
+
+  if (existing) {
+    container.removeChild(existing)
+    existing.destroy({ children: true })
+  }
+
+  const graphic = new PIXI.Graphics()
+  graphic.label = name
+  if (typeof childIndex === 'number') {
+    container.addChildAt(graphic, childIndex)
+  } else {
+    container.addChild(graphic)
+  }
+  return graphic
+}
+
+function getOrCreateTextChild(
+  container: PIXI.Container,
+  name: string,
+  factory: () => PIXI.Text,
+) {
+  const existing = findNamedChild(container, name)
+  if (existing instanceof PIXI.Text) {
+    return existing
+  }
+
+  if (existing) {
+    container.removeChild(existing)
+    existing.destroy({ children: true })
+  }
+
+  const text = factory()
+  text.label = name
+  container.addChild(text)
+  return text
+}
+
+function syncDiceFaceGraphic(
+  container: PIXI.Container,
+  options: {
+    size: number
+    color: number
+    value: number
+    isIdle: boolean
+    idlePulse: number
+    isRolling: boolean
+    diceLandingSquash: number
+  },
+) {
   const faceSize = options.size * 0.92
   const halfFace = faceSize / 2
   const cornerRadius = faceSize * 0.22
@@ -135,7 +208,9 @@ function buildDiceFaceGraphic(options: {
       ? 0.92
       : 0.88
 
-  const shadow = new PIXI.Graphics()
+  const shadow = getOrCreateGraphicsChild(container, DICE_FACE_DROP_SHADOW_NAME, 0)
+  shadow.clear()
+  shadow
     .roundRect(
       -halfFace,
       -halfFace + faceSize * 0.05,
@@ -144,15 +219,21 @@ function buildDiceFaceGraphic(options: {
       cornerRadius,
     )
     .fill({ color: 0x020617, alpha: 0.14 + options.diceLandingSquash * 0.08 })
-  container.addChild(shadow)
 
-  const plate = new PIXI.Graphics()
+  const plate = getOrCreateGraphicsChild(container, DICE_FACE_PLATE_NAME, 1)
+  plate.clear()
+  plate
     .roundRect(-halfFace, -halfFace, faceSize, faceSize, cornerRadius)
     .fill({ color: 0xffffff, alpha: 0.98 })
-    .stroke({ color: options.color, width: Math.max(2, faceSize * 0.05), alpha: outlineAlpha })
-  container.addChild(plate)
+    .stroke({
+      color: options.color,
+      width: Math.max(2, faceSize * 0.05),
+      alpha: outlineAlpha,
+    })
 
-  const gloss = new PIXI.Graphics()
+  const gloss = getOrCreateGraphicsChild(container, DICE_FACE_GLOSS_NAME, 2)
+  gloss.clear()
+  gloss
     .roundRect(
       -faceSize * 0.28,
       -faceSize * 0.32,
@@ -161,15 +242,18 @@ function buildDiceFaceGraphic(options: {
       faceSize * 0.08,
     )
     .fill({ color: 0xffffff, alpha: 0.26 })
-  container.addChild(gloss)
 
+  const idleBackdrop = getOrCreateGraphicsChild(container, DICE_IDLE_BACKDROP_NAME)
+  idleBackdrop.visible = options.isIdle
+  idleBackdrop.clear()
   if (options.isIdle) {
-    const idleBackdrop = new PIXI.Graphics()
+    idleBackdrop
       .circle(0, 0, faceSize * 0.17)
       .fill({ color: options.color, alpha: 0.08 + options.idlePulse * 0.05 })
-    container.addChild(idleBackdrop)
+  }
 
-    const questionMark = new PIXI.Text({
+  const questionMark = getOrCreateTextChild(container, DICE_QUESTION_MARK_NAME, () => {
+    const text = new PIXI.Text({
       text: '?',
       style: {
         fill: options.color,
@@ -178,20 +262,238 @@ function buildDiceFaceGraphic(options: {
         fontWeight: '800',
       },
     })
-    questionMark.anchor.set(0.5)
-    questionMark.position.set(0, -faceSize * 0.02)
-    container.addChild(questionMark)
-    return container
-  }
+    text.anchor.set(0.5)
+    return text
+  })
+  questionMark.visible = options.isIdle
+  questionMark.text = '?'
+  questionMark.position.set(0, -faceSize * 0.02)
+  questionMark.style.fill = options.color
+  questionMark.style.fontFamily = 'Trebuchet MS'
+  questionMark.style.fontSize = faceSize * 0.42
+  questionMark.style.fontWeight = '800'
 
-  for (const pip of DIE_PIP_LAYOUTS[options.value] ?? []) {
-    const pipGraphic = new PIXI.Graphics()
+  const pipsLayer = getOrCreateSceneLayer(container, DICE_PIPS_LAYER_NAME)
+  pipsLayer.visible = !options.isIdle
+  const pips = DIE_PIP_LAYOUTS[options.value] ?? []
+  for (let index = 0; index < 6; index += 1) {
+    const pipGraphic = getOrCreateGraphicsChild(
+      pipsLayer,
+      `${DICE_PIP_NAME_PREFIX}-${index}`,
+    )
+    const pip = pips[index]
+    pipGraphic.visible = Boolean(pip) && !options.isIdle
+    pipGraphic.clear()
+    if (!pip || options.isIdle) {
+      continue
+    }
+
+    pipGraphic
       .circle(pip.x * faceSize, pip.y * faceSize, pipRadius)
       .fill({ color: options.color, alpha: 0.98 })
-    container.addChild(pipGraphic)
+  }
+}
+
+function getOverlayLayers(scene: PIXI.Container) {
+  const dynamicLayer = getOrCreateSceneLayer(scene, DYNAMIC_LAYER_NAME)
+  const overlayLayer = getOrCreateSceneLayer(dynamicLayer, DYNAMIC_OVERLAY_LAYER_NAME)
+  const overlayBasesLayer = getOrCreateSceneLayer(overlayLayer, OVERLAY_BASES_LAYER_NAME)
+  const overlayEffectsLayer = getOrCreateSceneLayer(overlayLayer, OVERLAY_EFFECTS_LAYER_NAME)
+  const overlayDiceLayer = getOrCreateSceneLayer(overlayLayer, OVERLAY_DICE_LAYER_NAME)
+
+  overlayLayer.setChildIndex(overlayBasesLayer, 0)
+  overlayLayer.setChildIndex(overlayEffectsLayer, 1)
+  overlayLayer.setChildIndex(overlayDiceLayer, 2)
+
+  return {
+    dynamicLayer,
+    overlayLayer,
+    overlayBasesLayer,
+    overlayEffectsLayer,
+    overlayDiceLayer,
+  }
+}
+
+function syncDiceOverlay(options: DiceSceneOptions) {
+  const { overlayDiceLayer } = getOverlayLayers(options.scene)
+  const { width, height } = options.app.screen
+  const boardSize = Math.min(width, height) - 20
+  const safeBoardSize = Math.max(240, boardSize)
+  const centerX = (width - safeBoardSize) / 2 + safeBoardSize / 2
+  const centerY = (height - safeBoardSize) / 2 + safeBoardSize / 2
+
+  const hideHandoffDice =
+    (options.turn.diceHandoffHiding || options.turn.isTurnTransitioning) &&
+    !options.dice.isRolling &&
+    options.game.dice === 0
+
+  const center = getOrCreateSceneLayer(overlayDiceLayer, DICE_CENTER_NAME)
+  center.position.set(centerX, centerY)
+  center.eventMode = 'passive'
+  center.cursor = 'default'
+  center.visible = !hideHandoffDice
+  if (hideHandoffDice) {
+    return
   }
 
-  return container
+  const canRoll =
+    options.game.winnerIndex === -1 &&
+    options.game.dice === 0 &&
+    !options.turn.isTurnTransitioning &&
+    options.move.movingPoint === null &&
+    (options.turn.isHumanTurn() || !options.autoPlayMode)
+
+  const diceSize = safeBoardSize * 0.18
+  const currentPlayer = options.game.players[options.game.currentPlayerIndex]
+  const currentPlayerColor = hexToNumber(currentPlayer.color)
+  const diceValue = options.dice.getDiceDisplayValue()
+  const isIdleDiceState = !options.dice.isRolling && options.game.dice === 0
+
+  const diceGroup = getOrCreateSceneLayer(center, DICE_GROUP_NAME)
+  diceGroup.eventMode = canRoll ? 'static' : 'passive'
+  diceGroup.cursor = canRoll ? 'pointer' : 'default'
+  if (diceGroup.hitArea instanceof PIXI.Rectangle) {
+    diceGroup.hitArea.x = -diceSize * 0.95
+    diceGroup.hitArea.y = -diceSize * 0.95
+    diceGroup.hitArea.width = diceSize * 1.9
+    diceGroup.hitArea.height = diceSize * 1.9
+  } else {
+    diceGroup.hitArea = new PIXI.Rectangle(
+      -diceSize * 0.95,
+      -diceSize * 0.95,
+      diceSize * 1.9,
+      diceSize * 1.9,
+    )
+  }
+  diceGroup.removeAllListeners()
+  if (canRoll) {
+    diceGroup.on('pointerdown', () => options.onRoll(false))
+  }
+
+  const faceSize = diceSize * 0.72
+  const fittedHeight = diceSize * 0.98
+  const fittedWidth = diceSize * 0.92
+  const diceShadow = getOrCreateGraphicsChild(diceGroup, DICE_SHADOW_NAME, 0)
+  diceShadow.clear()
+  diceShadow
+    .ellipse(
+      0,
+      fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08),
+      fittedWidth *
+        0.24 *
+        (1 +
+          options.dice.diceLandingSquash * 0.45 +
+          (options.dice.isRolling ? 0.06 : 0)),
+      fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
+    )
+    .fill({
+      color: 0x020617,
+      alpha:
+        0.16 +
+        (options.dice.isRolling ? 0.08 : 0.02) +
+        options.dice.diceLandingSquash * 0.14,
+    })
+
+  const diceFace = getOrCreateSceneLayer(diceGroup, DICE_FACE_NAME)
+  syncDiceFaceGraphic(diceFace, {
+    size: diceSize,
+    color: currentPlayerColor,
+    value: Math.min(6, Math.max(1, diceValue || 1)),
+    isIdle: isIdleDiceState,
+    idlePulse: options.dice.diceIdlePulse,
+    isRolling: options.dice.isRolling,
+    diceLandingSquash: options.dice.diceLandingSquash,
+  })
+
+  const promptGlow = getOrCreateGraphicsChild(diceGroup, DICE_PROMPT_GLOW_NAME)
+  promptGlow.visible = !options.dice.isRolling && isIdleDiceState
+  promptGlow.clear()
+  if (promptGlow.visible) {
+    promptGlow
+      .roundRect(
+        -faceSize * 0.18,
+        faceSize * 0.09,
+        faceSize * 0.36,
+        faceSize * 0.2,
+        faceSize * 0.08,
+      )
+      .fill({
+        color: 0xffffff,
+        alpha: 0.14 + options.dice.diceIdlePulse * 0.08,
+      })
+  }
+
+  const settleFlashAlpha =
+    !options.dice.isRolling && !isIdleDiceState
+      ? Math.max(
+          0,
+          Math.min(
+            0.18,
+            options.dice.diceLandingSquash * 0.32 +
+              options.dice.diceLandingLift * 0.004,
+          ),
+        )
+      : 0
+  const settleFlash = getOrCreateGraphicsChild(diceGroup, DICE_SETTLE_FLASH_NAME)
+  settleFlash.visible = settleFlashAlpha > 0.001
+  settleFlash.clear()
+  if (settleFlash.visible) {
+    settleFlash
+      .roundRect(
+        -fittedWidth * 0.33,
+        -fittedHeight * 0.33,
+        fittedWidth * 0.66,
+        fittedHeight * 0.24,
+        fittedWidth * 0.08,
+      )
+      .fill({ color: 0xffffff, alpha: settleFlashAlpha })
+  }
+
+  const diceScaleBoost =
+    1 +
+    options.dice.diceIdlePulse * 0.05 +
+    (options.dice.isRolling ? 0.05 : 0)
+  const shakeX =
+    options.dice.diceIdleShake * (options.dice.isRolling ? 4.5 : 3)
+  const shakeY =
+    Math.sin(options.dice.diceIdleShake * Math.PI * 0.5) * 2.2
+  const landingScaleX =
+    1 +
+    options.dice.diceLandingSquash * 0.34 +
+    options.dice.diceResultPop * 0.08
+  const landingScaleY =
+    1 -
+    options.dice.diceLandingSquash * 0.24 +
+    options.dice.diceResultPop * 0.04
+  const landingSettleNudge =
+    !options.dice.isRolling && !isIdleDiceState
+      ? Math.max(0, options.dice.diceLandingSquash * 0.1)
+      : 0
+  const spinScaleX =
+    options.dice.diceSpinScale *
+    diceScaleBoost *
+    (options.dice.isRolling ? options.dice.diceSpinFlip : 1) *
+    landingScaleX
+  const spinScaleY =
+    options.dice.diceSpinScale *
+    diceScaleBoost *
+    (options.dice.isRolling
+      ? 1 + (1 - options.dice.diceSpinFlip) * 0.22
+      : 1) *
+    landingScaleY
+  diceGroup.position.set(
+    shakeX,
+    shakeY -
+      options.dice.diceIdleLift -
+      options.dice.diceLandingLift +
+      landingSettleNudge * fittedHeight * 0.08,
+  )
+  diceGroup.rotation = options.dice.diceSpinRotation
+  diceGroup.scale.set(spinScaleX, spinScaleY)
+}
+
+export function syncDiceOnly(options: DiceSceneOptions) {
+  syncDiceOverlay(options)
 }
 
 export function resolvePiecePoint(
@@ -539,9 +841,6 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     (pieceRadius * basePieceBodyScale) / 2 + 3,
   )
 
-  const centerX = originX + safeBoardSize / 2
-  const centerY = originY + safeBoardSize / 2
-
   const layout = options.layout
   const { trackPoints, baseSlots, finishSlots, outerBorderPoints, homeEntryPoints } = layout
   const outerAnchorPoints = deriveOuterAnchorPoints(trackPoints)
@@ -703,7 +1002,12 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     sceneState.staticBoardKey = staticBoardKey
   }
 
-  const overlayLayer = getOrCreateSceneLayer(dynamicLayer, DYNAMIC_OVERLAY_LAYER_NAME)
+  const {
+    overlayLayer,
+    overlayBasesLayer,
+    overlayEffectsLayer,
+    overlayDiceLayer,
+  } = getOverlayLayers(options.scene)
   const piecesLayer = getOrCreateSceneLayer(dynamicLayer, DYNAMIC_PIECES_LAYER_NAME)
   for (const child of dynamicLayer.children.slice()) {
     if (child !== overlayLayer && child !== piecesLayer) {
@@ -713,8 +1017,20 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
   }
   dynamicLayer.setChildIndex(overlayLayer, 0)
   dynamicLayer.setChildIndex(piecesLayer, 1)
-  clearContainer(overlayLayer)
-  const board = overlayLayer
+  for (const child of overlayLayer.children.slice()) {
+    if (
+      child !== overlayBasesLayer &&
+      child !== overlayEffectsLayer &&
+      child !== overlayDiceLayer
+    ) {
+      overlayLayer.removeChild(child)
+      child.destroy({ children: true })
+    }
+  }
+  clearContainer(overlayBasesLayer)
+  clearContainer(overlayEffectsLayer)
+  const baseBoard = overlayBasesLayer
+  const effectsBoard = overlayEffectsLayer
 
   // The orange dotted overlay is UI-only. It helps explain the route shape,
   // but it does not affect movement rules.
@@ -748,7 +1064,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         width: isActivePlayer ? 3 : 2,
         alpha: isActivePlayer ? 0.3 : 0.2,
       })
-    board.addChild(playerBase)
+    baseBoard.addChild(playerBase)
 
     if (isActivePlayer && canRoll) {
       playerBase.eventMode = 'static'
@@ -763,152 +1079,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
     }
   }
 
-  const hideHandoffDice =
-    (options.turn.diceHandoffHiding || options.turn.isTurnTransitioning) &&
-    !options.dice.isRolling &&
-    options.game.dice === 0
-
-  if (!hideHandoffDice) {
-    const center = new PIXI.Container()
-    center.position.set(centerX, centerY)
-    center.eventMode = 'passive'
-    center.cursor = 'default'
-    board.addChild(center)
-
-    const diceSize = safeBoardSize * 0.18
-    const currentPlayer = options.game.players[options.game.currentPlayerIndex]
-    const currentPlayerColor = hexToNumber(currentPlayer.color)
-    const diceValue = options.dice.getDiceDisplayValue()
-    const isIdleDiceState =
-      !options.dice.isRolling && options.game.dice === 0
-
-    const diceGroup = new PIXI.Container()
-    diceGroup.eventMode = canRoll ? 'static' : 'passive'
-    diceGroup.cursor = canRoll ? 'pointer' : 'default'
-    diceGroup.hitArea = new PIXI.Rectangle(
-      -diceSize * 0.95,
-      -diceSize * 0.95,
-      diceSize * 1.9,
-      diceSize * 1.9,
-    )
-    if (canRoll) {
-      diceGroup.on('pointerdown', () => options.onRoll(false))
-    }
-
-    center.addChild(diceGroup)
-
-    const faceSize = diceSize * 0.72
-    const fittedHeight = diceSize * 0.98
-    const fittedWidth = diceSize * 0.92
-    const diceShadow = new PIXI.Graphics()
-      .ellipse(
-        0,
-        fittedHeight * (0.36 + options.dice.diceLandingSquash * 0.08),
-        fittedWidth * 0.24 * (1 + options.dice.diceLandingSquash * 0.45 + (options.dice.isRolling ? 0.06 : 0)),
-        fittedHeight * 0.08 * (1 + options.dice.diceLandingSquash * 0.35),
-      )
-      .fill({
-        color: 0x020617,
-        alpha:
-          0.16 +
-          (options.dice.isRolling ? 0.08 : 0.02) +
-          options.dice.diceLandingSquash * 0.14,
-      })
-    diceGroup.addChild(diceShadow)
-
-    const diceFace = buildDiceFaceGraphic({
-      size: diceSize,
-      color: currentPlayerColor,
-      value: Math.min(6, Math.max(1, diceValue || 1)),
-      isIdle: isIdleDiceState,
-      idlePulse: options.dice.diceIdlePulse,
-      isRolling: options.dice.isRolling,
-      diceLandingSquash: options.dice.diceLandingSquash,
-    })
-    diceGroup.addChild(diceFace)
-
-    if (!options.dice.isRolling && isIdleDiceState) {
-      const promptGlow = new PIXI.Graphics()
-        .roundRect(
-          -faceSize * 0.18,
-          faceSize * 0.09,
-          faceSize * 0.36,
-          faceSize * 0.2,
-          faceSize * 0.08,
-        )
-        .fill({
-          color: 0xffffff,
-          alpha: 0.14 + options.dice.diceIdlePulse * 0.08,
-        })
-      diceGroup.addChild(promptGlow)
-    }
-
-    const settleFlashAlpha =
-      !options.dice.isRolling && !isIdleDiceState
-        ? Math.max(
-            0,
-            Math.min(
-              0.18,
-              options.dice.diceLandingSquash * 0.32 +
-                options.dice.diceLandingLift * 0.004,
-            ),
-          )
-        : 0
-    if (settleFlashAlpha > 0.001) {
-      const settleFlash = new PIXI.Graphics()
-        .roundRect(
-          -fittedWidth * 0.33,
-          -fittedHeight * 0.33,
-          fittedWidth * 0.66,
-          fittedHeight * 0.24,
-          fittedWidth * 0.08,
-        )
-        .fill({ color: 0xffffff, alpha: settleFlashAlpha })
-      diceGroup.addChild(settleFlash)
-    }
-
-    const diceScaleBoost =
-      1 +
-      options.dice.diceIdlePulse * 0.05 +
-      (options.dice.isRolling ? 0.05 : 0)
-    const shakeX =
-      options.dice.diceIdleShake * (options.dice.isRolling ? 4.5 : 3)
-    const shakeY =
-      Math.sin(options.dice.diceIdleShake * Math.PI * 0.5) * 2.2
-    const landingScaleX =
-      1 +
-      options.dice.diceLandingSquash * 0.34 +
-      options.dice.diceResultPop * 0.08
-    const landingScaleY =
-      1 -
-      options.dice.diceLandingSquash * 0.24 +
-      options.dice.diceResultPop * 0.04
-    const landingSettleNudge =
-      !options.dice.isRolling && !isIdleDiceState
-        ? Math.max(0, options.dice.diceLandingSquash * 0.1)
-        : 0
-    const spinScaleX =
-      options.dice.diceSpinScale *
-      diceScaleBoost *
-      (options.dice.isRolling ? options.dice.diceSpinFlip : 1) *
-      landingScaleX
-    const spinScaleY =
-      options.dice.diceSpinScale *
-      diceScaleBoost *
-      (options.dice.isRolling
-        ? 1 + (1 - options.dice.diceSpinFlip) * 0.22
-        : 1) *
-      landingScaleY
-    diceGroup.position.set(
-      shakeX,
-      shakeY -
-        options.dice.diceIdleLift -
-        options.dice.diceLandingLift +
-        landingSettleNudge * fittedHeight * 0.08,
-    )
-    diceGroup.rotation = options.dice.diceSpinRotation
-    diceGroup.scale.set(spinScaleX, spinScaleY)
-  }
+  syncDiceOverlay(options)
 
   if (options.winner) {
     const banner = new PIXI.Graphics()
@@ -921,7 +1092,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
       )
       .fill({ color: 0x020617, alpha: 0.9 })
       .stroke({ color: options.winner.color, width: 3, alpha: 0.9 })
-    board.addChild(banner)
+    effectsBoard.addChild(banner)
   }
 
   if (options.move.landingPoint) {
@@ -936,7 +1107,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         width: 3,
         alpha: 0.35,
       })
-    board.addChild(pulse)
+    effectsBoard.addChild(pulse)
   }
 
   if (options.move.replayingPieceId && options.move.movePath.length > 0) {
@@ -967,7 +1138,7 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         trail.lineTo(point.x, point.y)
       }
       trail.stroke({ color: player.color, width: 5, alpha: 0.45 })
-      board.addChild(trail)
+      effectsBoard.addChild(trail)
 
       const arcLift = Math.max(4, pieceRadius * 0.75)
       for (let index = 1; index < pathPoints.length; index += 1) {
@@ -979,13 +1150,13 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         arcTrail.moveTo(prev.x, prev.y)
         arcTrail.quadraticCurveTo(midX, midY, point.x, point.y)
         arcTrail.stroke({ color: player.color, width: 4, alpha: 0.28 })
-        board.addChild(arcTrail)
+        effectsBoard.addChild(arcTrail)
 
         const marker = new PIXI.Graphics()
           .circle(point.x, point.y, 8)
           .fill({ color: 0xffffff, alpha: 0.14 })
           .stroke({ color: player.color, width: 2, alpha: 0.6 })
-        board.addChild(marker)
+        effectsBoard.addChild(marker)
       }
     }
   }

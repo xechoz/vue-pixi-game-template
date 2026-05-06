@@ -24,6 +24,7 @@ import {
 import {
   renderPlayScene,
   resolvePiecePoint as resolveBoardPiecePoint,
+  syncDiceOnly,
 } from './flight-ludo-play-scene/boardRenderer'
 import { buildBoardLayout } from './flight-ludo-play-scene/boardLayout'
 import { createDiceController } from './flight-ludo-play-scene/diceController'
@@ -191,6 +192,44 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     })
   }
 
+  function syncDiceScene() {
+    if (!app || !scene) return
+
+    syncDiceOnly({
+      app,
+      scene,
+      game: game.value,
+      autoPlayMode: options.autoPlayMode.value,
+      dice: {
+        isRolling: diceController.isRolling.value,
+        diceSpinScale: diceController.diceSpinScale.value,
+        diceSpinRotation: diceController.diceSpinRotation.value,
+        diceSpinFlip: diceController.diceSpinFlip.value,
+        diceLandingLift: diceController.diceLandingLift.value,
+        diceLandingSquash: diceController.diceLandingSquash.value,
+        diceResultPop: diceController.diceResultPop.value,
+        diceIdlePulse: diceController.diceIdlePulse.value,
+        diceIdleShake: diceController.diceIdleShake.value,
+        diceIdleLift: diceController.diceIdleLift.value,
+        getDiceDisplayValue: diceController.getDiceDisplayValue,
+      },
+      move: {
+        replayingPieceId: moveController.replayingPieceId.value,
+        movePath: moveController.movePath.value,
+        replayingStartProgress: moveController.replayingStartProgress.value,
+        movingPoint: moveController.movingPoint.value,
+        landingPoint: moveController.landingPoint.value,
+      },
+      turn: {
+        legalPulse: turnController.legalPulse.value,
+        isTurnTransitioning: turnController.isTurnTransitioning.value,
+        diceHandoffHiding: turnController.diceHandoffHiding.value,
+        isHumanTurn: turnController.isHumanTurn,
+      },
+      onRoll: diceController.handleRoll,
+    })
+  }
+
   function refreshGameView(viewOptions?: { deferResultPage?: boolean }) {
     game.value = { ...game.value }
     renderScene()
@@ -254,6 +293,7 @@ export function useFlightLudoPlayScene(options: UseFlightLudoPlaySceneOptions) {
     isHumanTurn: turnController.isHumanTurn,
     clearTimers,
     renderScene,
+    syncDiceScene,
     refreshGameView,
     scheduleAutoTurn: turnController.scheduleAutoTurn,
     scheduleAutoMove: turnController.scheduleAutoMove,

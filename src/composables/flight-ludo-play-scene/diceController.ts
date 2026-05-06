@@ -13,6 +13,7 @@ type DiceControllerOptions = {
   isHumanTurn: () => boolean
   clearTimers: () => void
   renderScene: () => void
+  syncDiceScene: () => void
   refreshGameView: RefreshGameView
   scheduleAutoTurn: (delay?: number) => void
   scheduleAutoMove: (action: () => void, delay: number) => void
@@ -124,7 +125,7 @@ export function createDiceController(options: DiceControllerOptions) {
         diceIdleLift.value = Math.sin(elapsed / 320) * 2.6
         diceIdlePulse.value = 0.5 + 0.5 * Math.sin(elapsed / 240)
         diceIdleLastRender = now
-        options.renderScene()
+        options.syncDiceScene()
       }
 
       diceIdleFrameId = window.requestAnimationFrame(tick)
@@ -153,7 +154,7 @@ export function createDiceController(options: DiceControllerOptions) {
         0,
         Math.sin(progress * Math.PI * 1.35) * (1 - progress * 0.42),
       )
-      options.renderScene()
+      options.syncDiceScene()
 
       if (progress < 1) {
         diceLandingFrameId = window.requestAnimationFrame(animate)
@@ -162,7 +163,7 @@ export function createDiceController(options: DiceControllerOptions) {
         diceLandingLift.value = 0
         diceLandingSquash.value = 0
         diceResultPop.value = 0
-        options.renderScene()
+        options.syncDiceScene()
       }
     }
 
@@ -190,7 +191,7 @@ export function createDiceController(options: DiceControllerOptions) {
         turnProgress * Math.PI * 0.1
       diceSpinFlip.value =
         0.46 + Math.abs(Math.cos(progress * Math.PI * 6.8)) * 0.54
-      options.renderScene()
+      options.syncDiceScene()
       if (progress < 1) {
         rollFrameId = window.requestAnimationFrame(spin)
       } else {
@@ -198,7 +199,7 @@ export function createDiceController(options: DiceControllerOptions) {
         diceSpinScale.value = 1
         diceSpinRotation.value = 0
         diceSpinFlip.value = 1
-        options.renderScene()
+        options.syncDiceScene()
       }
     }
 
