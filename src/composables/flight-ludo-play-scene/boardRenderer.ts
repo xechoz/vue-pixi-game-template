@@ -631,6 +631,21 @@ function drawDottedPolyline(
   }
 }
 
+function getOuterBorderMidPoint(layout: BoardLayout, playerIndex: number) {
+  const borderSides = [
+    layout.leftBorderPoints,
+    layout.topBorderPoints,
+    layout.rightBorderPoints,
+    layout.bottomBorderPoints,
+  ]
+  const points = borderSides[playerIndex] ?? []
+  return (
+    points[Math.floor((points.length - 1) / 2)] ??
+    points[0] ??
+    { x: 0, y: 0 }
+  )
+}
+
 const STATIC_LAYER_NAME = 'flight-ludo-static-layer'
 const DYNAMIC_LAYER_NAME = 'flight-ludo-dynamic-layer'
 const DYNAMIC_OVERLAY_LAYER_NAME = 'flight-ludo-dynamic-overlay-layer'
@@ -966,11 +981,32 @@ export function renderPlayScene(options: RenderPlaySceneOptions) {
         staticLayer.addChild(laneCell)
       }
 
-      // Draw dotted lines from track home lane entry to home lane end step
+      const baseCenter = (() => {
+        const bounds = getPaddedPointBounds(baseSlots[player.index], 0)
+        return {
+          x: bounds.x + bounds.width / 2,
+          y: bounds.y + bounds.height / 2,
+        }
+      })()
+
+      const startPoint = options.layout.trackPoints[player.startIndex]
+      if (startPoint) {
+        const baseToStartLine = new PIXI.Graphics()
+        drawDottedPolyline(baseToStartLine, [baseCenter, startPoint], {
+          color: hexToNumber(player.color),
+          alpha: 0.5,
+          dotRadius: Math.max(2, trackSize * 0.08),
+          dotSpacing: Math.max(12, trackSize * 0.9),
+        })
+        staticLayer.addChild(baseToStartLine)
+      }
+
+      // Draw dotted lines from outer border midpoint to track home lane entry
       const entryPoint = homeEntryPoints[player.index]
       if (entryPoint && finish.length > 0) {
         const homeConnector = new PIXI.Graphics()
-        const homeConnectorPoints = [entryPoint, ...finish]
+        const outerMidPoint = getOuterBorderMidPoint(layout, player.index)
+        const homeConnectorPoints = [outerMidPoint, entryPoint, ...finish]
         drawDottedPolyline(homeConnector, homeConnectorPoints, {
           color: hexToNumber(player.color),
           alpha: 0.34,
