@@ -43,29 +43,21 @@ const modeOptions = computed(() => [
   {
     value: 1 as const,
     avatars: playerAvatars.value.slice(0, 1),
-    title: t('singlePlayer'),
-    hint: '',
     accent: '#ffb347',
   },
   {
     value: 2 as const,
     avatars: playerAvatars.value.slice(0, 2),
-    title: t('twoPlayer'),
-    hint: '',
     accent: '#5f9cff',
   },
   {
     value: 3 as const,
     avatars: playerAvatars.value.slice(0, 3),
-    title: t('threePlayer'),
-    hint: '',
     accent: '#56d38f',
   },
   {
     value: 4 as const,
     avatars: playerAvatars.value.slice(0, 4),
-    title: t('fourPlayer'),
-    hint: '',
     accent: '#f56f7f',
   },
 ])
@@ -73,6 +65,15 @@ const modeOptions = computed(() => [
 
 <template>
   <section class="page page-prepare">
+    <div class="bg-decor" aria-hidden="true">
+      <span class="dec-orbit orbit-a"></span>
+      <span class="dec-orbit orbit-b"></span>
+      <span class="dec-cloud cloud-a"></span>
+      <span class="dec-cloud cloud-b"></span>
+      <span class="dec-dot dot-a"></span>
+      <span class="dec-dot dot-b"></span>
+      <span class="dec-dot dot-c"></span>
+    </div>
     <div class="mode-shell">
       <div class="mode-grid">
         <button
@@ -94,13 +95,6 @@ const modeOptions = computed(() => [
             <span class="corner corner-c"></span>
             <span class="corner corner-d"></span>
           </div>
-          <div class="card-header">
-            <span class="mode-badge">{{ option.value }}P</span>
-            <span class="mode-copy">
-              <strong>{{ option.title }}</strong>
-              <small>{{ option.hint }}</small>
-            </span>
-          </div>
           <div class="avatar-stack" :class="`stack-${option.avatars.length}`">
             <img
               v-for="avatar in option.avatars"
@@ -110,19 +104,8 @@ const modeOptions = computed(() => [
               :alt="avatar.alt"
             />
           </div>
-          <div class="card-track" aria-hidden="true">
-            <span
-              v-for="cell in 12"
-              :key="cell"
-              class="track-cell"
-              :class="{ 'track-cell--accent': cell === 3 || cell === 10 }"
-            ></span>
-          </div>
-          <div class="card-footer" aria-hidden="true">
-            <span class="foot-piece"></span>
-            <span class="foot-piece"></span>
-            <span class="foot-piece"></span>
-            <span class="foot-piece"></span>
+          <div class="card-footer">
+            <span class="mode-badge">{{ option.value }}P</span>
           </div>
         </button>
       </div>
@@ -132,7 +115,7 @@ const modeOptions = computed(() => [
 
 <style scoped>
 .page {
-  width: min(920px, calc(100% - 20px));
+  width: min(920px, calc(100% - 12px));
   min-height: 100dvh;
   margin: 0 auto;
   display: grid;
@@ -146,10 +129,76 @@ const modeOptions = computed(() => [
   box-sizing: border-box;
 }
 
+.bg-decor {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.dec-orbit,
+.dec-cloud,
+.dec-dot {
+  position: absolute;
+  border-radius: 999px;
+}
+
+.dec-orbit {
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 0 40px rgba(255, 255, 255, 0.05);
+}
+
+.orbit-a {
+  width: 420px;
+  height: 420px;
+  top: -100px;
+  left: -120px;
+}
+
+.orbit-b {
+  width: 520px;
+  height: 520px;
+  right: -190px;
+  bottom: -150px;
+}
+
+.dec-cloud {
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.04) 70%, transparent 72%);
+  filter: blur(2px);
+}
+
+.cloud-a {
+  width: 240px;
+  height: 110px;
+  top: 10%;
+  left: 4%;
+}
+
+.cloud-b {
+  width: 300px;
+  height: 140px;
+  right: 6%;
+  top: 14%;
+}
+
+.dec-dot {
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 18px rgba(255, 255, 255, 0.4);
+}
+
+.dot-a { top: 18%; left: 18%; }
+.dot-b { top: 66%; left: 10%; }
+.dot-c { top: 72%; right: 14%; }
+
 .mode-shell {
-  width: min(980px, calc(100% - 24px));
+  position: relative;
+  z-index: 1;
+  width: min(980px, calc(100% - 12px));
   margin: 0 auto;
-  padding: 22px;
+  padding: 16px;
   border-radius: 32px;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)),
@@ -175,7 +224,7 @@ const modeOptions = computed(() => [
 
 .mode-grid {
   display: grid;
-  gap: 18px;
+  gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -187,8 +236,8 @@ const modeOptions = computed(() => [
     rgba(255, 255, 255, 0.12);
   color: rgba(0, 0, 0, 0.95);
   cursor: pointer;
-  min-height: 250px;
-  padding: 18px 18px 16px;
+  min-height: 206px;
+  padding: 12px 12px 46px;
   display: grid;
   align-items: center;
   justify-items: center;
@@ -233,9 +282,7 @@ const modeOptions = computed(() => [
 .card-board,
 .card-route,
 .card-corners,
-.card-header,
 .card-footer,
-.card-track,
 .card-glow {
   position: absolute;
   pointer-events: none;
@@ -285,21 +332,9 @@ const modeOptions = computed(() => [
 .corner-c { bottom: 0; left: 0; }
 .corner-d { bottom: 0; right: 0; }
 
-.card-header {
-  top: 18px;
-  left: 18px;
-  right: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  z-index: 2;
-}
-
 .mode-badge {
-  flex: 0 0 auto;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 14px;
   display: grid;
   place-items: center;
@@ -310,26 +345,13 @@ const modeOptions = computed(() => [
   box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
-.mode-copy {
-  min-width: 0;
+.card-footer {
+  left: 0;
+  right: 0;
+  bottom: 12px;
   display: grid;
-  justify-items: end;
-  gap: 2px;
-  text-align: right;
-}
-
-.mode-copy strong {
-  font-size: 18px;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: #123;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.42);
-}
-
-.mode-copy small {
-  font-size: 12px;
-  line-height: 1;
-  color: rgba(18, 38, 62, 0.72);
+  place-items: center;
+  z-index: 2;
 }
 
 .card-glow {
@@ -340,46 +362,6 @@ const modeOptions = computed(() => [
     radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.12), transparent 42%);
   opacity: 0;
   transition: opacity 0.18s ease;
-}
-
-.card-track {
-  left: 22px;
-  right: 22px;
-  bottom: 48px;
-  display: grid;
-  grid-template-columns: repeat(12, 1fr);
-  gap: 4px;
-  z-index: 1;
-}
-
-.track-cell {
-  height: 10px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.26);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 1px 2px rgba(0, 0, 0, 0.06);
-}
-
-.track-cell--accent {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 88%, white), color-mix(in srgb, var(--accent) 72%, black));
-}
-
-.card-footer {
-  left: 18px;
-  right: 18px;
-  bottom: 18px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-  z-index: 2;
-}
-
-.foot-piece {
-  height: 8px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 90%, white), rgba(255, 255, 255, 0.55));
-  opacity: 0.72;
 }
 
 .select-card:hover {
@@ -410,7 +392,7 @@ const modeOptions = computed(() => [
 
 .avatar-stack {
   position: relative;
-  width: min(78%, 180px);
+  width: min(74%, 160px);
   aspect-ratio: 1;
   min-height: 0;
   margin: 0 auto;
@@ -482,7 +464,7 @@ const modeOptions = computed(() => [
 
 @media (max-width: 540px) {
   .page {
-    width: min(100%, calc(100% - 12px));
+    width: min(100%, calc(100% - 8px));
     gap: 12px;
   }
 
@@ -492,14 +474,14 @@ const modeOptions = computed(() => [
   }
 
   .mode-shell {
-    width: min(100%, calc(100% - 18px));
-    padding: 16px;
+    width: min(100%, calc(100% - 8px));
+    padding: 12px;
     border-radius: 26px;
   }
 
   .select-card {
-    min-height: 200px;
-    padding: 14px 14px 12px;
+    min-height: 174px;
+    padding: 10px 10px 40px;
     border-radius: 24px;
   }
 
@@ -515,47 +497,15 @@ const modeOptions = computed(() => [
     inset: 33% 15% 27%;
   }
 
-  .card-header {
-    top: 14px;
-    left: 14px;
-    right: 14px;
-  }
-
   .mode-badge {
-    width: 34px;
-    height: 34px;
+    width: 38px;
+    height: 38px;
     border-radius: 12px;
     font-size: 13px;
   }
 
-  .mode-copy strong {
-    font-size: 15px;
-  }
-
-  .mode-copy small {
-    font-size: 11px;
-  }
-
-  .card-track {
-    left: 16px;
-    right: 16px;
-    bottom: 42px;
-    gap: 3px;
-  }
-
-  .track-cell {
-    height: 8px;
-  }
-
   .card-footer {
-    left: 14px;
-    right: 14px;
-    bottom: 14px;
-    gap: 6px;
-  }
-
-  .foot-piece {
-    height: 6px;
+    bottom: 10px;
   }
 
   .avatar-icon {
